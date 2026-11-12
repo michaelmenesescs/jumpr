@@ -1,18 +1,48 @@
-# sitrep — Specification v0.1
+# sitrep — Specification v0.2
 
-> Working name. Agentless, client-side infrastructure debugging TUI.
-> Status: DRAFT for review · 2026-11-12 · Owner: Michael
+> Working name. An agentless, client-side **shell for SREs**: k9s + isd + tmux + Salt/Chef and Linux tooling in one
+> terminal, with nothing required on the servers.
+> Status: DRAFT for build · 2026-11-12 · Owner: Michael
+> How it gets built: `docs/BUILD-PLAN.md` (contracts, milestones) and `docs/tasks/` (one file per task).
+
+### Changelog
+
+**v0.2 (2026-11-12)** — after the mockup review (see `INTERVIEW.md`, "Follow-up"):
+
+- New framing: a shell tailored for an SRE that plugs into whatever (§1, §2).
+- New **multiplexer and session model**, tmux-style: sessions → windows → panes, prefix key, terminal panes,
+  guarded synchronized input, copy mode, detach/reattach through a client-side session server (§21). The v0.1
+  non-goal "no long-running daemons" now means "nothing long-running **on servers**" (§3).
+- **Salt** is much deeper and earlier: jobs, targeting compiler, state browser, pillar, mine, keys, events, Salt as
+  an execution transport, salt-ssh awareness (§8.6).
+- **systemd** parity with isd is spelled out (§8.1.1). `list-units` is parsed from plain text so one parser works
+  on every supported distro.
+- Kubernetes keeps k9s parity; exec opens in a terminal pane instead of taking over the TTY (§8.2).
+- Testing is built around a **local lab** (§22). All helper tooling is Go (§18).
+- Backend interface, package layout and dependency list moved to `BUILD-PLAN.md` (single source of truth).
+- Phase plan revised: multiplexer second, Salt fourth (§19).
+- Sections §1–§20 keep their v0.1 numbers; §21 and §22 are new.
+
+**v0.1 (2026-11-12)** — first draft from the interview.
 
 ---
 
 ## 1. Purpose
 
+**The selling point: it feels like k9s + isd-tui + tmux + the Salt and Chef CLIs + everyday Linux tools, and it
+needs nothing on the servers.** One central interface that you control, learn once, and operate any
+infrastructure through.
+
 One terminal tool you can rely on to debug infrastructure end to end: from an alert, to the hosts behind it, to the
 units, processes, sockets, logs and metrics on those hosts, to the pods on them, to the config management that put
 them there, and then to fix it. Each step keeps the full context, and everything you did is written down.
 
-It replaces juggling k9s, isd, Grafana tabs, Kibana tabs, `salt`/`knife` shells and ad-hoc `ssh` loops. It also
-remembers what you learned for next time.
+It replaces juggling k9s, isd, tmux layouts full of SSH sessions, Grafana tabs, Kibana tabs, `salt`/`knife` shells
+and ad-hoc `ssh` loops. It also remembers what you learned for next time.
+
+It is a **shell for SREs**, not a dashboard: the command bar (`:kind selector`, `:run`, `:salt …`) is the primary
+interface, panes hold whatever you need side by side (a table, a journal, a live shell on a node), and anything
+you can reach with SSH, a kubeconfig or an HTTP API can be plugged in as a backend or a YAML plugin.
 
 ### Problems it solves (from the interview)
 
@@ -37,12 +67,22 @@ remembers what you learned for next time.
 6. **Plain text is the record.** Investigations, knowledge and audit are Markdown files you own.
 7. **Powerful writes, guarded blast radius.** Full read/write like k9s, with built-in safeguards proportional to the
    target count.
+8. **Works like tmux.** Sessions, windows, split panes and a prefix key. A session survives closing the terminal.
+   The only background process is on the laptop (§21).
+9. **Plugs into whatever.** Backends and plugins are first-class: a new integration adds kinds, pivots and
+   actions without touching the UI, the multiplexer or the safety layer.
+10. **Borrow ergonomics people already know.** k9s for navigation, isd for systemd, tmux for panes and keys, the
+    Salt and knife CLIs for vocabulary. Do not invent a new habit where a good one exists.
 
 ## 3. Non-goals (v1)
 
 - Windows client support. Non-systemd or legacy (EL7 and older) nodes.
 - Being a monitoring system. It reads Prometheus, Elasticsearch and Grafana. It does not store time series.
-- Long-running daemons, a server component, or a web UI.
+- Anything long-running or installed **on servers**, a central server component, or a web UI. (A per-user session
+  server on the laptop is in scope since v0.2; see §21.)
+- Being a general-purpose terminal multiplexer. Panes exist to debug infrastructure; local shell panes are a
+  convenience, not a tmux replacement.
+- Multiple clients mirroring one session, and remote (network) attach.
 - Built-in LLM chat (deferred; see §17).
 - Replacing Salt or Chef. It drives their existing CLIs; it does not reimplement state logic.
 
@@ -59,6 +99,8 @@ remembers what you learned for next time.
 | Kubernetes via local kubeconfig | Use `client-go` with standard kubeconfig loading rules, including exec credential plugins |
 | Salt/Chef reachable via SSH to master/workstation | Backends run `salt … --out=json` / `knife … -F json` over SSH |
 | Work use; neutral | No employer names, hosts, or conventions in the repo. Examples use `example.internal` |
+| Sessions must survive closing the terminal | A per-user session server on the laptop over a unix socket (§21). Client side only |
+| One toolchain | Every helper and dev tool in the repo is written in Go (lab controller, fault injection, mock SSO proxy, example auth helpers, capture/sanitize, release). The Makefile only calls `go` |
 
 ## 5. Core workflows (acceptance scenarios)
 
@@ -75,8 +117,9 @@ identical output: "1,481 identical · 19 differ". Open the 19 and compare them.
 **W3 — Kubernetes debugging.** A k9s-equivalent for pods, deployments, nodes, events and logs. A pod's node can be
 opened as a host: `Enter` on the node gives the SSH host view of the same machine.
 
-**W4 — Config drift.** `:salt` against the target set: `state.apply test=True` (dry run) grouped by diff, or
-`knife node show` / last-run status per host.
+**W4 — Config drift.** `:salt state` against the target set: `state.apply test=True` (dry run) grouped by
+identical diff ("22 clean · 2 would change"), or `knife node show` / last-run status per host. Apply from the same
+view through the action bus.
 
 **W5 — Ad-hoc command.** `:run 'ss -s'` on the current target set. Output is grouped, logged, and can be saved as a
 YAML plugin in one keystroke.
@@ -84,11 +127,29 @@ YAML plugin in one keystroke.
 **W6 — "Have I seen this before?"** Opening any host, service, or alert shows matching knowledge notes and past
 investigations, ranked by relevance.
 
+**W7 — Work like tmux.** Split the window: hosts table on the left, a followed journal top right, an interactive
+shell on the bad node bottom right. Open a second window for the Salt job you started. Zoom a pane, copy a line
+out of the journal, detach, close the laptop lid, reattach later: the follow and the job are still there.
+
+**W8 — "What did Salt just do?"** `:jobs` shows running and recent jobs. Open one: returns per minion grouped as
+"41 identical · 2 differ · 1 no return". Pivot from a differing minion to its host view and journal for the same
+time window.
+
+**W9 — Same thing on many shells, safely.** With four shell panes open on four web hosts, compose one line and
+broadcast it: the line goes through the action bus (plan, confirm, canary pane first), and is recorded.
+
 ## 6. Architecture
 
+The diagram shows the logical layers. All of it runs in one process on the laptop: standalone, or inside the
+per-user session server with a thin client attached (§21). Package layout, Go interfaces and the dependency list
+are in `BUILD-PLAN.md` §3, §4 and §10.
+
 ```
-┌─────────────────────────────── TUI (Bubble Tea) ───────────────────────────────┐
-│  views · command bar · filters · panes · confirm dialogs · investigation side   │
+┌──────────────── Multiplexer: sessions · windows · panes · prefix key (§21) ─────┐
+│  each pane = a view stack (below)  or  a terminal (SSH shell / pod exec / local) │
+└───────────────▲─────────────────────────────────────────────────────────────────┘
+┌───────────────┴─────────────── TUI (Bubble Tea) ───────────────────────────────┐
+│  views · command bar · filters · confirm dialogs · investigation side panel     │
 └───────────────▲─────────────────────────────────────────────────▲──────────────┘
                 │ messages (async, never blocks)                  │
 ┌───────────────┴──────────────┐                    ┌─────────────┴──────────────┐
@@ -102,43 +163,18 @@ investigations, ranked by relevance.
    │linux   │k8s     │prom/am  │grafana  │elastic   │salt      │chef     │yaml plugins
 ┌──┴────────┴────────┴─────────┴─────────┴──────────┴──────────┴─────────┴───────┐
 │                               Transports                                       │
-│  SSH pool (bastion mux, sudo, batch exec)  ·  HTTP (Connection Profiles, auth)  │
+│  SSH pool (bastion mux, sudo, batch exec, PTY shells) · Salt (as executor) ·    │
+│  HTTP (Connection Profiles, auth)                                               │
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Go package layout
+### Package layout and dependencies
 
-```
-cmd/sitrep/                 main, flags, version
-internal/tui/               app model, views, components, keymap, theme
-internal/bus/               action bus, policy, confirmation, audit hooks
-internal/resource/          Kind, Resource, Ref, Link, Selector, TimeWindow, grouping
-internal/inventory/         sources + merge + identity resolution
-internal/transport/ssh/     pool, bastion mux, exec, batch scripts, sudo
-internal/transport/http/    connection profiles, proxies, auth helpers, TLS
-internal/backend/linux/     probes + parsers (systemd, journald, procfs, net, disk)
-internal/backend/k8s/       client-go wrapper, informers, kinds
-internal/backend/prom/      Prometheus + Alertmanager
-internal/backend/grafana/   dashboards, datasource queries
-internal/backend/elastic/   search, tail, index patterns
-internal/backend/salt/      salt CLI over SSH
-internal/backend/chef/      knife CLI over SSH
-internal/plugin/            YAML plugin loader, parsers (gojq, regex, columns, kv)
-internal/investigation/     timeline, markdown writer, knowledge index
-internal/config/            load/validate/merge, schema, secrets resolution
-internal/render/            tables, sparklines (braille), diffs, grouping display
-testdata/                   golden outputs from real distros (sanitized)
-```
-
-### Dependencies (keep it small)
-
-- `charmbracelet/bubbletea`, `bubbles`, `lipgloss`: TUI
-- `golang.org/x/crypto/ssh` (+ `agent`, `knownhosts`) and `kevinburke/ssh_config`: SSH
-- `k8s.io/client-go`: Kubernetes (the largest dependency; accepted)
-- `itchyny/gojq`: JSON queries in plugins and filters
-- `gopkg.in/yaml.v3`: config/plugins
-- `golang.org/x/net/proxy`: SOCKS5
-- Prometheus, Grafana, Elasticsearch and Alertmanager use **plain `net/http`** with small typed clients, not vendor SDKs.
+Moved to `BUILD-PLAN.md` §3 and §10 so there is one source of truth. Summary of the dependency policy: Bubble Tea
+v1 line, `golang.org/x/crypto/ssh`, `kevinburke/ssh_config`, `skeema/knownhosts`, `charmbracelet/x/vt` (terminal
+panes), `k8s.io/client-go` (largest; accepted), `itchyny/gojq`, `gopkg.in/yaml.v3`. Prometheus, Grafana,
+Elasticsearch and Alertmanager use plain `net/http` with small typed clients, not vendor SDKs. Nothing is added
+outside the list without asking.
 
 ## 7. Transports
 
@@ -149,8 +185,13 @@ testdata/                   golden outputs from real distros (sanitized)
 - Auth: ssh-agent (`SSH_AUTH_SOCK`), then key files (passphrase prompt inside the TUI), then keyboard-interactive.
   SSH certificates are supported through the agent.
 - **Bastion multiplexing:** one SSH client per bastion. Target hosts are dialled as `direct-tcpip` channels through
-  it. Settings: `max_conns_per_bastion` (default 4 parallel bastion clients) and `max_channels_per_conn` (default 8,
-  stays under the common sshd `MaxSessions=10`).
+  it. Settings: `max_conns_per_bastion` (default 4 parallel bastion clients) and `max_channels_per_conn` (default
+  8). sshd's `MaxSessions` (default 10) counts session channels, so it mainly bounds concurrent commands on one
+  **target** connection (sitrep uses at most 4); forwarded channels through a bastion are bounded by sitrep's own
+  limit to keep one TCP connection from becoming the bottleneck. `MaxStartups` on targets and bastions is
+  respected by ramping connects through the per-bastion semaphore. Both limits are tuned against the lab bastion.
+- **Interactive shells:** a terminal pane opens a session channel with a PTY (`xterm-256color`) on the pooled
+  connection to the host; resize follows the pane. Nothing is started on the node except the user's login shell.
 - **Global concurrency:** default 64 in-flight hosts, configurable. Each host has its own connect, exec and total
   timeouts.
 - **Connection reuse:** host connections stay idle-alive for 5 minutes (configurable). Keepalives are sent.
@@ -222,29 +263,24 @@ find-generic-password`), or a command. Plaintext secrets in the config produce a
 
 ## 8. Backends
 
-All backends implement:
+All backends implement the `Backend` interface (streaming `List`, `Get`, `Links` for pivots, `Health`), optionally
+`Watcher` for live updates, and `action.Planner` if they can write. The exact Go signatures are the contract in
+`BUILD-PLAN.md` §4.4–§4.5. In short: kinds and columns are declared as data, lists stream partial results per
+host, pivots are queries, and writes are never executed by a backend directly; a backend only **plans** steps that
+the action bus runs.
 
-```go
-type Backend interface {
-    Name() string
-    Kinds() []KindSpec                                      // resource kinds + columns
-    List(ctx, kind, Selector, TimeWindow) (<-chan Result)   // streaming, partial-ok
-    Get(ctx, Ref) (Resource, error)
-    Watch(ctx, kind, Selector) (<-chan Event, error)        // optional
-    Links(Resource) []Link                                  // pivots to other kinds
-    Actions(Resource) []ActionSpec                          // writes
-    Health(ctx) HealthStatus
-}
-```
+A backend reaches the world through a **transport**: SSH exec, an SSH PTY shell, Salt (as an executor), or an HTTP
+connection profile. Backends are compiled in; YAML plugins (§12) cover everything else.
 
 ### 8.1 Linux (SSH) — the deepest backend
 
-Probes run over SSH. JSON output is preferred where available on RHEL 8+ / Ubuntu 20.04+.
+Probes run over SSH. JSON output is used only where every supported distro has it (RHEL 8+ / Ubuntu 20.04+);
+otherwise one plain-text parser serves all.
 
 | Kind | Source |
 |---|---|
 | `host` (overview) | `/proc/loadavg`, `/proc/meminfo`, `/proc/pressure/*` (PSI), `/proc/stat`, `uptime`, `/etc/os-release`, `uname -r`, `systemctl is-system-running` |
-| `unit` | `systemctl list-units --all --output=json` (fallback `--plain --no-legend`), `systemctl show <u>` (props), `systemctl list-timers` |
+| `unit` | `systemctl list-units --all --plain --no-legend --no-pager` (JSON output needs systemd ≥ 246, which RHEL 8 and Ubuntu 20.04 lack), `systemctl show <u>` (props), `systemctl list-timers` |
 | `journal` | `journalctl -o json --since/--until -u … -p …` (window from Investigation), with follow mode |
 | `process` | `ps -eo pid,ppid,user,stat,pcpu,pmem,rss,etimes,comm,args --no-headers` + `/proc/<pid>/{status,limits,cgroup,fd}` on drill-in |
 | `socket` | `ss -tanpiOH` / `ss -uanpH` (incl. process, queues, rtt) |
@@ -258,6 +294,22 @@ Probes run over SSH. JSON output is preferred where available on RHEL 8+ / Ubunt
 Actions: `systemctl start|stop|restart|reload|enable|disable|mask|unmask`, `kill -SIGNAL`, `journalctl --vacuum-*`,
 `systemctl daemon-reload`, and the generic `:run` (arbitrary command, always treated as a write).
 
+#### 8.1.1 systemd — parity with isd
+
+| isd feature | sitrep |
+|---|---|
+| Unit list with fuzzy search | `:units [host]` — `/` filter; quick filters by state (`failed`, `active`, `inactive`) and type (`service`, `timer`, `socket`, `mount`, …); failed units sort first |
+| Status preview | Unit detail, tab **status**: `systemctl status <u> --no-pager -n 0` plus key properties (`ActiveState`, `SubState`, `Result`, `NRestarts`, `ExecMainStatus`, `MemoryCurrent`, `TasksCurrent`, `ActiveEnterTimestamp`) |
+| `show` | Tab **show**: all `systemctl show` properties, filterable |
+| `cat` | Tab **cat**: `systemctl cat <u>` with drop-ins marked |
+| Journal preview / follow | Tab **journal**, and `j`: `journalctl -u <u> -o json` for the time window; `w` follows |
+| Dependencies | Tab **deps**: `systemctl list-dependencies <u> --plain` and `--reverse` |
+| Timers | `:timers [host]`: `systemctl list-timers --all` with next/last run and the unit they trigger |
+| start/stop/restart/reload/enable/disable/mask | `x` actions, through the action bus |
+| Edit (drop-in override) | **Preview only in v1**: edit a drop-in locally, see the diff against `systemctl cat`, and get the exact commands that would apply it. Applying needs a remote file write, which v1 does not do (§20 open question) |
+| — (not in isd) | **Unit-file diff across hosts**: `:unitdiff <unit>` runs `systemctl cat` on the target set and groups identical files; `d` diffs a group against the majority |
+| — (not in isd) | Fleet view: the same unit across N hosts in one table (state, since, restarts) |
+
 ### 8.2 Kubernetes
 
 - `client-go` with the standard loading rules: `$KUBECONFIG` and `~/.kube/config`, contexts, exec auth plugins.
@@ -267,8 +319,9 @@ Actions: `systemctl start|stop|restart|reload|enable|disable|mask|unmask`, `kill
   discovery.
 - Informer-backed lists with live updates. Logs (follow, previous, all containers). Describe-equivalent views.
   YAML view.
-- Actions: delete, scale, rollout restart, cordon/uncordon/drain, exec shell (hands the TTY over to an interactive
-  `kubectl exec`-equivalent via the API), port-forward, edit (`$EDITOR`).
+- Actions: delete, scale, rollout restart, cordon/uncordon/drain, exec shell (opens a **terminal pane** attached to
+  the pod through the API, the equivalent of `kubectl exec -it`; it never takes over the whole TTY, so it works
+  when detached), port-forward, edit (`$EDITOR` in a local terminal pane).
 - **Pivot:** `node` → `host` (by node name, InternalIP, or a configurable mapping), and `host` → pods on that node.
 
 ### 8.3 Prometheus + Alertmanager

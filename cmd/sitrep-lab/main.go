@@ -320,6 +320,32 @@ func up(names []string) error {
 		fmt.Println("  ✓ kubeconfig → lab/.keys/kubeconfig (context sitrep-lab)")
 	}
 
+	if has(ms, "chef") {
+		fmt.Println("==> chef (chef-zero :8889 + knife)")
+		if err := parallel([]Machine{{Name: "chef"}}, "chef", func(Machine) (string, error) {
+			return orbRun("chef", script("chef"))
+		}); err != nil {
+			return err
+		}
+		chefIP, err := ipOf("chef")
+		if err != nil {
+			return err
+		}
+		var nodes []Machine
+		for _, m := range Machines {
+			if m.Role == "web" || m.Role == "db" {
+				nodes = append(nodes, m)
+			}
+		}
+		if err := parallel(nodes, "chef-node", func(m Machine) (string, error) {
+			return orbRun(m.Name, script("chef-node"), chefIP, m.Name, m.Role)
+		}); err != nil {
+			return err
+		}
+		out, _ := orbRun("chef", "cd /home/sre/chef-repo && sudo -u sre -H knife status 2>&1")
+		fmt.Print(indent(out))
+	}
+
 	if err := writeSSHConfig(); err != nil {
 		return err
 	}

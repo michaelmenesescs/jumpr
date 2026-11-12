@@ -16,3 +16,6 @@ go run ./cmd/sitrep-lab down [--stop]
 
 Generated, git-ignored: `lab/.keys/` (lab SSH key, known_hosts, kubeconfig), `lab/.logs/`, `lab/ssh_config`.
 Salt master: `sr-salt` (`orb -m sr-salt -u root salt '*' test.ping`). Grains: `role`, `dc=lab`. Nodegroups: `webs`, `k8s`.
+Chef: `sr-chef` runs chef-zero on :8889 with knife configured for user `sre` (`~/.cinc/config.rb`, repo in
+`~/chef-repo`). web-01..03 and db-01 are registered nodes (roles `web`/`db`); db-01's run fails on purpose so the
+"last run failed" signal exists. Use `knife status`, `knife node show web-01 -l -F json` on the workstation.
