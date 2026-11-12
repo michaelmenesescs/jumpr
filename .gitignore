@@ -2,3 +2,6 @@
 /dist/
 *.env
 .env*
+/lab/.keys/
+/lab/.logs/
+/lab/ssh_config
