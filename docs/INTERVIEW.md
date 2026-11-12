@@ -45,3 +45,20 @@ Process requested: interview → brainstorm → spec → build.
 - Elasticsearch is read-only in v1.
 - Generic auth = connection profiles + an "auth helper" exec protocol (JSON headers/cookies on stdout).
 - Blast-radius safety: canary + rolling batches; typed confirmation for more than 20 targets.
+
+## Follow-up — 2026-11-12 (after reviewing the clickable mockup)
+
+User approved moving forward ("ok let's try it"). New and sharpened requirements, in the user's words where possible:
+
+- "I want it to feel like **k9s + isd-tui + tools for Chef and Salt and general linux tools** with **no server
+  dependencies required**. That is the selling point."
+- "**It should work like tmux.**" → treat as a first-class requirement: windows, split panes, a prefix key, and
+  sessions that survive detach/reattach (client-side only; still nothing on the nodes).
+- "I'm basically **writing a shell tailored for an SRE**. It should be able to **plug into whatever**." One central
+  interface the user controls, learns, and operates any infra through, instead of relying on multiple tools.
+- "I feel like I can **leverage Salt a lot more**." → Salt gets deeper integration than the v0.1 spec (beyond
+  drift/grains), and should come earlier in the build order.
+- The tools named (k9s, isd-tui, tmux, Salt, Chef CLIs) are tools the user likes; borrow their ergonomics.
+- Process: a stronger model scopes the end-to-end build; a fast agent (Hermes running DeepSeek V4.1 Flash) does the
+  implementation; a **mock k8s cluster and dedicated lab infra** are set up locally so the tool can be tested and
+  refined against something real.
