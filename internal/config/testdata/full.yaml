@@ -1,0 +1,47 @@
+ui:
+  color: 256
+mux:
+  prefix: C-b
+  prefix_in_tmux: C-b
+  scrollback: 5000
+  max_sync_panes: 4
+ssh:
+  config_files: [~/.ssh/config, ~/.ssh/work_config]
+  known_hosts: [~/.ssh/known_hosts]
+  concurrency: 16
+  max_conns_per_bastion: 2
+  max_channels_per_conn: 4
+  connect_timeout: 5s
+  exec_timeout: 20s
+  idle_timeout: 10m
+  keepalive: 15s
+  max_output: 1048576
+inventory:
+  cache_ttl: 5m
+  sources:
+    - type: ssh_config
+    - type: static
+      path: ~/.config/sitrep/hosts.yaml
+    - type: salt
+  identity:
+    rewrites:
+      - from: '^(.*):9100$'
+        to: '$1'
+knowledge:
+  root: ~/sitrep
+rollout:
+  canary: 2
+  batch_percent: 20
+  batch_max: 100
+  failure_threshold_percent: 10
+  typed_confirm_over: 30
+salt:
+  master: salt-master.example.internal
+  sudo: false
+  timeout: 90s
+  poll_interval: 3s
+  list_chunk: 100
+  suggest_over: 150
+  allow_salt_ssh: true
+interact:
+  timeout: 3m

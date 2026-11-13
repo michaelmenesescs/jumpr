@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 002
 - **Parallel group:** M0-A (with 004, 008, 009)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Load `config.yaml` into typed structs with defaults and clear validation errors.

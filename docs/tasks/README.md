@@ -53,7 +53,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [001](001-repo-bootstrap.md) | Repo bootstrap: module, Makefile, pinned dependencies | — | — | done |
 | [002](002-errs.md) | Error taxonomy (`internal/errs`) | 001 | — | done |
-| [003](003-config.md) | Config paths, schema, loader, validation | 002 | M0-A | todo |
+| [003](003-config.md) | Config paths, schema, loader, validation | 002 | M0-A | done |
 | [004](004-selector-timewindow.md) | Selector and time-window parsers | 002 | M0-A | todo |
 | [005](005-resource-types.md) | Resource model types | 004 | — | todo |
 | [006](006-backend-registry.md) | Backend interface and registry | 005 | — | todo |

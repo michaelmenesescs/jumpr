@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 002 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 003 done; M0 in progress)_
 
 ## State
 
@@ -21,11 +21,18 @@ _Last updated: 2026-11-12 (task 002 done; M0 in progress)_
       separator; `Wrap(kind, op, nil)` stays non-nil with no cause. Table-driven tests cover formats, `errors.Is`
       unwrapping, copy semantics, and `KindOf` via direct, `%w`-wrapped and double-wrapped errors.
 
+- [x] **Task 003 done:** `internal/config` — `Config` with all eight sections and every key of BUILD-PLAN §11
+      (`yaml` tags, strict decode), `Default()`, `Duration` (go duration strings, `MarshalYAML` writes the
+      canonical `time.Duration.String()`), `Paths`/`ResolvePaths` (home injected, no env access), `ExpandHome`,
+      `Load(path, home)` (missing file → defaults, `KnownFields(true)`, every error `*errs.Error` kind `Config`
+      naming the file) and `Validate()` (prefix regex, positive limits/timeouts, `ui.color` set, source types,
+      static needs `path`, rewrites must compile). Testdata: `full.yaml`, `bad-prefix.yaml`.
+
 ## Next task
 
-**`docs/tasks/003-config.md`** (or any other M0-A task 003/004/008/009, which may run in parallel), then continue
-in numeric order. Tasks that share a parallel group in `docs/tasks/README.md` may be done concurrently; everything
-else is serial.
+**`docs/tasks/004-selector-timewindow.md`** (or another M0-A task 008/009, which may run in parallel), then
+continue in numeric order. Tasks that share a parallel group in `docs/tasks/README.md` may be done concurrently;
+everything else is serial.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -104,3 +111,7 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
 - 2026-11-12 — Task 002: `internal/errs`. Choice: `Is(nil, "")` is `true`, because task requirement 6 defines
   `Is` as literally `KindOf(err) == kind` and `KindOf(nil)` is `""`; the first test draft assumed otherwise and was
   corrected, not the code. `make check` green (`internal/errs` tests 1.3 s under `-race`).
+- 2026-11-12 — Task 003: `internal/config`. Choices: (1) `Load` expands `~` and then calls `Validate`, so a bad
+  value fails at load time with the file path attached; (2) `ssh.known_hosts` is `[]string` because §11's default
+  is `[]`; (3) `MarshalYAML` emits the canonical `time.Duration.String()` form (`5m` → `5m0s`), so the round-trip
+  test compares parsed durations, not source text. `make check` green (config tests 1.2 s under `-race`).
