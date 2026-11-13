@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 026, 027
 - **Parallel group:** — (serial; first Salt task)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A small, tolerant wrapper that builds `salt` / `salt-run` / `salt-key` command lines, runs them on the master
