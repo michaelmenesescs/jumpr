@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 053, 066
 - **Parallel group:** — (serial; needs the lab)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Real Salt CLI output in `testdata/salt/`, so every Salt parser is written against reality instead of memory.

@@ -137,7 +137,7 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [066](066-salt-runner.md) | Salt runner: run Salt CLIs on the master and decode their output | 026, 027 | — | done |
-| [067](067-salt-capture-goldens.md) | Capture Salt golden files from the lab (Go tool) | 053, 066 | — | todo |
+| [067](067-salt-capture-goldens.md) | Capture Salt golden files from the lab (Go tool) | 053, 066 | — | done |
 | [068](068-salt-minions-keys.md) | Salt backend skeleton: minions, keys, health | 066, 039 | M4-B | done |
 | [069](069-salt-grains-inventory.md) | Grains as an inventory source | 066, 039 | M4-B | done |
 | [070](070-salt-targeting-compiler.md) | Targeting compiler: jumper selectors ↔ Salt targets (pure) | 004, 066 | M4-A | done |
