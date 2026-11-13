@@ -173,6 +173,10 @@ func redirectKlog(log *slog.Logger) {
 	if log == nil {
 		return
 	}
+	// LogToStderr(false) is what actually keeps klog off stderr: SetOutput only
+	// moves the log files, and klog still mirrors to stderr by default, which
+	// would corrupt the TUI (BUILD-PLAN §6.1 rule 4).
+	klog.LogToStderr(false)
 	klog.SetOutput(&klogWriter{log: log})
 }
 

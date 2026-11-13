@@ -199,7 +199,9 @@ func (h *HTTP) Step(params map[string]string) action.Step {
 func (h *HTTP) parse(body []byte) ([]map[string]any, error) {
 	rows, err := Parse(h.def.Parse, body)
 	if err != nil {
-		return nil, errs.New(errs.KindOf(err), httpOp, fmt.Sprintf("plugin %q: response: %s", h.def.Name, err))
+		// Wrap, not New: KindOf would drop the cause and break errors.Is/As for
+		// the parser's Timeout/Canceled kinds.
+		return nil, errs.Wrap(errs.KindOf(err), httpOp, err).WithHost(h.def.Name)
 	}
 	return rows, nil
 }
