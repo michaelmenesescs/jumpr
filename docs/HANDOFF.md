@@ -390,3 +390,44 @@ laptop), verified with a one-shot query before the run was restarted.
 
 Capacity: 10 cores, ~11 GB free disk, and two long-lived CPU hogs (a 4-day `ffmpeg`, OrbStack) share the box, so the
 run is capped at `MAX_CONC=8`.
+
+## FINAL (2026-11-13): every task merged and verified
+
+**132 / 132 tasks done.** The overnight scheduler reached `DONE: everything <= 127 is merged` at
+09:25 and 144 merged before it. `main` is at `b023f64`.
+
+Verification that actually ran (Mac mini, final tree):
+
+| Check | Result |
+|---|---|
+| `make check` (gofmt + vet + `go test ./...` + build) | **exit 0, 43 packages ok** |
+| `go test -race -count=1 ./...` | **42 packages, exit 0, no FAIL** |
+| `go build ./cmd/jumper` | 5.7 s, **56 MB** binary (gate is 80 MB) |
+| `./jumper --demo` in a real PTY (120x34) | alt screen entered, `jumper main 0:* targets:0`, `host (1512)`, fake health dot, keystrokes accepted, clean exit (7,878 bytes) |
+| `jumper doctor` (temp HOME) | 13 checks, exit 0 |
+| `jumper doctor` with the real `~/.ssh/config` | 6 hosts parsed, bastions reported absent, host-key prompter rendered, dead host classified `timeout` |
+| **`make homelab-test` against a real Ubuntu 24.04.5 over SSH** | **all TestHomelab* PASS** — overview 9 sections / 2,325 bytes / **7 ms** (dial 28 ms, first byte 1 ms), 310 units (192 active), 50 journal entries, 24 probe commands proven read-only |
+
+The homelab target was an OrbStack Ubuntu 24.04 machine (`ssh jumper-lab`, 192.168.139.62) because
+the user's own Ubuntu box (100.120.74.69) was unreachable all morning — it accepted TCP, exchanged
+an SSH banner, then stopped answering the publickey packet, and later reset connections outright.
+Task 144's suite now skips cleanly on a silent node (`homelabSkipIfSilent`), so this is repeatable.
+
+**Bug the real host found:** the PSI probe section exited 1 on a kernel without `CONFIG_PSI`
+(`/proc/pressure/*` absent), so the overview reported a *failed* section instead of "not available".
+Fixed in `internal/backend/linux/probes.go` (`|| true` after the cat), commit `b023f64`.
+
+### Code review by Opus 5.5 and Fable 5.2
+`docs/plans/2026-11-13-code-review.md` holds both reviews, the three findings fixed in place, and the
+five tasks (154-158) that the rest become. The worst one both reviewers found independently is still
+open: re-attaching to a session can kick the *new* client (`internal/server/conn.go:125`), because
+`Session.Detach` does not identify which attachment it ends — fix is a generation number, task 154.
+
+### Process notes for the next session
+- The scheduler's merge step runs `git add -A && git commit --amend`: never leave an uncommitted
+  change on `main` while it runs, or it lands inside some task's commit (this happened once).
+- The gate now allows `go.sum` always and `go.mod` when every added line is `// indirect`; tasks that
+  really add a dependency must list `go.mod` under Files (105 and 115 do).
+- Worktrees and Go caches live on the Crucial X9 through the space-free `~/x9` symlink. A space in
+  `TMPDIR` breaks ssh known_hosts handling in the tests — do not point the caches at
+  `/Volumes/Crucial X9` directly.
