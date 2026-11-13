@@ -1,0 +1,15 @@
+readonly: false
+max_targets: 5
+protected:
+  - "env=prod role=db"
+  - protected
+deny:
+  - pattern: 'systemctl\s+(stop|disable|mask)\s+sshd'
+    reason: never cut off SSH
+  - spec: salt.key.delete
+    selector: "env=prod"
+    reason: key deletes in prod go through change management
+allow_root_transport: true
+shell_in_readonly: false
+sync:
+  raw: confirm

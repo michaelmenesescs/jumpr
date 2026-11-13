@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 055
 - **Parallel group:** M3-B (with 058)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Load `policy.yaml` and answer: is this plan allowed, and are any targets protected?
