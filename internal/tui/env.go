@@ -56,6 +56,23 @@ type Env struct {
 	// built-in alert investigation runs. The first one that returns true owns
 	// the key. The k8s backend opens the pods view this way once it exists.
 	AlertOpeners []func(resource.Resource) (tea.Cmd, bool)
+	// Execs are the transports a command may name with --via, keyed by name
+	// ("ssh", "salt"). internal/app fills it; nil means --via is refused.
+	Execs map[string]transport.Executor
+	// Salt is what the `:salt` commands and the --via hint read. The zero
+	// value means Salt is not configured.
+	Salt SaltOptions
+}
+
+// SaltOptions is the part of the Salt configuration the UI needs: the target
+// count above which the Salt transport is suggested, and whether the backend
+// is registered at all (salt.master set).
+type SaltOptions struct {
+	// SuggestOver is salt.suggest_over: a plan on more targets than this
+	// suggests --via salt. Zero never suggests.
+	SuggestOver int
+	// Configured is true when the Salt backend is registered.
+	Configured bool
 }
 
 // SessionState is the per-session context every pane shares. Only the root model mutates it.
@@ -65,4 +82,7 @@ type SessionState struct {
 	Window        resource.TimeWindow
 	Investigation *investigation.Meta // nil = none open
 	ReadOnly      bool
+	// saltUsed records that the Salt transport ran something in this
+	// session, so its job-cache warning is shown once.
+	saltUsed bool
 }

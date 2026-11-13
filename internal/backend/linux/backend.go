@@ -46,6 +46,9 @@ type Options struct {
 	Nonce       func() string
 	Now         func() time.Time
 	Log         *slog.Logger
+	// Links is asked for the pivots other backends offer for a row (host →
+	// salt minion). nil means none.
+	Links backend.LinkProvider
 }
 
 // Backend implements backend.Backend for Linux hosts reached over SSH.
@@ -58,6 +61,8 @@ type Backend struct {
 	nonce       func() string
 	now         func() time.Time
 	log         *slog.Logger
+	// links is Options.Links: the other backends' pivots for a row.
+	links backend.LinkProvider
 
 	mu      sync.Mutex
 	samples []bool // true = transport error; last healthSamples entries
@@ -77,6 +82,7 @@ func New(o Options) *Backend {
 		nonce:       o.Nonce,
 		now:         o.Now,
 		log:         o.Log,
+		links:       o.Links,
 	}
 	if b.timeout <= 0 {
 		b.timeout = defaultTimeout
@@ -335,6 +341,15 @@ func HostFactsOf(r resource.Resource) (HostFacts, bool) {
 	return f, true
 }
 
+// withExtra appends the pivots other backends offer for r. It is how a host row
+// gets its `salt minion` link without package linux importing package salt.
+func (b *Backend) withExtra(links []resource.Link, r resource.Resource) []resource.Link {
+	if b.links == nil {
+		return links
+	}
+	return append(links, b.links.ExtraLinks(r)...)
+}
+
 // Links returns the pivots from r: a host opens its overview on Enter, then its
 // units, processes, sockets and journal; a unit opens its journal.
 func (b *Backend) Links(r resource.Resource) []resource.Link {
@@ -354,7 +369,7 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 
 	switch kind {
 	case KindHost:
-		return []resource.Link{
+		return b.withExtra([]resource.Link{
 			{Label: "overview", Key: "enter", To: resource.Query{Kind: KindHostOverview, Hosts: hosts}},
 			{Label: "units", Key: "u", To: resource.Query{Kind: KindUnit, Hosts: hosts}},
 			{Label: "processes", Key: "p", To: resource.Query{Kind: KindProcess, Hosts: hosts}},
@@ -363,7 +378,7 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 			{Label: "mounts", Key: "m", To: resource.Query{Kind: KindMount, Hosts: hosts}},
 			{Label: "disks", Key: "D", To: resource.Query{Kind: KindDisk, Hosts: hosts}},
 			{Label: "interfaces", Key: "i", To: resource.Query{Kind: KindInterface, Hosts: hosts}},
-		}
+		}, r)
 	case KindUnit:
 		if r.Ref.Name == "" {
 			return nil

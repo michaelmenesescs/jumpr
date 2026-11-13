@@ -33,6 +33,9 @@ const (
 	SpecServiceRestart = "salt.service.restart"
 	// SpecCmdRun runs a command on the targets.
 	SpecCmdRun = "salt.cmd.run"
+	// SpecModuleRun runs any execution module function on the targets, as the
+	// user typed it: `:salt run <fun> [args…] [k=v…]`.
+	SpecModuleRun = "salt.module.run"
 	// SpecRefreshPillar refreshes the minions' pillar cache.
 	SpecRefreshPillar = "salt.saltutil.refresh_pillar"
 	// SpecSyncAll syncs custom modules, states and grains to the minions.
@@ -49,6 +52,12 @@ const (
 	ParamName = "name"
 	// ParamCmd is the command cmd.run executes.
 	ParamCmd = "cmd"
+	// ParamFun is the execution module function `salt.module.run` calls.
+	ParamFun = "fun"
+	// ParamArgs are the positional arguments of that function, space separated.
+	ParamArgs = "args"
+	// ParamKwargs are its keyword arguments, "k=v k=v".
+	ParamKwargs = "kwargs"
 )
 
 const (
@@ -353,6 +362,21 @@ func cmdRunSpec() action.Spec {
 	}
 }
 
+// moduleRunSpec runs any execution module function; the display is the full
+// Salt CLI line the step runs.
+func moduleRunSpec() action.Spec {
+	return action.Spec{
+		ID:    SpecModuleRun,
+		Title: "run function",
+		Risk:  action.RiskDestructive,
+		Params: []action.Param{
+			{Name: ParamFun, Title: "function", Required: true},
+			{Name: ParamArgs, Title: "args"},
+			{Name: ParamKwargs, Title: "kwargs (k=v …)"},
+		},
+	}
+}
+
 func refreshPillarSpec() action.Spec {
 	return action.Spec{ID: SpecRefreshPillar, Title: "refresh pillar", Risk: action.RiskNormal}
 }
@@ -372,7 +396,7 @@ func minionSpecs() []action.Spec {
 
 // actionSpecByID looks a spec up by its exact ID.
 func actionSpecByID(id string) (action.Spec, bool) {
-	for _, s := range append(minionSpecs(), jobKillSpec()) {
+	for _, s := range append(minionSpecs(), moduleRunSpec(), jobKillSpec()) {
 		if s.ID == id {
 			return s, true
 		}
@@ -554,12 +578,53 @@ func (b *Backend) callFor(spec action.Spec, params map[string]string) (Call, boo
 			return Call{}, false, 0, errs.New(errs.Config, "salt.Plan", "cmd.run needs a cmd")
 		}
 		return Call{Tool: toolSalt, Fun: "cmd.run", Args: []string{cmd}}, false, stepTimeout, nil
+	case SpecModuleRun:
+		return moduleRunCall(params)
 	case SpecRefreshPillar:
 		return Call{Tool: toolSalt, Fun: "saltutil.refresh_pillar"}, false, stepTimeout, nil
 	case SpecSyncAll:
 		return Call{Tool: toolSalt, Fun: "saltutil.sync_all"}, false, stepTimeout, nil
 	}
 	return Call{}, false, 0, errs.New(errs.Config, "salt.Plan", fmt.Sprintf("spec %q is not plannable", spec.ID))
+}
+
+// moduleRunCall builds the call of `salt.module.run` from its parameters: the
+// function, its positional arguments and its keyword arguments. Every word is
+// validated by Call.CommandLine, so nothing reaches a shell line unchecked.
+func moduleRunCall(params map[string]string) (Call, bool, time.Duration, error) {
+	fun := strings.TrimSpace(params[ParamFun])
+	if fun == "" {
+		return Call{}, false, 0, errs.New(errs.Config, "salt.Plan", "module.run needs a function")
+	}
+	call := Call{Tool: toolSalt, Fun: fun}
+	call.Args = strings.Fields(params[ParamArgs])
+	kwargs, err := parseKwargs(params[ParamKwargs])
+	if err != nil {
+		return Call{}, false, 0, err
+	}
+	call.Kwargs = kwargs
+	if _, err := call.CommandLine(); err != nil {
+		return Call{}, false, 0, err
+	}
+	return call, false, stepTimeout, nil
+}
+
+// parseKwargs turns "k=v k2=v2" into a keyword argument map.
+func parseKwargs(text string) (map[string]string, error) {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]string, len(fields))
+	for _, word := range fields {
+		k, v, ok := strings.Cut(word, "=")
+		if !ok || k == "" {
+			return nil, errs.New(errs.Config, "salt.Plan",
+				fmt.Sprintf("keyword argument %q is not k=v", word))
+		}
+		out[k] = v
+	}
+	return out, nil
 }
 
 // stateStepTimeout is the budget of one state apply step.
@@ -653,6 +718,8 @@ func planTitle(spec action.Spec, params map[string]string, minions []string) str
 		return fmt.Sprintf("restart %s on %s", strings.TrimSpace(params[ParamName]), subject)
 	case SpecCmdRun:
 		return fmt.Sprintf("run %s on %s", strings.TrimSpace(params[ParamCmd]), subject)
+	case SpecModuleRun:
+		return fmt.Sprintf("run %s on %s", strings.TrimSpace(params[ParamFun]), subject)
 	case SpecRefreshPillar:
 		return fmt.Sprintf("refresh pillar on %s", subject)
 	case SpecSyncAll:

@@ -773,6 +773,41 @@ func (r *Root) applyTargets(set targets.Set) {
 	r.routeMux(TargetsChangedMsg{Set: set})
 }
 
+// applySaltTargets is `:salt <native target>`: the set becomes the session
+// targets, the counts flash replaces the generic target flash, and the host
+// list opens on the mapped hosts.
+func (r *Root) applySaltTargets(m saltTargetsMsg) tea.Cmd {
+	r.applyTargets(m.Set)
+	var cmds []tea.Cmd
+	if m.Text != "" {
+		cmds = append(cmds, Flash(FlashInfo, "%s", m.Text))
+	}
+	if m.Query.Kind != "" {
+		if open := r.openQuery(OpenQueryMsg{Query: m.Query}); open != nil {
+			cmds = append(cmds, open)
+		}
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
+}
+
+// openSaltJob opens the grouped detail of the job `:salt ping` started and
+// reports what the transport did the first time it is used in a session.
+func (r *Root) openSaltJob(m saltPingMsg) tea.Cmd {
+	var cmds []tea.Cmd
+	if m.Unmapped > 0 {
+		cmds = append(cmds, Flash(FlashWarn, "%d targets are not salt minions", m.Unmapped))
+	}
+	if m.First {
+		cmds = append(cmds, Flash(FlashWarn, "%s", saltJobCacheWarning))
+	}
+	q := resource.Query{Kind: saltJobDetailKind, Args: map[string]string{"jid": m.JID}}
+	cmds = append(cmds, saltViewCmd(r.env, saltJobDetailKind, q))
+	return tea.Batch(cmds...)
+}
+
 // sessionTargets is the current target set; the zero set when there is no
 // session.
 func (r *Root) sessionTargets() targets.Set {
@@ -969,6 +1004,10 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 	case TargetsChangedMsg:
 		r.applyTargets(m.Set)
 		return Flash(FlashInfo, "%s", targetsFlash(m.Set))
+	case saltTargetsMsg:
+		return r.applySaltTargets(m)
+	case saltPingMsg:
+		return r.openSaltJob(m)
 	case TargetsViewRequestedMsg:
 		return r.pushFocused(r.targetsView())
 	case MarkedTargetsRequestMsg:

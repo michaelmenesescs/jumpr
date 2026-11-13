@@ -206,6 +206,31 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 	return out
 }
 
+// ExtraLinks returns the Salt pivots of a host row: the minion that manages it
+// and that minion's jobs. It is pure: the minion comes from the row's own
+// salt.id label, which the grains inventory source sets.
+func (b *Backend) ExtraLinks(r resource.Resource) []resource.Link {
+	if !isHostKind(r.Ref.Kind) {
+		return nil
+	}
+	id, ok := hostMinionRef(r)
+	if !ok {
+		return nil
+	}
+	return []resource.Link{
+		{
+			Label: "salt minion",
+			Key:   "M",
+			To:    resource.Query{Kind: KindMinion, Args: map[string]string{"minion": id}},
+		},
+		{
+			Label: "salt jobs for this host",
+			Key:   "J",
+			To:    resource.Query{Kind: KindJobs, Args: map[string]string{"minion": id}},
+		},
+	}
+}
+
 // Health reports the last manage.status result, refreshing it at most every
 // healthTTL with a healthTimeout deadline. Concurrent callers share one call.
 func (b *Backend) Health(ctx context.Context) backend.Health {

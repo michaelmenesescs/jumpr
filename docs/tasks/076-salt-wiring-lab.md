@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 068, 069, 072, 073, 075
 - **Parallel group:** — (serial; touches `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Salt is a first-class citizen in the running app. End of the first fully usable release (v0.5).

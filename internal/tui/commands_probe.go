@@ -31,7 +31,7 @@ func RegisterProbeCommands(c *Commands, open FanoutOpener) error {
 func probeCommand(open FanoutOpener) Command {
 	return Command{
 		Name:  "probe",
-		Usage: ":probe [<name>]",
+		Usage: ":probe [--via ssh|salt] [<name>]",
 		Help:  "list the read-only probes or run one on the targets",
 		Run: func(env *Env, args string) tea.Cmd {
 			return runProbe(env, args, open)
@@ -42,17 +42,55 @@ func probeCommand(open FanoutOpener) Command {
 	}
 }
 
+// probeUsage is the argument grammar shown on a parse error.
+const probeUsage = "usage: :probe [--via ssh|salt] [<name>]"
+
+// parseProbeArgs splits the leading --via flag from the probe name.
+func parseProbeArgs(args string) (via, name string, err error) {
+	rest := strings.TrimSpace(args)
+	for strings.HasPrefix(rest, "--via") {
+		flag, tail := splitFirstWord(rest)
+		var value string
+		if flag == "--via" {
+			if tail == "" {
+				return "", "", fmt.Errorf("--via needs ssh or salt; %s", probeUsage)
+			}
+			value, tail = splitFirstWord(tail)
+		} else {
+			if !strings.HasPrefix(flag, "--via=") {
+				break
+			}
+			value = strings.TrimPrefix(flag, "--via=")
+		}
+		switch value {
+		case "ssh", saltBackendName:
+			via = value
+		default:
+			return "", "", fmt.Errorf("unknown transport %q; %s", value, probeUsage)
+		}
+		rest = strings.TrimSpace(tail)
+	}
+	return via, rest, nil
+}
+
 // runProbe dispatches the `:probe` argument text. Nothing here blocks: the
 // catalog listing is a view push and a run hands the hosts and the command to
 // the fan-out view, which starts its own work in a tea.Cmd.
 func runProbe(env *Env, args string, open FanoutOpener) tea.Cmd {
-	args = strings.TrimSpace(args)
+	via, rest, err := parseProbeArgs(args)
+	if err != nil {
+		return Flash(FlashError, "%v", err)
+	}
+	args = rest
 	if args == "" {
+		if via != "" {
+			return Flash(FlashError, "%s", probeUsage)
+		}
 		return catalogPage(env)
 	}
-	name, rest := splitFirstWord(args)
-	if rest != "" {
-		return Flash(FlashError, "usage: :probe [<name>]")
+	name, extra := splitFirstWord(args)
+	if extra != "" {
+		return Flash(FlashError, "%s", probeUsage)
 	}
 	p, ok := catalogProbe(name)
 	if !ok {
@@ -66,9 +104,29 @@ func runProbe(env *Env, args string, open FanoutOpener) tea.Cmd {
 		return Flash(FlashError, "no fan-out view for probes")
 	}
 	cmd := transport.Command{Script: p.Cmd, Sudo: p.Sudo}
-	return func() tea.Msg {
-		return PushViewMsg{View: open(env, "probe "+p.Name, cmd, hosts, p.Normalize)}
+	viewEnv := env
+	var warn tea.Cmd
+	if via != "" {
+		ex := env.Execs[via]
+		if ex == nil {
+			return Flash(FlashError, "no transport %q configured", via)
+		}
+		// The fan-out runs through Env.Exec, so the chosen transport is a copy
+		// of the environment with that executor swapped in.
+		copied := *env
+		copied.Exec = ex
+		viewEnv = &copied
+		if via == saltBackendName && noteSaltUse(env) {
+			warn = Flash(FlashWarn, "%s", saltJobCacheWarning)
+		}
 	}
+	push := func() tea.Msg {
+		return PushViewMsg{View: open(viewEnv, "probe "+p.Name, cmd, hosts, p.Normalize)}
+	}
+	if warn == nil {
+		return push
+	}
+	return tea.Batch(warn, push)
 }
 
 // catalogPage pushes the catalog as a text view.

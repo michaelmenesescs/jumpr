@@ -13,9 +13,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"jumper/internal/action"
 	"jumper/internal/backend"
 	"jumper/internal/backend/fake"
 	"jumper/internal/backend/linux"
+	"jumper/internal/backend/salt"
+	"jumper/internal/bus"
+	"jumper/internal/bus/generic"
 	"jumper/internal/config"
 	"jumper/internal/interact"
 	"jumper/internal/inventory"
@@ -43,6 +47,17 @@ type built struct {
 	// Prompter is what the SSH handshakes ask through (host keys, passphrases);
 	// nil in --demo.
 	Prompter interact.Prompter
+
+	// actionBus is the only write path (BUILD-PLAN §4.5); nil in --demo.
+	actionBus bus.Bus
+	// planners are the write-capable backends, keyed by registration name.
+	planners map[string]action.Planner
+	// execs are the transports `--via` may name, keyed by "ssh"/"salt".
+	execs map[string]transport.Executor
+	// saltOpts is what the Salt commands read from the configuration.
+	saltOpts tui.SaltOptions
+	// closers release what build started and Close does not own otherwise.
+	closers []func()
 
 	ssh    *sshStack
 	bridge *uiBridge
@@ -88,7 +103,7 @@ func (b *built) buildDemo(cfg config.Config, o Options) error {
 	return b.finish(cfg, o, nil, nil, nil)
 }
 
-// buildReal assembles the SSH + Linux run.
+// buildReal assembles the SSH + Linux (+ Salt) run.
 func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log *slog.Logger) error {
 	b.Prompter = buildPrompter(cfg, o, b.bridge)
 
@@ -98,7 +113,18 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 	}
 	b.ssh = stack
 
-	sources, warns := inventorySources(cfg, stack.Resolver, o.Home)
+	// buildExecSet honours ssh.transports: hosts matching a rule go through the
+	// system ssh client instead of the native pool (SPEC §7.1).
+	ex, err := buildExecSet(cfg, o, stack, b.Paths, log)
+	if err != nil {
+		return err
+	}
+
+	// The Salt runner drives salt, salt-run and salt-key on the master over
+	// the same SSH transport. No master means no Salt at all.
+	runner := saltRunner(cfg, ex, log)
+
+	sources, warns := inventorySources(cfg, stack.Resolver, o.Home, runner)
 	for _, w := range warns {
 		b.bridge.Warning(w)
 	}
@@ -112,7 +138,7 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 	// (ssh_config, static): with no cache they are read once before the UI
 	// starts. Anything slower runs in the background, as the ticker in Run
 	// does for every later refresh.
-	if len(store.Hosts()) == 0 && len(sources) > 0 {
+	if len(store.Hosts()) == 0 && len(sources) > 0 && allLocal(sources) {
 		b.refreshInventorySync(ctx)
 	} else {
 		b.wg.Add(1)
@@ -122,12 +148,25 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 		}()
 	}
 
-	ex, err := buildExecSet(cfg, o, stack, b.Paths, log)
-	if err != nil {
-		return err
+	reg := backend.NewRegistry()
+
+	// The Salt backend is built first because the Linux backend asks it for
+	// the extra pivots of a host row (host → minion) through LinkProvider.
+	var (
+		saltBackend *salt.Backend
+		links       backend.LinkProvider
+	)
+	if runner != nil {
+		saltBackend = salt.New(salt.Options{
+			Runner:    runner,
+			Inventory: store,
+			Master:    resource.HostID(strings.TrimSpace(cfg.Salt.Master)),
+			Log:       log,
+		})
+		links = saltBackend
+		b.saltOpts = tui.SaltOptions{SuggestOver: cfg.Salt.SuggestOver, Configured: true}
 	}
 
-	reg := backend.NewRegistry()
 	lb := linux.New(linux.Options{
 		Exec:        ex,
 		Stream:      ex,
@@ -135,11 +174,27 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 		Concurrency: cfg.SSH.Concurrency,
 		Timeout:     cfg.SSH.ExecTimeout.Duration(),
 		Log:         log,
+		Links:       links,
 	})
 	if err := reg.Register(lb); err != nil {
 		return fmt.Errorf("register linux backend: %w", err)
 	}
 	b.Registry = reg
+
+	b.execs = map[string]transport.Executor{"ssh": ex}
+	if saltBackend != nil {
+		if err := reg.Register(saltBackend); err != nil {
+			return fmt.Errorf("register salt backend: %w", err)
+		}
+		saltExec := salt.NewExecutor(runner, saltBackend, salt.ExecOptions{
+			Chunk:   cfg.Salt.ListChunk,
+			Timeout: cfg.Salt.Timeout.Duration(),
+		})
+		b.execs["salt"] = saltExec
+		b.closers = append(b.closers, saltExec.Close)
+	}
+
+	b.wireBus(ctx, cfg, saltBackend, log)
 
 	if len(sources) == 0 {
 		b.bridge.Warning("no inventory sources: add inventory.sources (ssh_config or static) to config.yaml, or run with --demo")
@@ -147,6 +202,54 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 		b.bridge.Warning("inventory has no hosts: check inventory.sources (ssh_config aliases, static file path), or run with --demo")
 	}
 	return b.finish(cfg, o, b.Inventory, ex, ex)
+}
+
+// saltRunner builds the master's command runner, or nil when salt.master is
+// unset (Salt unconfigured, BUILD-PLAN §11).
+func saltRunner(cfg config.Config, ex transport.Executor, log *slog.Logger) *salt.Runner {
+	master := strings.TrimSpace(cfg.Salt.Master)
+	if master == "" {
+		return nil
+	}
+	return salt.NewRunner(ex, resource.HostID(master), salt.RunnerOptions{
+		Sudo:    cfg.Salt.Sudo,
+		Timeout: cfg.Salt.Timeout.Duration(),
+		Log:     log,
+	})
+}
+
+// wireBus builds the action bus and registers every planner: the generic `:run`
+// one over the transports, and Salt's when a master is configured.
+func (b *built) wireBus(ctx context.Context, cfg config.Config, saltBackend *salt.Backend, log *slog.Logger) {
+	busOpts := bus.Options{
+		Now:     time.Now,
+		Log:     log,
+		Context: ctx,
+		Rollout: bus.RolloutConfig{
+			Canary:                  cfg.Rollout.Canary,
+			BatchPercent:            cfg.Rollout.BatchPercent,
+			BatchMax:                cfg.Rollout.BatchMax,
+			FailureThresholdPercent: cfg.Rollout.FailureThresholdPercent,
+			TypedConfirmOver:        cfg.Rollout.TypedConfirmOver,
+		},
+	}
+	b.actionBus = bus.New(busOpts)
+	b.planners = make(map[string]action.Planner, 2)
+	// One planner instance per name: the bus and the actions menu must see the
+	// same one.
+	runPlanner := generic.New(b.execs, "ssh")
+	if err := b.actionBus.Register("generic", runPlanner); err != nil {
+		b.bridge.Warning("action bus: " + err.Error())
+	} else {
+		b.planners["generic"] = runPlanner
+	}
+	if saltBackend != nil {
+		if err := b.actionBus.Register("salt", saltBackend); err != nil {
+			b.bridge.Warning("action bus: " + err.Error())
+		} else {
+			b.planners["salt"] = saltBackend
+		}
+	}
 }
 
 // finish builds the Env, the command registry and the root model. ex and shells
@@ -175,6 +278,14 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 		Now:       time.Now,
 		Factories: make(map[resource.KindName]tui.Factory),
 		Log:       b.Logger,
+		// The write path and what `--via` may name (M3/M4).
+		Bus:      b.actionBus,
+		Planners: b.planners,
+		Execs:    b.execs,
+		Salt:     b.saltOpts,
+		ResultsView: func(env *tui.Env, title string, results []action.StepResult) tui.View {
+			return views.NewFanoutFromResults(env, title, results)
+		},
 	}
 	for kind, f := range views.Factories() {
 		env.Factories[kind] = f
@@ -189,12 +300,29 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 	if err := tui.RegisterHealthCommands(cmds); err != nil {
 		return err
 	}
+	// `:run` and `:probe` write through the bus or the chosen transport; the
+	// Salt family adds targets, the dry run, module runs and ping.
+	if err := tui.RegisterRunCommands(cmds, b.actionBus); err != nil {
+		return err
+	}
+	if err := tui.RegisterProbeCommands(cmds, fanoutOpener); err != nil {
+		return err
+	}
+	if err := tui.RegisterSaltCommands(cmds, b.actionBus); err != nil {
+		return err
+	}
 
 	// Requirement 3: the session opens on the host list when the inventory has
 	// hosts. With none it still opens there and the warning above says how to
 	// add some; there is no other view to start in.
 	b.Root = tui.NewRoot(env, cmds, tableFactory, resource.Query{Kind: linux.KindHost}, prefix)
 	return nil
+}
+
+// fanoutOpener builds the grouped fan-out view a `:probe` run opens. It is a
+// closure around views.NewFanout because package tui injects the opener.
+func fanoutOpener(env *tui.Env, title string, cmd transport.Command, hosts []resource.HostID, normalize func(string) string) tui.View {
+	return views.NewFanout(env, title, cmd, hosts, normalize)
 }
 
 // Close stops the background inventory work and shuts the connection pool down.
@@ -208,6 +336,9 @@ func (b *built) Close() error {
 			b.cancel()
 		}
 		b.wg.Wait()
+		for _, close := range b.closers {
+			close()
+		}
 		if b.ssh != nil {
 			b.closeErr = b.ssh.Close()
 		}
@@ -272,8 +403,9 @@ func buildPrompter(cfg config.Config, o Options, bridge *uiBridge) interact.Prom
 }
 
 // inventorySources builds the sources cfg declares. A type this build cannot
-// serve yet is skipped with a warning instead of failing the start.
-func inventorySources(cfg config.Config, resolver *ssh.Resolver, home string) ([]inventory.Source, []string) {
+// serve yet is skipped with a warning instead of failing the start. runner is
+// the Salt master's runner; a salt source without one is skipped.
+func inventorySources(cfg config.Config, resolver *ssh.Resolver, home string, runner *salt.Runner) ([]inventory.Source, []string) {
 	var out []inventory.Source
 	var warns []string
 	for _, src := range cfg.Inventory.Sources {
@@ -290,11 +422,29 @@ func inventorySources(cfg config.Config, resolver *ssh.Resolver, home string) ([
 			})
 		case "static":
 			out = append(out, inventory.NewStaticSource(config.ExpandHome(src.Path, home)))
+		case "salt":
+			if runner == nil {
+				warns = append(warns, "inventory: salt source needs salt.master; skipped")
+				continue
+			}
+			out = append(out, salt.NewSource(runner))
 		default:
 			warns = append(warns, fmt.Sprintf("inventory: source type %q is not wired yet; skipped", src.Type))
 		}
 	}
 	return out, warns
+}
+
+// allLocal reports whether every source reads a local file, so the first
+// refresh is safe to run before the UI starts. The Salt source asks the master
+// over SSH, so it never is.
+func allLocal(sources []inventory.Source) bool {
+	for _, s := range sources {
+		if s.Name() == "salt" {
+			return false
+		}
+	}
+	return true
 }
 
 // inventoryRewrites compiles the identity rewrites of the config. Validation has

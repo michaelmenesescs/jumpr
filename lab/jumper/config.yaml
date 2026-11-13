@@ -27,6 +27,10 @@ ssh:
 inventory:
   sources:
     - type: ssh_config
+    # Grains from the master's cache: adds the salt.* labels (salt.role, salt.dc,
+    # salt.os) the M4 demo selectors (`:hosts salt.role=web`) use. Read over SSH,
+    # never from the minions.
+    - type: salt
 
 salt:
   master: salt.lab.example.internal

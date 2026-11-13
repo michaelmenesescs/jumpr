@@ -192,6 +192,16 @@ func proposeRun(env *Env, b bus.Bus, a runArgs) tea.Cmd {
 		Actor:   action.Human,
 	}
 	noRollout := a.noRollout
+	viaSalt := a.via == saltBackendName
+	// The hint and the once-per-session warning are decided here, in the model
+	// goroutine; the health check and the planning run in the command.
+	hint := ""
+	first := false
+	if a.via == "" {
+		hint = saltSuggestHint(env, len(hosts))
+	} else if viaSalt {
+		first = noteSaltUse(env)
+	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), runProposeTimeout)
 		defer cancel()
@@ -201,6 +211,12 @@ func proposeRun(env *Env, b bus.Bus, a runArgs) tea.Cmd {
 		}
 		if noRollout {
 			p = applyNoRollout(p)
+		}
+		if first {
+			p = saltPlanWarning(p, first)
+		}
+		if hint != "" && saltHealthy(ctx, env) {
+			p.Plan.Warnings = append(p.Plan.Warnings, hint)
 		}
 		return OpenDialogMsg{Dialog: newRunPlanDialog(b, env, p)}
 	}
