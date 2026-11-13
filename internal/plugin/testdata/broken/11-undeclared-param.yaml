@@ -1,0 +1,9 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: undeclared-param
+target: host
+command: lbctl members {{ .Param "pool" }}
+parse:
+  type: lines
+view:
+  columns: [line]

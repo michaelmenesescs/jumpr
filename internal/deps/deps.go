@@ -15,6 +15,7 @@ import (
 	_ "github.com/charmbracelet/x/vt"
 	_ "github.com/creack/pty"
 	_ "github.com/gliderlabs/ssh"
+	_ "github.com/itchyny/gojq"
 	_ "github.com/kevinburke/ssh_config"
 	_ "github.com/mattn/go-runewidth"
 	_ "github.com/pmezard/go-difflib/difflib"

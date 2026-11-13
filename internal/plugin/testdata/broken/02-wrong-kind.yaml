@@ -1,0 +1,9 @@
+apiVersion: jumper/v1
+kind: Widget
+name: wrong-kind
+target: host
+command: uptime
+parse:
+  type: lines
+view:
+  columns: [line]

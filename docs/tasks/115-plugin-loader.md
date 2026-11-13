@@ -3,7 +3,7 @@
 - **Milestone:** M10
 - **Depends on:** 065
 - **Parallel group:** M10-A (with 113)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Load `~/.config/jumper/plugins/*.yaml` (SPEC §12) into validated definitions with helpful errors.

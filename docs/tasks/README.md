@@ -215,7 +215,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [113](113-chef-reads.md) | Chef backend: knife runner, nodes, status, inventory | 065 | M10-A | done |
 | [114](114-chef-drift-actions.md) | Chef drift signals and `chef-client` through the bus | 113, 061 | — | todo |
-| [115](115-plugin-loader.md) | YAML plugin schema, loader, validation | 065 | M10-A | todo |
+| [115](115-plugin-loader.md) | YAML plugin schema, loader, validation | 065 | M10-A | done |
 | [116](116-plugin-parsers.md) | Plugin output parsers | 115 | — | todo |
 | [117](117-plugin-integration.md) | Plugins as kinds, links and actions; save `:run` as a plugin | 116, 063 | M10-B | todo |
 | [118](118-plugin-http.md) | HTTP plugins and plugin inventory sources | 116, 099 | M10-B | todo |

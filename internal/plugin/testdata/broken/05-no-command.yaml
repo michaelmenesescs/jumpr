@@ -1,0 +1,9 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: no-command
+description: a host plugin with nothing to run
+target: host
+parse:
+  type: lines
+view:
+  columns: [line]

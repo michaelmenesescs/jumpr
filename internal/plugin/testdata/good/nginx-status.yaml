@@ -1,0 +1,24 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: nginx-status
+description: nginx worker + connection summary
+target: host                    # host | k8s | http | inventory
+privileged: true                # run with sudo -n
+command: |
+  nginx -T 2>/dev/null | grep -E '^\s*(worker_processes|listen)' ;
+  ss -Htanp state established '( sport = :443 )' | wc -l
+parse:
+  type: regex                   # json | jq | regex | columns | kv | lines | raw
+  pattern: '^\s*(?P<directive>\w+)\s+(?P<value>[^;]+);'
+view:
+  columns: [directive, value]
+  group_by_output: true         # fan-out grouping
+links:
+  - label: journal
+    to: journal
+    args: { unit: nginx.service }
+actions:
+  - name: reload
+    command: systemctl reload nginx
+    privileged: true
+    confirm: true

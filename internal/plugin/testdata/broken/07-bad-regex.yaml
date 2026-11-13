@@ -1,0 +1,10 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: bad-regex
+target: host
+command: uptime
+parse:
+  type: regex
+  pattern: '^\s*(?P<directive>\w+\s+[^;]+;'
+view:
+  columns: [directive]

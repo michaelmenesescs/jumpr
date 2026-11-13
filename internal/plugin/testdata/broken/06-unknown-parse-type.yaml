@@ -1,0 +1,9 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: csv-parse
+target: host
+command: uptime
+parse:
+  type: csv
+view:
+  columns: [line]

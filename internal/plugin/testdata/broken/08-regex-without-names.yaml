@@ -1,0 +1,10 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: unnamed-groups
+target: host
+command: uptime
+parse:
+  type: regex
+  pattern: '^\s*(\w+)\s+([^;]+);'
+view:
+  columns: [directive]

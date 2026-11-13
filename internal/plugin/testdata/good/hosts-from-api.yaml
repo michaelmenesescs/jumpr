@@ -1,0 +1,12 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: hosts-from-api
+description: inventory served by the host API
+target: inventory
+connection: corp-sso
+request:
+  method: GET
+  url: https://inv-api.example.internal/v1/hosts
+parse:
+  type: json
+view: { columns: [name, address] }
