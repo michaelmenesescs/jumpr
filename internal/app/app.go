@@ -64,6 +64,11 @@ func Run(ctx context.Context, o Options) (err error) {
 		return err
 	}
 
+	prefix, err := tui.PrefixKey(cfg.Mux.Prefix, cfg.Mux.PrefixInTmux, o.Env["TMUX"] != "")
+	if err != nil {
+		return err
+	}
+
 	env := &tui.Env{
 		Registry:  reg,
 		Session:   &tui.SessionState{Name: "main"},
@@ -78,8 +83,11 @@ func Run(ctx context.Context, o Options) (err error) {
 	}
 	cmds := tui.NewCommands()
 	tui.RegisterBuiltins(cmds)
+	if err := tui.RegisterMuxCommands(cmds); err != nil {
+		return err
+	}
 
-	root := tui.NewRoot(env, cmds, tableFactory, resource.Query{Kind: "host"})
+	root := tui.NewRoot(env, cmds, tableFactory, resource.Query{Kind: "host"}, prefix)
 
 	p := tea.NewProgram(root,
 		tea.WithInput(o.In),

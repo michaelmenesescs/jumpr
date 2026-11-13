@@ -25,6 +25,12 @@ import (
 // plain text.
 func newRoot(t *testing.T, q resource.Query) *tui.Root {
 	t.Helper()
+	return newRootWithPrefix(t, q, "ctrl+a")
+}
+
+// newRootWithPrefix is newRoot with an explicit prefix key.
+func newRootWithPrefix(t *testing.T, q resource.Query, prefix string) *tui.Root {
+	t.Helper()
 	theme.SetProfile("none")
 	reg := backend.NewRegistry()
 	if err := reg.Register(fake.New(fake.Options{})); err != nil {
@@ -38,9 +44,15 @@ func newRoot(t *testing.T, q resource.Query) *tui.Root {
 		Now:       time.Now,
 		Factories: make(map[resource.KindName]tui.Factory),
 	}
+	for _, spec := range reg.Kinds() {
+		env.Factories[spec.Name] = tableFactory
+	}
 	cmds := tui.NewCommands()
 	tui.RegisterBuiltins(cmds)
-	return tui.NewRoot(env, cmds, tableFactory, q)
+	if err := tui.RegisterMuxCommands(cmds); err != nil {
+		t.Fatalf("register mux commands: %v", err)
+	}
+	return tui.NewRoot(env, cmds, tableFactory, q, prefix)
 }
 
 // tableFactory is the same closure internal/app passes to the root.
@@ -220,11 +232,117 @@ func TestRootViewSize(t *testing.T) {
 		}
 	}
 
-	// The layout is status (1), crumbs (1), body, flash/cmd (1), hints (1).
+	// The layout is status (1), body, flash/cmd (1), hints (1).
 	if !strings.Contains(lines[0], "main") {
 		t.Fatalf("status line is %q, want the session name", lines[0])
 	}
 	if !strings.Contains(lines[1], "host (0)") {
 		t.Fatalf("crumb line is %q, want \"host (0)\" before the first stream", lines[1])
+	}
+}
+
+// sendPrefix sends the prefix key and then one key after it.
+func sendPrefix(t *testing.T, tm *teatest.TestModel, key string) {
+	t.Helper()
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlA})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
+}
+
+func TestRootSplitShowsTwoPanes(t *testing.T) {
+	tm := start(t, newRoot(t, resource.Query{Kind: "host", Hosts: ewrHosts(24)}))
+	waitFor(t, tm, "web-ewr-007")
+
+	sendPrefix(t, tm, "%")
+	waitFor(t, tm, "1:host", "2:host")
+
+	screen := finish(t, tm)
+	if !strings.Contains(screen, "1:host") {
+		t.Fatalf("split screen has no first pane title:\n%s", screen)
+	}
+	if !strings.Contains(screen, "2:host") {
+		t.Fatalf("split screen has no second pane title:\n%s", screen)
+	}
+}
+
+func TestRootCommandInSecondPane(t *testing.T) {
+	tm := start(t, newRoot(t, resource.Query{Kind: "host", Hosts: ewrHosts(24)}))
+	waitFor(t, tm, "web-ewr-007")
+
+	sendPrefix(t, tm, "%")
+	waitFor(t, tm, "2:host")
+
+	tm.Type(":alerts")
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	waitFor(t, tm, "HighErrorRate")
+
+	screen := finish(t, tm)
+	if !strings.Contains(screen, "HighErrorRate") {
+		t.Fatalf("focused pane did not switch to alerts:\n%s", screen)
+	}
+	if !strings.Contains(screen, "web-ewr-") {
+		t.Fatalf("the other pane no longer shows hosts:\n%s", screen)
+	}
+}
+
+func TestRootNewWindowTabs(t *testing.T) {
+	tm := start(t, newRoot(t, resource.Query{Kind: "host", Hosts: ewrHosts(24)}))
+	waitFor(t, tm, "web-ewr-007", "0:*")
+
+	sendPrefix(t, tm, "c")
+	waitFor(t, tm, "1:*", "0:")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlA})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("0")})
+	waitFor(t, tm, "0:*")
+
+	screen := finish(t, tm)
+	status := strings.Split(screen, "\n")[0]
+	if !strings.Contains(status, "0:*") {
+		t.Fatalf("status line is %q, want window 0 active", status)
+	}
+}
+
+func TestRootZoom(t *testing.T) {
+	tm := start(t, newRoot(t, resource.Query{Kind: "host", Hosts: ewrHosts(24)}))
+	waitFor(t, tm, "web-ewr-007")
+
+	sendPrefix(t, tm, "%")
+	waitFor(t, tm, "2:host")
+
+	sendPrefix(t, tm, "z")
+	waitFor(t, tm, "0: Z")
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlA})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("z")})
+	waitFor(t, tm, "host (")
+	screen := finish(t, tm)
+	if strings.Contains(screen, "0: Z") {
+		t.Fatalf("status line still marks the window zoomed:\n%s", screen)
+	}
+}
+
+// waitForGone is deliberately not used: teatest accumulates output, so an
+// absence can only be asserted on the final screen.
+func TestRootKillPaneReturnsToOne(t *testing.T) {
+	tm := start(t, newRoot(t, resource.Query{Kind: "host", Hosts: ewrHosts(24)}))
+	waitFor(t, tm, "web-ewr-007")
+
+	sendPrefix(t, tm, "%")
+	waitFor(t, tm, "2:host")
+
+	sendPrefix(t, tm, "x")
+
+	// Keys are handled in order, so waiting for the help dialog that "?" opens
+	// proves the kill key before it was processed.
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
+	waitFor(t, tm, "Panes and windows")
+	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
+
+	screen := finish(t, tm)
+	if strings.Contains(screen, "2:host") {
+		t.Fatalf("killed pane is still drawn:\n%s", screen)
+	}
+	if !strings.Contains(screen, "host (") {
+		t.Fatalf("surviving pane is gone:\n%s", screen)
 	}
 }
