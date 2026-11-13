@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 029, 022
 - **Parallel group:** M2-F (with 053)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 When SSH needs the user (unknown host key, encrypted key), a modal dialog appears; background work waits for the

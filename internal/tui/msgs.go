@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/backend"
+	"jumper/internal/interact"
 	"jumper/internal/resource"
 )
 
@@ -80,6 +81,14 @@ type LinesMsg struct {
 	Lines  []string
 	Closed bool
 	Err    error
+}
+
+// Interaction requests from non-UI code (host key, passphrase). The root shows
+// a dialog above everything else and replies on Reply, which is buffered by
+// one so the answer never blocks.
+type PromptMsg struct {
+	Prompt interact.Prompt // package internal/interact
+	Reply  chan<- interact.Answer
 }
 
 // Constructors returning tea.Cmd.

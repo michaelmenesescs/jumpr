@@ -42,6 +42,8 @@ type Root struct {
 	prefix  string
 	bar     *CmdBar
 	dialog  Dialog
+	prompt  Dialog   // interactive question (host key, passphrase); above dialog
+	pending []Dialog // questions that arrived while prompt was on screen
 	w, h    int
 
 	flash    FlashMsg
@@ -215,6 +217,13 @@ func (r *Root) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
+	if r.prompt != nil {
+		// A prompt owns every key: it is the one thing a background job is
+		// waiting for. It answers esc itself (reject / cancel).
+		d, cmd := r.prompt.Update(k)
+		r.prompt = d
+		return cmd
+	}
 	if r.dialog != nil {
 		// A modal is dismissed with esc whatever it shows; closing it here
 		// rather than through CloseDialog keeps the dismissal immediate.
@@ -345,8 +354,14 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 	case tea.QuitMsg:
 		return tea.Quit
 	case CloseDialogMsg:
+		if r.prompt != nil {
+			r.prompt = r.nextPrompt()
+			return nil
+		}
 		r.dialog = nil
 		return nil
+	case PromptMsg:
+		return r.showPrompt(m)
 	case OpenDialogMsg:
 		r.dialog = m.Dialog
 		return nil
@@ -392,6 +407,29 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		return r.pushFocused(r.kindsView())
 	}
 	return r.routeMux(msg)
+}
+
+// showPrompt puts an interactive question on screen, above any dialog. A
+// question that arrives while another is up waits its turn; Ask serializes
+// callers anyway, so this only guards against a second source.
+func (r *Root) showPrompt(m PromptMsg) tea.Cmd {
+	d := NewInteractDialog(themeOf(r.env), m.Prompt, m.Reply)
+	if r.prompt != nil {
+		r.pending = append(r.pending, d)
+		return nil
+	}
+	r.prompt = d
+	return nil
+}
+
+// nextPrompt pops the next queued question, or returns nil when none is left.
+func (r *Root) nextPrompt() Dialog {
+	if len(r.pending) == 0 {
+		return nil
+	}
+	d := r.pending[0]
+	r.pending = r.pending[1:]
+	return d
 }
 
 // pushFocused pushes v onto the focused pane's view stack.
@@ -623,7 +661,10 @@ func (r *Root) View() string {
 
 	out := render.FitWith(r.glyphs(), b.String(), w, h)
 	if r.dialog != nil {
-		return RenderDialog(themeOf(r.env), r.dialog, w, h, out)
+		out = RenderDialog(themeOf(r.env), r.dialog, w, h, out)
+	}
+	if r.prompt != nil {
+		out = RenderDialog(themeOf(r.env), r.prompt, w, h, out)
 	}
 	return out
 }
