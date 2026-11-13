@@ -1,0 +1,35 @@
+Host target
+    HostName target.example.internal
+    ProxyJump hop2
+
+Host hop2
+    HostName hop2.example.internal
+    User jumpuser
+    ProxyJump jumper1@hop1:2200
+
+Host hop1
+    HostName hop1.example.internal
+
+Host two
+    ProxyJump hop1,hop2b
+
+Host hop2b
+    HostName hop2b.example.internal
+
+Host loopa
+    ProxyJump loopb
+Host loopb
+    ProxyJump loopa
+
+Host c1
+    ProxyJump c2
+Host c2
+    ProxyJump c3
+Host c3
+    ProxyJump c4
+Host c4
+    ProxyJump c5
+Host c5
+    ProxyJump c6
+Host c6
+    HostName c6.example.internal

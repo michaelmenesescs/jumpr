@@ -1,0 +1,21 @@
+Host bastion
+    HostName bastion.example.internal
+    User ops
+    Port 2222
+    IdentityFile ~/.ssh/id_%h
+    IdentityFile /keys/%r_%p
+    IdentitiesOnly yes
+    UserKnownHostsFile ~/.ssh/kh_%h /tmp/kh2
+    StrictHostKeyChecking accept-new
+    ConnectTimeout 7
+    ServerAliveInterval 15
+
+Host plain
+    HostName 10.0.0.5
+
+Host viapc
+    HostName pc.example.internal
+    ProxyCommand ssh -W %h:%p bastion
+
+Host nojump
+    ProxyJump none

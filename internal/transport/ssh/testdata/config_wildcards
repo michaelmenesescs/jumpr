@@ -1,0 +1,11 @@
+Host *.lab.example.internal
+    User sre
+
+Host web-1 web-2 !web-3 *.skip ?x
+    Port 2200
+
+Host db-1
+    User dba
+
+Host *
+    StrictHostKeyChecking yes
