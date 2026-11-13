@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"io"
+	"jumper/internal/testload"
 	"strings"
 	"sync"
 	"testing"
@@ -82,7 +83,7 @@ func TestStreamCloseStopsRemote(t *testing.T) {
 		if string(line) != "first" {
 			t.Fatalf("first line = %q, want %q", line, "first")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testload.Scale(5 * time.Second)):
 		t.Fatal("no line arrived from the remote command")
 	}
 
@@ -107,7 +108,7 @@ func TestStreamCloseStopsRemote(t *testing.T) {
 		if got.res.Host != f.host {
 			t.Fatalf("result = %+v, want the host filled", got.res)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testload.Scale(5 * time.Second)):
 		t.Fatal("Wait did not return after Close")
 	}
 
@@ -120,7 +121,7 @@ func TestStreamCloseStopsRemote(t *testing.T) {
 	}()
 	select {
 	case <-closedLines:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testload.Scale(5 * time.Second)):
 		t.Fatal("Lines was not closed after Close")
 	}
 	if s := f.pool.Stats(); s.Leases != 0 {
@@ -130,7 +131,7 @@ func TestStreamCloseStopsRemote(t *testing.T) {
 	// The remote side noticed: its next write failed.
 	select {
 	case <-stopped:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testload.Scale(5 * time.Second)):
 		t.Fatal("the remote command kept running after Close")
 	}
 }
