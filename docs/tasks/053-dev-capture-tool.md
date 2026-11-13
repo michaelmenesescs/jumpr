@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 035
 - **Parallel group:** M2-F (with 051)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A Go command that records real command output from the lab's three distros into `testdata/`, sanitized, so parser

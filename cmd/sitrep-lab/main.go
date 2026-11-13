@@ -12,12 +12,16 @@
 //	@@ ssh-config            regenerate lab/ssh_config
 //	@@ fault list            list fault scenarios
 //	@@ fault <name> [--undo] inject (or revert) a fault scenario
+//	@@ capture linux        record the Linux probes from the lab into testdata/
+//	@@ sanitize <file...>   sanitize captured files in place
 package main
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,6 +30,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"jumper/internal/config"
+	"jumper/internal/devtools"
+	"jumper/internal/transport"
+	"jumper/internal/transport/ssh"
 )
 
 //go:embed provision/*.sh
@@ -84,6 +93,10 @@ func run(args []string) error {
 		return writeSSHConfig()
 	case "fault":
 		return fault(args[1:])
+	case "capture":
+		return capture(args[1:])
+	case "sanitize":
+		return sanitizeFiles(args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
@@ -563,4 +576,96 @@ func fault(args []string) error {
 		return f.Undo()
 	}
 	return f.Inject()
+}
+
+// capture records real lab output into testdata/. It only writes local files;
+// the remote side runs the read-only probe commands (task 053).
+func capture(args []string) error {
+	if len(args) == 0 || args[0] != "linux" {
+		return errors.New("usage: @@ capture linux [--config-dir dir] [--out dir]")
+	}
+	fs := flag.NewFlagSet("capture linux", flag.ContinueOnError)
+	configDir := fs.String("config-dir", filepath.Join("lab", "jumper"), "directory holding the lab's config.yaml")
+	outDir := fs.String("out", filepath.Join("testdata", "linux"), "testdata root to write under")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	exec, closeExec, err := labTransport(*configDir)
+	if err != nil {
+		return err
+	}
+	defer closeExec()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return devtools.CaptureLinux(ctx, devtools.Options{
+		Exec:      exec,
+		OutDir:    *outDir,
+		LocalUser: os.Getenv("USER"),
+	}, os.Stdout)
+}
+
+// sanitizeFiles rewrites captured files in place with the default lab name map.
+func sanitizeFiles(args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: @@ sanitize <file...>")
+	}
+	hostMap := devtools.HostMap(devtools.CaptureHosts(), os.Getenv("USER"))
+	for _, path := range args {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, devtools.Sanitize(b, hostMap), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stdout, path)
+	}
+	return nil
+}
+
+// labTransport builds an SSH transport over the lab's ssh_config with the limits
+// from the lab's jumper configuration. The returned close function releases the
+// connection pool.
+func labTransport(configDir string) (transport.Executor, func(), error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, nil, err
+	}
+	cfgPath := filepath.Join(configDir, "config.yaml")
+	cfg, err := config.Load(cfgPath, home)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(cfg.SSH.ConfigFiles) == 0 {
+		return nil, nil, fmt.Errorf("%s: ssh.config_files is empty", cfgPath)
+	}
+	if _, err := os.Stat(config.ExpandHome(cfg.SSH.ConfigFiles[0], home)); err != nil {
+		return nil, nil, fmt.Errorf("lab not running: %s missing; run: go run ./cmd/sitrep-lab up", cfg.SSH.ConfigFiles[0])
+	}
+	resolver, err := ssh.NewResolver(cfg.SSH.ConfigFiles, home, "sre")
+	if err != nil {
+		return nil, nil, err
+	}
+	pool := ssh.NewPool(ssh.PoolOptions{
+		Resolver: resolver,
+		Dial: ssh.DialOptions{
+			Auth: ssh.AuthOptions{
+				AgentSocket: func() string { return os.Getenv("SSH_AUTH_SOCK") },
+			},
+			HostKeys: ssh.HostKeyOptions{
+				Files:  cfg.SSH.KnownHosts,
+				Strict: "accept-new",
+			},
+			ConnectTimeout: cfg.SSH.ConnectTimeout.Duration(),
+			Keepalive:      cfg.SSH.Keepalive.Duration(),
+		},
+		MaxConnsPerBastion: cfg.SSH.MaxConnsPerBastion,
+		MaxChannelsPerConn: cfg.SSH.MaxChannelsPerConn,
+		IdleTimeout:        cfg.SSH.IdleTimeout.Duration(),
+	})
+	tr := ssh.New(pool, ssh.Options{
+		ExecTimeout: cfg.SSH.ExecTimeout.Duration(),
+		MaxOutput:   int(cfg.SSH.MaxOutput),
+	})
+	return tr, func() { _ = pool.Close() }, nil
 }

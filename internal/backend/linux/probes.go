@@ -151,3 +151,56 @@ func socketRetryBatch(nonce string) (probe.Batch, error) {
 // `systemctl is-system-running` exits 1 for "degraded", which is a state, not a
 // failure.
 func toleratesNonZero(id string) bool { return id == secSysState }
+
+// Section is one read-only probe command: the probe group it belongs to (also
+// the testdata directory a capture writes to), the file name its stdout is
+// stored under, whether it needs root, and the command line itself.
+type Section struct {
+	Probe string
+	Name  string
+	Cmd   string
+	Sudo  bool
+}
+
+// RawCommands returns every read-only command the Linux probes run, keyed by
+// "probe/name". A capture writes each one to
+// testdata/linux/<Probe>/<distro>/<Name>.txt.
+//
+// Parameterized commands (per unit, per file, per timer) are absent on purpose:
+// they need a subject the caller picks, so there is no single raw command to
+// record. The journal entry is the list command the journal view runs.
+func RawCommands() map[string]Section {
+	journal := JournalCommand(JournalOptions{Limit: 500, Sudo: true})
+	sections := []Section{
+		{"overview", "loadavg", cmdLoadavg, false},
+		{"overview", "meminfo", cmdMeminfo, false},
+		{"overview", "psi", cmdPSI, false},
+		{"overview", "os-release", cmdOS, false},
+		{"overview", "kernel", cmdKernel, false},
+		{"overview", "uptime", cmdUptime, false},
+		{"overview", "nproc", cmdNproc, false},
+		{"overview", "sysstate", cmdSysState, false},
+		{"overview", "failed", cmdFailed, false},
+		{"units", "list-units", cmdUnits, false},
+		{"ps", "ps", cmdProcs, false},
+		{"ss", "ss", cmdSockets, true},
+		{"disk", "df", cmdDF, false},
+		{"disk", "df-inodes", cmdDFInode, false},
+		{"disk", "lsblk", cmdLsblk, false},
+		{"disk", "diskstats", cmdDiskstats, false},
+		{"ip", "link", cmdIPLink, false},
+		{"ip", "addr", cmdIPAddr, false},
+		{"ip", "route", cmdIPRoute, false},
+		{"ip", "route6", cmdIPRoute6, false},
+		{"ip", "neigh", cmdIPNeigh, false},
+		{"cgroup", "cgroup", cmdCgroup, false},
+		{"pkg", "pkg", cmdPkg, false},
+		{"timers", "list-timers", cmdTimers, false},
+		{"journal", "journal", journal, true},
+	}
+	out := make(map[string]Section, len(sections))
+	for _, s := range sections {
+		out[s.Probe+"/"+s.Name] = s
+	}
+	return out
+}
