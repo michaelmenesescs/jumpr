@@ -130,6 +130,8 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 			items, err = b.jobRows(ctx, q)
 		case KindSls:
 			items, err = b.slsRows(ctx, q)
+		case KindMine:
+			items, err = b.mineRows(ctx)
 		}
 		res := backend.Result{Items: items, Done: 1, Total: 1}
 		if err != nil {

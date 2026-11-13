@@ -33,6 +33,9 @@ const (
 	saltJobDetailKind resource.KindName = "salt-job-detail"
 	// saltPillarKind is the factory key of the pillar screen (task 093).
 	saltPillarKind resource.KindName = "salt-pillar"
+	// saltGrainsKind is the factory key of the grains explorer (task 094). It
+	// is a view kind, not a registry kind.
+	saltGrainsKind resource.KindName = "salt-grains"
 
 	// saltProposeTimeout bounds one planning round trip started by `:salt run`.
 	saltProposeTimeout = 30 * time.Second
@@ -127,14 +130,130 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 		return err
 	}
 	// :pillar-diff compares two minions' pillar shape without reading a value.
-	return c.Register(Command{
+	if err := c.Register(Command{
 		Name:  "pillar-diff",
 		Usage: ":pillar-diff <minion> <minion>",
 		Help:  "Salt pillar: which key paths and types differ between two minions",
 		Run: func(env *Env, args string) tea.Cmd {
 			return saltPillarDiffCmd(env, strings.TrimSpace(args))
 		},
+	}); err != nil {
+		return err
+	}
+	// :grains is the grains explorer (SPEC §8.6 "Grains"): the cache by
+	// default, the minion itself with --live.
+	if err := c.Register(Command{
+		Name:  "grains",
+		Usage: ":grains [--live] <minion>",
+		Help:  "Salt grains: cached values, fleet distribution, live diff",
+		Run: func(env *Env, args string) tea.Cmd {
+			return saltGrainsCmd(env, strings.TrimSpace(args))
+		},
+	}); err != nil {
+		return err
+	}
+	// :mine is the mine browser (SPEC §8.6 "Mine"): the cached mine functions
+	// and values of the fleet.
+	return c.Register(Command{
+		Name:  "mine",
+		Usage: ":mine [filter]",
+		Help:  "Salt mine: cached functions and values per minion",
+		Run: func(env *Env, args string) tea.Cmd {
+			return saltMineCmd(env, strings.TrimSpace(args))
+		},
 	})
+}
+
+// GrainsOps is what the `:grains` command needs from the Salt backend. The salt
+// package implements it; tests use a fake.
+type GrainsOps interface {
+	// MinionGrains reads one minion's grains from the master's cache.
+	MinionGrains(ctx context.Context, minion string) (salt.Grains, error)
+	// AllGrains reads the whole grains cache of the fleet.
+	AllGrains(ctx context.Context) (map[string]salt.Grains, error)
+	// LiveGrains runs grains.items on the minion itself.
+	LiveGrains(ctx context.Context, minion string) (salt.Grains, error)
+}
+
+// MineOps is what the `:mine` command needs from the Salt backend.
+type MineOps interface {
+	// Mine reads the mine cache of the fleet.
+	Mine(ctx context.Context) ([]salt.MineEntry, error)
+	// MineValue reads one value in full.
+	MineValue(ctx context.Context, minion, function string) (string, error)
+}
+
+// saltGrainsOf returns the Salt backend as the interface the grains command
+// uses.
+func saltGrainsOf(env *Env) (GrainsOps, bool) {
+	if env == nil || env.Registry == nil {
+		return nil, false
+	}
+	b, ok := env.Registry.Get(saltBackendName)
+	if !ok {
+		return nil, false
+	}
+	ops, ok := b.(GrainsOps)
+	return ops, ok
+}
+
+// saltMineOf returns the Salt backend as the interface the mine command uses.
+func saltMineOf(env *Env) (MineOps, bool) {
+	if env == nil || env.Registry == nil {
+		return nil, false
+	}
+	b, ok := env.Registry.Get(saltBackendName)
+	if !ok {
+		return nil, false
+	}
+	ops, ok := b.(MineOps)
+	return ops, ok
+}
+
+// saltGrainsCmd opens the grains explorer of one minion. `--live` reads the
+// minion itself and diffs it against the cache; without a minion the session's
+// single one is used, since anything else would be a guess.
+func saltGrainsCmd(env *Env, args string) tea.Cmd {
+	if _, ok := saltGrainsOf(env); !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	fields := strings.Fields(args)
+	live := false
+	if len(fields) > 0 && fields[0] == "--live" {
+		live = true
+		fields = fields[1:]
+	}
+	if len(fields) > 1 {
+		return Flash(FlashError, "usage: :grains [--live] <minion>")
+	}
+	minion := ""
+	if len(fields) == 1 {
+		minion = fields[0]
+	}
+	if minion == "" {
+		m, ok := singleSessionMinion(env)
+		if !ok {
+			return Flash(FlashError, "usage: :grains [--live] <minion>")
+		}
+		minion = m
+	}
+	q := resource.Query{Kind: saltGrainsKind, Args: map[string]string{"minion": minion}}
+	if live {
+		q.Args["live"] = "1"
+	}
+	return saltViewCmd(env, saltGrainsKind, q)
+}
+
+// saltMineCmd opens the mine browser, narrowed to filter when given.
+func saltMineCmd(env *Env, filter string) tea.Cmd {
+	if _, ok := saltMineOf(env); !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	q := resource.Query{Kind: salt.KindMine}
+	if filter != "" {
+		q.Args = map[string]string{"filter": filter}
+	}
+	return saltViewCmd(env, salt.KindMine, q)
 }
 
 // PillarOps is what the `:pillar` commands need from the Salt backend. The salt

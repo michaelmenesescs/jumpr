@@ -13,6 +13,8 @@ const (
 	KindJobs   resource.KindName = "salt-job"
 	// KindSls is the state tree: one row per sls of every environment.
 	KindSls resource.KindName = "salt-sls"
+	// KindMine is the mine cache: one row per minion and mine function.
+	KindMine resource.KindName = "salt-mine"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -27,6 +29,8 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindJobs, true
 	case "salt-sls", "states", "sls":
 		return KindSls, true
+	case "salt-mine", "mine":
+		return KindMine, true
 	default:
 		return "", false
 	}
@@ -95,6 +99,19 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "assigned", Title: "ASSIGNED", Width: 8, Align: resource.AlignRight, Kind: resource.ColNumber},
 			},
 			DefaultSort: "sls",
+		},
+		{
+			Name:    KindMine,
+			Aliases: []string{"mine"},
+			Title:   "Salt mine",
+			Scope:   resource.ScopeGlobal,
+			Columns: []resource.Column{
+				{ID: "minion", Title: "MINION", Width: 24},
+				{ID: "function", Title: "FUNCTION", Width: 24},
+				{ID: "value", Title: "VALUE", Width: 0},
+				{ID: "size", Title: "SIZE", Width: 10, Align: resource.AlignRight, Kind: resource.ColBytes},
+			},
+			DefaultSort: "minion",
 		},
 	}
 }

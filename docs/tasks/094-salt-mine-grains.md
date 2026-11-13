@@ -3,7 +3,7 @@
 - **Milestone:** M7
 - **Depends on:** 093
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:mine` and `:grains <minion>` (SPEC §8.6).

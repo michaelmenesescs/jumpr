@@ -26,6 +26,8 @@ func Factories() map[resource.KindName]tui.Factory {
 		KindSaltJobDetail:      saltJobFactory,
 		KindSaltState:          saltStateFactory,
 		salt.KindSls:           saltTreeFactory,
+		salt.KindMine:          mineFactory,
+		KindGrains:             grainsFactory,
 		KindPillar:             pillarFactory,
 		tui.KindTimeline:       timelineFactory,
 	}
