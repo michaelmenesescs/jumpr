@@ -274,9 +274,13 @@ func (p *Profile) authType() AuthType {
 	return p.Auth.Type
 }
 
-// connectionsDoc is the documented shape of connections.yaml (SPEC §7.2).
+// connectionsDoc is the documented shape of connections.yaml (SPEC §7.2). The
+// top-level `secrets:` block (one command per secret name) is read by
+// LoadSecretCommands; it is accepted here so a file that carries it still
+// decodes strictly.
 type connectionsDoc struct {
-	Connections map[string]*Profile `yaml:"connections"`
+	Connections map[string]*Profile      `yaml:"connections"`
+	Secrets     map[string]SecretCommand `yaml:"secrets"`
 }
 
 // LoadProfiles reads a connections.yaml into profiles keyed by name. Like the

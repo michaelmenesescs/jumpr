@@ -47,6 +47,12 @@ type Deps struct {
 	Redactor *redact.Redactor
 	// Warn receives health warnings, notably insecure_skip_verify.
 	Warn func(msg string)
+	// Secrets resolves the `{{ secret "name" }}` references of profile
+	// strings. Nil builds one from Env and no configured commands.
+	Secrets *Secrets
+	// Home expands a leading ~ in an auth helper's argv[0]. Empty leaves the
+	// path untouched.
+	Home string
 }
 
 // Client is one connection profile's HTTP client. It owns a single transport,
@@ -58,6 +64,13 @@ type Client struct {
 	red      *redact.Redactor
 	warnings []string
 	retries  int
+	// helper is the in-memory auth-helper cache; nil for every other auth
+	// type.
+	helper *helperState
+	// secrets resolves secret templates in the profile's strings.
+	secrets *Secrets
+	// home expands ~ in the auth helper's argv[0].
+	home string
 	// proxyRequestHeaders are added to absolute-form requests through an http
 	// proxy (CONNECT requests use the transport's ProxyConnectHeader).
 	proxyRequestHeaders map[string]string
@@ -151,17 +164,39 @@ func (p *Profile) Client(deps Deps) (*Client, error) {
 			deps.Warn(w)
 		}
 	}
+	for _, w := range p.SecretWarnings() {
+		warnings = append(warnings, w)
+		if deps.Warn != nil {
+			deps.Warn(w)
+		}
+	}
+
+	secs := deps.Secrets
+	if secs == nil {
+		secs = NewSecrets(deps.Env, nil)
+	}
+
+	hc := &http.Client{Transport: tr}
+	var helper *helperState
 	if p.authType() == AuthHelper {
-		return nil, ProfileError(p.Name, "auth.type", "the auth helper is not available in this build")
+		// A helper profile never follows a redirect: a redirect to a login
+		// page is the signal that the credentials are stale (SPEC §7.2).
+		hc.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		helper = newHelperState()
 	}
 
 	return &Client{
 		name:                p.Name,
 		profile:             p,
-		hc:                  &http.Client{Transport: tr},
+		hc:                  hc,
 		red:                 red,
 		warnings:            warnings,
 		retries:             p.Retries,
+		helper:              helper,
+		secrets:             secs,
+		home:                deps.Home,
 		proxyRequestHeaders: proxyHeaders,
 		backoff:             expBackoff,
 		sleep:               sleepCtx,
@@ -208,11 +243,44 @@ func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, err
 		cancel()
 		return nil, err
 	}
+
+	// A helper profile retries once with fresh credentials when the session
+	// looks stale (SPEC §7.2). A second failure is the caller's answer.
+	if c.helper != nil {
+		if reason, stale := c.needsRefresh(resp); stale {
+			drain(resp)
+			c.refreshOnce()
+			if req.Body != nil && req.Body != http.NoBody && req.GetBody != nil {
+				if b, rerr := req.GetBody(); rerr == nil {
+					req.Body = b
+				}
+			}
+			resp, err = c.send(ctx, req)
+			if err != nil {
+				cancel()
+				return nil, err
+			}
+			if again, stale2 := c.needsRefresh(resp); stale2 {
+				reason = again
+				resp.Body = &cancelBody{rc: newCappedBody(resp.Body, MaxBodyBytes), cancel: cancel}
+				return resp, c.helperAuthError(req, reason)
+			}
+		}
+	}
+
 	resp.Body = &cancelBody{rc: newCappedBody(resp.Body, MaxBodyBytes), cancel: cancel}
 	if serr := c.statusError(req, resp); serr != nil {
 		return resp, serr
 	}
 	return resp, nil
+}
+
+// helperAuthError is the error a helper profile returns when the session could
+// not be renewed: it names the profile, because that is what the user has to
+// fix in connections.yaml.
+func (c *Client) helperAuthError(req *http.Request, reason string) *errs.Error {
+	return c.errorf(errs.Auth, "httpx.helper", req.URL.Host,
+		"profile %q: the auth helper did not renew the session: %s", c.name, reason)
 }
 
 // send runs the request, retrying idempotent methods on connection failures and
@@ -232,7 +300,9 @@ func (c *Client) send(ctx context.Context, req *http.Request) (*http.Response, e
 		if err != nil {
 			return nil, err
 		}
-		c.apply(r)
+		if aerr := c.apply(r); aerr != nil {
+			return nil, aerr
+		}
 
 		resp, err := c.hc.Do(r)
 		if err != nil {
@@ -273,34 +343,84 @@ func (c *Client) cloneForAttempt(req *http.Request, ctx context.Context, attempt
 	return r, nil
 }
 
-// apply adds the profile's static auth, extra headers and proxy headers to r.
-// Nothing here is ever logged or put into a URL.
-func (c *Client) apply(r *http.Request) {
+// apply adds the profile's static auth, extra headers and proxy headers to r,
+// resolving `{{ secret "name" }}` on the way. A helper profile runs its helper
+// here, so the credentials are fresh for every attempt. Nothing in this
+// function is ever logged or put into a URL.
+func (c *Client) apply(r *http.Request) error {
 	a := &c.profile.Auth
+	ctx := r.Context()
 	switch c.profile.authType() {
 	case AuthBasic:
-		r.SetBasicAuth(a.Username, a.Password)
+		pw, err := c.secret(ctx, a.Password)
+		if err != nil {
+			return err
+		}
+		r.SetBasicAuth(a.Username, pw)
 	case AuthBearer:
 		if r.Header.Get("Authorization") == "" {
-			r.Header.Set("Authorization", "Bearer "+a.Token)
+			tok, err := c.secret(ctx, a.Token)
+			if err != nil {
+				return err
+			}
+			r.Header.Set("Authorization", "Bearer "+tok)
 		}
 	case AuthHeaders:
 		for k, v := range a.Headers {
-			r.Header.Set(k, v)
+			ev, err := c.secret(ctx, v)
+			if err != nil {
+				return err
+			}
+			r.Header.Set(k, ev)
 		}
 	case AuthCookie:
 		if cookieInScope(a.Cookie, r.URL.Host) {
-			r.Header.Add("Cookie", a.Cookie.Name+"="+a.Cookie.Value)
+			v, err := c.secret(ctx, a.Cookie.Value)
+			if err != nil {
+				return err
+			}
+			r.Header.Add("Cookie", a.Cookie.Name+"="+v)
+		}
+	case AuthHelper:
+		creds, err := c.helperCredentials(ctx, r.URL)
+		if err != nil {
+			return err
+		}
+		for k, v := range creds.Headers {
+			r.Header.Set(k, v)
+		}
+		for _, ck := range creds.Cookies {
+			if cookieInScope(ck, r.URL.Host) {
+				r.Header.Add("Cookie", ck.Name+"="+ck.Value)
+			}
 		}
 	}
 	for k, v := range c.profile.Headers {
-		r.Header.Set(k, v)
+		ev, err := c.secret(ctx, v)
+		if err != nil {
+			return err
+		}
+		r.Header.Set(k, ev)
 	}
 	if c.proxyRequestHeaders != nil && r.URL.Scheme == "http" {
 		for k, v := range c.proxyRequestHeaders {
-			r.Header.Set(k, v)
+			ev, err := c.secret(ctx, v)
+			if err != nil {
+				return err
+			}
+			r.Header.Set(k, ev)
 		}
 	}
+	return nil
+}
+
+// secret expands the `{{ secret "name" }}` references in one profile string.
+// A string without a template is returned as it is.
+func (c *Client) secret(ctx context.Context, s string) (string, error) {
+	if s == "" || c.secrets == nil || !isTemplate(s) {
+		return s, nil
+	}
+	return c.secrets.Expand(ctx, s)
 }
 
 // cookieInScope reports whether host (optionally with a port) is inside the

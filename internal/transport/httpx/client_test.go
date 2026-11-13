@@ -515,16 +515,14 @@ func TestClientOneTransport(t *testing.T) {
 	}
 }
 
-func TestClientHelperAuthNotAvailable(t *testing.T) {
+func TestClientHelperAuthBuilds(t *testing.T) {
 	p := &Profile{Name: "sso", Auth: Auth{Type: AuthHelper, Helper: &Helper{Command: []string{"true"}}}}
-	_, err := p.Client(Deps{})
-	if err == nil {
-		t.Fatal("the helper auth type was accepted")
+	c, err := p.Client(Deps{})
+	if err != nil {
+		t.Fatalf("a helper profile must build: %v", err)
 	}
-	if kind := errs.KindOf(err); kind != errs.Config {
-		t.Fatalf("kind = %q, want config", kind)
-	}
-	if !strings.Contains(err.Error(), "sso") {
-		t.Fatalf("error does not name the profile: %v", err)
+	defer c.Close()
+	if c.helper == nil {
+		t.Fatal("a helper profile has no helper cache")
 	}
 }

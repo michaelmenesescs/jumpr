@@ -3,7 +3,7 @@
 - **Milestone:** M8
 - **Depends on:** 098
 - **Parallel group:** M8-A (with 100)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The enterprise extension point of SPEC §7.2: run a user command that returns headers/cookies; resolve
