@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 003, 007, 012, 013, 014, 015
 - **Parallel group:** — (serial; M0 integration)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A running program: `jumper --demo` shows the fake world in one full-screen view stack with status line, command
