@@ -1,0 +1,12 @@
+{
+  "indices": [
+    { "name": "logs-app-2026.11.12", "aliases": ["logs-app"], "attributes": ["open"] },
+    { "name": "logs-app-2026.11.11", "aliases": ["logs-app"], "attributes": ["open"] }
+  ],
+  "aliases": [
+    { "name": "logs-app", "indices": ["logs-app-2026.11.11", "logs-app-2026.11.12"] }
+  ],
+  "data_streams": [
+    { "name": "logs-audit", "backing_indices": [".ds-logs-audit-2026.11.12-000001"], "timestamp_field": "@timestamp" }
+  ]
+}

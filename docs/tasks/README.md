@@ -226,7 +226,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [119](119-grafana-browse.md) | Grafana: search and dashboards | 103 | — | done |
 | [120](120-grafana-panels.md) | Render Grafana panels in the TUI via `/api/ds/query` | 119, 101 | — | done |
-| [121](121-elastic-search.md) | Elasticsearch: log sources and search | 119 | — | todo |
+| [121](121-elastic-search.md) | Elasticsearch: log sources and search | 119 | — | done |
 | [122](122-elastic-tail-lab.md) | Elasticsearch live tail; M11 lab tests | 120, 121 | — | todo |
 
 ### M12 — Hardening

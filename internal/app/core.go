@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/grafana"
 	"jumper/internal/backend/prom"
 	"jumper/internal/clip"
@@ -138,6 +139,74 @@ func GrafanaBackend(cfg config.Config, profiles map[string]*httpx.Profile, deps 
 		Open:      hooks.Open,
 		Clipboard: hooks.Clipboard,
 	}), nil
+}
+
+// ElasticBackend builds the Elasticsearch backend from cfg's `elasticsearch:`
+// section (SPEC §8.5).
+//
+// One backend serves every configured cluster: the log kind is global, so two
+// backends would collide in the registry. Each entry names a connection profile
+// in connections.yaml through `connection`; an entry without one gets a plain
+// client. Each cluster carries its saved log sources (index pattern and the
+// time, host, message and level fields). It returns nil when no cluster is
+// configured, so callers can skip registration. A redactor cleans every
+// document the backend hands out.
+//
+// The wiring lives here rather than in app.go because app.buildRegistry is
+// still the M0 version; the task that owns app.go calls this function to add
+// the backend to the registry.
+func ElasticBackend(cfg config.Config, profiles map[string]*httpx.Profile, deps httpx.Deps, redactText func(string) string, log *slog.Logger) (*elastic.Backend, error) {
+	if len(cfg.Elasticsearch) == 0 {
+		return nil, nil
+	}
+	clusters := make([]elastic.Cluster, 0, len(cfg.Elasticsearch))
+	seen := make(map[string]bool, len(cfg.Elasticsearch))
+
+	for i, entry := range cfg.Elasticsearch {
+		name := entry.Name
+		if seen[name] {
+			return nil, errs.New(errs.Config, "app.ElasticBackend",
+				fmt.Sprintf("elasticsearch[%d]: %q is configured twice", i, name))
+		}
+		seen[name] = true
+
+		profile, err := profileFor("elasticsearch", name, entry.Connection, profiles)
+		if err != nil {
+			return nil, err
+		}
+		hc, err := profile.Client(deps)
+		if err != nil {
+			return nil, errs.Wrap(errs.Config, "app.ElasticBackend", err).WithHost(name)
+		}
+		for _, warning := range hc.Warnings() {
+			if log != nil {
+				log.Warn("elasticsearch client warning", "cluster", name, "warning", warning)
+			}
+		}
+
+		client, err := elastic.NewClient(elastic.ClientOptions{
+			URL:    entry.URL,
+			Name:   name,
+			Client: hc,
+			Warn:   warnFunc("elasticsearch", log, name),
+		})
+		if err != nil {
+			return nil, err
+		}
+		sources := make([]elastic.LogSource, 0, len(entry.Sources))
+		for _, src := range entry.Sources {
+			sources = append(sources, elastic.LogSource{
+				Name:         src.Name,
+				Index:        src.Index,
+				TimeField:    src.TimeField,
+				HostField:    src.HostField,
+				MessageField: src.MessageField,
+				LevelField:   src.LevelField,
+			})
+		}
+		clusters = append(clusters, elastic.Cluster{Name: name, Client: client, Sources: sources})
+	}
+	return elastic.New(elastic.Options{Clusters: clusters, Log: log, Redact: redactText}), nil
 }
 
 // Alertmanager builds the Alertmanager backend and its silence planner from

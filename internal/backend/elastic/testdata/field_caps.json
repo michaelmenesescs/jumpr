@@ -1,0 +1,10 @@
+{
+  "indices": ["logs-app-2026.11.12", "logs-sys-2026.11.12"],
+  "fields": {
+    "@timestamp": { "keyword": { "type": "keyword", "searchable": true, "aggregatable": true } },
+    "host.name": { "keyword": { "type": "keyword", "searchable": true, "aggregatable": true } },
+    "log.level": { "keyword": { "type": "keyword", "searchable": true, "aggregatable": true } },
+    "message": { "text": { "type": "text", "searchable": true, "aggregatable": false } },
+    "status": { "long": { "type": "long", "searchable": true, "aggregatable": true } }
+  }
+}

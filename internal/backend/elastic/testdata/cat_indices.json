@@ -1,0 +1,4 @@
+[
+  { "index": "logs-app-2026.11.11", "health": "green", "status": "open", "docs.count": "18422", "store.size": "31.2mb" },
+  { "index": "logs-app-2026.11.12", "health": "yellow", "status": "open", "docs.count": "9104", "store.size": "12.7mb" }
+]

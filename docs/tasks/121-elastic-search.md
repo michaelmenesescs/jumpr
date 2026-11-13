@@ -3,7 +3,7 @@
 - **Milestone:** M11
 - **Depends on:** 119
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:logs` — search central logs for the investigation's hosts and window (SPEC §8.5). Read-only.

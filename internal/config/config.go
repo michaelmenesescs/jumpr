@@ -41,19 +41,43 @@ type GrafanaConfig struct {
 	Connection string `yaml:"connection"`
 }
 
+// ElasticsearchConfig is one Elasticsearch cluster jumper may search
+// (SPEC §8.5). It has the same name/url/connection shape as a Prometheus entry,
+// plus the saved log sources that live in the cluster.
+type ElasticsearchConfig struct {
+	Name       string            `yaml:"name"`
+	URL        string            `yaml:"url"`
+	Connection string            `yaml:"connection"`
+	Sources    []LogSourceConfig `yaml:"sources"`
+}
+
+// LogSourceConfig is one saved log source: an index pattern and the fields that
+// carry time, host, message and level. An empty `time_field` means @timestamp,
+// the Elastic Common Schema default; an empty host, message or level field means
+// that filter or column is unavailable.
+type LogSourceConfig struct {
+	Name         string `yaml:"name"`
+	Index        string `yaml:"index"`
+	TimeField    string `yaml:"time_field"`
+	HostField    string `yaml:"host_field"`
+	MessageField string `yaml:"message_field"`
+	LevelField   string `yaml:"level_field"`
+}
+
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.
 type Config struct {
-	UI           UIConfig             `yaml:"ui"`
-	Mux          MuxConfig            `yaml:"mux"`
-	SSH          SSHConfig            `yaml:"ssh"`
-	Inventory    InventoryConfig      `yaml:"inventory"`
-	Knowledge    KnowledgeConfig      `yaml:"knowledge"`
-	Rollout      RolloutConfig        `yaml:"rollout"`
-	Salt         SaltConfig           `yaml:"salt"`
-	Prometheus   []PrometheusConfig   `yaml:"prometheus"`
-	Alertmanager []AlertmanagerConfig `yaml:"alertmanager"`
-	Grafana      []GrafanaConfig      `yaml:"grafana"`
-	Interact     InteractConfig       `yaml:"interact"`
+	UI            UIConfig              `yaml:"ui"`
+	Mux           MuxConfig             `yaml:"mux"`
+	SSH           SSHConfig             `yaml:"ssh"`
+	Inventory     InventoryConfig       `yaml:"inventory"`
+	Knowledge     KnowledgeConfig       `yaml:"knowledge"`
+	Rollout       RolloutConfig         `yaml:"rollout"`
+	Salt          SaltConfig            `yaml:"salt"`
+	Prometheus    []PrometheusConfig    `yaml:"prometheus"`
+	Alertmanager  []AlertmanagerConfig  `yaml:"alertmanager"`
+	Grafana       []GrafanaConfig       `yaml:"grafana"`
+	Elasticsearch []ElasticsearchConfig `yaml:"elasticsearch"`
+	Interact      InteractConfig        `yaml:"interact"`
 }
 
 // UIConfig configures the presentation layer.
@@ -336,6 +360,36 @@ func (c *Config) Validate() error {
 		u, err := url.Parse(strings.TrimSpace(g.URL))
 		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 			return invalidf("grafana[%d].url: %q is not an http(s) URL", i, g.URL)
+		}
+	}
+
+	elasticNames := make(map[string]bool, len(c.Elasticsearch))
+	for i, e := range c.Elasticsearch {
+		name := strings.TrimSpace(e.Name)
+		if name == "" {
+			return invalidf("elasticsearch[%d].name: a cluster needs a name", i)
+		}
+		if elasticNames[name] {
+			return invalidf("elasticsearch[%d].name: %q is configured twice", i, name)
+		}
+		elasticNames[name] = true
+		u, err := url.Parse(strings.TrimSpace(e.URL))
+		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return invalidf("elasticsearch[%d].url: %q is not an http(s) URL", i, e.URL)
+		}
+		sourceNames := make(map[string]bool, len(e.Sources))
+		for k, src := range e.Sources {
+			sname := strings.TrimSpace(src.Name)
+			if sname == "" {
+				return invalidf("elasticsearch[%d].sources[%d].name: a log source needs a name", i, k)
+			}
+			if sourceNames[sname] {
+				return invalidf("elasticsearch[%d].sources[%d].name: %q is configured twice", i, k, sname)
+			}
+			sourceNames[sname] = true
+			if strings.TrimSpace(src.Index) == "" {
+				return invalidf("elasticsearch[%d].sources[%d].index: a log source needs an index pattern", i, k)
+			}
 		}
 	}
 

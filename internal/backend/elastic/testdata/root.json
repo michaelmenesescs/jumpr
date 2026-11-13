@@ -1,0 +1,11 @@
+{
+  "name": "es-eu-01",
+  "cluster_name": "logs-eu",
+  "cluster_uuid": "6f2a1c4e",
+  "version": {
+    "number": "8.15.1",
+    "build_flavor": "default",
+    "lucene_version": "9.11.1"
+  },
+  "tagline": "You Know, for Search"
+}

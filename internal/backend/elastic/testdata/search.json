@@ -1,0 +1,47 @@
+{
+  "took": 12,
+  "timed_out": false,
+  "_shards": { "total": 3, "successful": 3, "skipped": 0, "failed": 0 },
+  "hits": {
+    "total": { "value": 10000, "relation": "gte" },
+    "max_score": null,
+    "hits": [
+      {
+        "_index": "logs-app-2026.11.12",
+        "_id": "a1",
+        "_score": null,
+        "_source": {
+          "@timestamp": "2026-11-12T14:31:02.117Z",
+          "host": { "name": "web-01.example.internal" },
+          "log": { "level": "error" },
+          "message": "upstream timed out (110: Connection timed out) while reading response header"
+        },
+        "sort": [1794493862117, 12]
+      },
+      {
+        "_index": "logs-app-2026.11.12",
+        "_id": "a2",
+        "_score": null,
+        "_source": {
+          "@timestamp": "2026-11-12T14:31:05.004Z",
+          "host": { "name": "web-02.example.internal" },
+          "log": { "level": "warning" },
+          "message": "worker 7 exited with code 137"
+        },
+        "sort": [1794493865004, 13]
+      },
+      {
+        "_index": "logs-sys-2026.11.12",
+        "_id": "b9",
+        "_score": null,
+        "_source": {
+          "@timestamp": "2026-11-12T14:32:40Z",
+          "host": { "name": "db-01" },
+          "log": { "level": "info" },
+          "message": "checkpoint complete"
+        },
+        "sort": [1794493960000, 1]
+      }
+    ]
+  }
+}
