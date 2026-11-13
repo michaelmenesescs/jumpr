@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 045, 062
 - **Parallel group:** M6-A (with 088)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 isd parity for one unit: `Enter` on a unit opens a tabbed detail (SPEC §8.1.1).

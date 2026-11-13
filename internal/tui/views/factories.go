@@ -16,6 +16,7 @@ func Factories() map[resource.KindName]tui.Factory {
 	return map[resource.KindName]tui.Factory{
 		linux.KindJournal:      journalFactory,
 		linux.KindHostOverview: hostFactory,
+		linux.KindUnitDetail:   unitDetailFactory,
 	}
 }
 
@@ -46,6 +47,27 @@ func hostFactory(env *tui.Env, q resource.Query) (tui.View, error) {
 		return nil, errs.New(errs.Config, "views.hostFactory", "overview needs a host")
 	}
 	return NewHost(env, b, host), nil
+}
+
+// unitDetailFactory builds the tabbed detail of the query's unit. The query
+// carries the host and the unit name (the unit row's `enter` link sets both).
+func unitDetailFactory(env *tui.Env, q resource.Query) (tui.View, error) {
+	if env == nil || env.Registry == nil {
+		return nil, errs.New(errs.Config, "views.unitDetailFactory", "no backends configured")
+	}
+	b, _, ok := env.Registry.Lookup(string(linux.KindUnit))
+	if !ok {
+		return nil, errs.New(errs.Config, "views.unitDetailFactory", "no backend serves the unit kind")
+	}
+	host := hostFromQuery(q)
+	if host == "" {
+		return nil, errs.New(errs.Config, "views.unitDetailFactory", "unit detail needs a host")
+	}
+	unit := strings.TrimSpace(q.Args["unit"])
+	if unit == "" {
+		return nil, errs.New(errs.Config, "views.unitDetailFactory", "unit detail needs a unit")
+	}
+	return NewUnit(env, b, host, unit), nil
 }
 
 // hostFromQuery is the single host a query names: Query.Hosts first, then the

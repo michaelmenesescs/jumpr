@@ -250,10 +250,16 @@ func TestJournalLinks(t *testing.T) {
 
 	unit := resource.Resource{Ref: resource.Ref{Kind: KindUnit, Host: "web-01", Name: "nginx.service"}}
 	links = b.Links(unit)
-	if len(links) != 1 {
-		t.Fatalf("unit links = %+v, want one", links)
+	var journal resource.Link
+	for _, l := range links {
+		if l.Label == "journal" {
+			journal = l
+		}
 	}
-	got := links[0]
+	if journal.Label != "journal" {
+		t.Fatalf("unit links = %+v, want a journal link", links)
+	}
+	got := journal
 	if got.Label != "journal" || got.Key != "j" {
 		t.Errorf("unit journal link = %+v", got)
 	}

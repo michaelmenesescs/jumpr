@@ -96,8 +96,11 @@ func New(o Options) *Backend {
 // Name returns the backend name used in Refs and registry lookups.
 func (b *Backend) Name() string { return backendName }
 
-// Kinds returns the four core Linux kinds.
-func (b *Backend) Kinds() []resource.KindSpec { return kindSpecs() }
+// Kinds returns the Linux kinds. The unit-detail kind is a view kind served by
+// UnitInfo, not a listing, so it is added to the core kinds here.
+func (b *Backend) Kinds() []resource.KindSpec {
+	return append(kindSpecs(), unitDetailSpec())
+}
 
 // timeoutDuration is the per-host exec timeout.
 func (b *Backend) timeoutDuration() time.Duration {
@@ -355,15 +358,26 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 		if r.Ref.Name == "" {
 			return nil
 		}
-		return []resource.Link{{
-			Label: "journal",
-			Key:   "j",
-			To: resource.Query{
-				Kind:  KindJournal,
-				Hosts: hosts,
-				Args:  map[string]string{"unit": r.Ref.Name},
+		return []resource.Link{
+			{
+				Label: "detail",
+				Key:   "enter",
+				To: resource.Query{
+					Kind:  KindUnitDetail,
+					Hosts: hosts,
+					Args:  map[string]string{"unit": r.Ref.Name},
+				},
 			},
-		}}
+			{
+				Label: "journal",
+				Key:   "j",
+				To: resource.Query{
+					Kind:  KindJournal,
+					Hosts: hosts,
+					Args:  map[string]string{"unit": r.Ref.Name},
+				},
+			},
+		}
 	}
 	return nil
 }

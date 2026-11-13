@@ -403,8 +403,10 @@ func TestBackendLinksFromHost(t *testing.T) {
 	if len(want) != 0 {
 		t.Errorf("missing link keys %v", want)
 	}
-	if got := b.Links(resource.Resource{Ref: resource.Ref{Kind: KindUnit, Host: "web-01", Name: "nginx.service"}}); len(got) != 1 || got[0].To.Args["unit"] != "nginx.service" {
-		t.Errorf("unit links = %v, want one journal link with the unit arg", got)
+	if got := b.Links(resource.Resource{Ref: resource.Ref{Kind: KindUnit, Host: "web-01", Name: "nginx.service"}}); len(got) != 2 ||
+		got[0].Key != "enter" || got[0].To.Kind != KindUnitDetail ||
+		got[1].To.Args["unit"] != "nginx.service" {
+		t.Errorf("unit links = %v, want enter → %s and the journal link with the unit arg", got, KindUnitDetail)
 	}
 }
 
@@ -460,8 +462,9 @@ func TestBackendUnknownKind(t *testing.T) {
 	if _, err := b.List(context.Background(), resource.Query{Kind: "pod"}); errs.KindOf(err) != errs.Config {
 		t.Errorf("List kind = %s, want config", errs.KindOf(err))
 	}
-	if got := len(b.Kinds()); got != 14 {
-		t.Errorf("Kinds() = %d, want 14", got)
+	// 14 listing kinds on main plus this task's unit-detail view kind.
+	if got := len(b.Kinds()); got != 15 {
+		t.Errorf("Kinds() = %d, want 15", got)
 	}
 	if b.Name() != "linux" {
 		t.Errorf("Name() = %q, want linux", b.Name())
