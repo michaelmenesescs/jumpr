@@ -17,8 +17,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
 	"jumper/internal/config"
 	"jumper/internal/errs"
 	"jumper/internal/interact"
@@ -26,8 +24,6 @@ import (
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
 	"jumper/internal/tui/views"
 )
 
@@ -43,8 +39,9 @@ type Options struct {
 	Fresh     bool
 	Version   string
 	Env       map[string]string
-	// Prompter answers host-key and passphrase questions. Nil means nobody can
-	// be asked, which fails the dial with errs.Interaction.
+	// Prompter answers host-key and passphrase questions. Nil means the TUI
+	// prompter is built, which shows a dialog; with no program yet the
+	// question fails with errs.Interaction.
 	Prompter interact.Prompter
 
 	// Size is the terminal size to inject at startup. When it is nil the
@@ -151,42 +148,16 @@ func Run(ctx context.Context, o Options) (err error) {
 	if err != nil {
 		return err
 	}
-	theme.SetProfile(cfg.UI.Color)
-	set, err := resolveGlyphs(cfg.UI.Glyphs, os.Getenv("JUMPER_GLYPHS"))
+	b, err := build(cfg, o, paths)
 	if err != nil {
 		return err
 	}
-
-	reg, err := buildRegistry(o)
-	if err != nil {
-		return err
-	}
-
-	prefix, err := tui.PrefixKey(cfg.Mux.Prefix, cfg.Mux.PrefixInTmux, o.Env["TMUX"] != "")
-	if err != nil {
-		return err
-	}
-
-	env := &tui.Env{
-		Registry:  reg,
-		Session:   &tui.SessionState{Name: "main"},
-		Theme:     theme.Dark(),
-		Glyphs:    set,
-		Keys:      keymap.Default(),
-		Now:       time.Now,
-		Factories: make(map[resource.KindName]tui.Factory),
-		Log:       logger,
-	}
-	for kind, f := range views.Factories() {
-		env.Factories[kind] = f
-	}
-	cmds := tui.NewCommands()
-	tui.RegisterBuiltins(cmds)
-	if err := tui.RegisterMuxCommands(cmds); err != nil {
-		return err
-	}
-
-	root := tui.NewRoot(env, cmds, tableFactory, resource.Query{Kind: "host"}, prefix)
+	defer func() {
+		if cerr := b.Close(); cerr != nil {
+			logger.Warn("ssh pool not closed cleanly", "err", cerr)
+		}
+	}()
+	root := b.Root
 
 	// Session persistence: <cache>/sessions/<name>.json, restored on start
 	// unless --fresh was given. A file that cannot be read or a pane that falls
@@ -201,7 +172,10 @@ func Run(ctx context.Context, o Options) (err error) {
 	if o.Size != nil || o.Ready != nil {
 		model = &startup{inner: root, size: o.Size, ready: o.Ready}
 	}
-	p := tea.NewProgram(model,
+	// The inventory tick sits outside the startup wrapper: it forwards every
+	// message (including the injected first size) to the wrapped model.
+	ticked := newInventoryTicker(model, b.Env, cfg.Inventory.CacheTTL.Duration())
+	p := tea.NewProgram(ticked,
 		tea.WithInput(o.In),
 		tea.WithOutput(o.Out),
 		tea.WithAltScreen(),
@@ -211,6 +185,9 @@ func Run(ctx context.Context, o Options) (err error) {
 	if o.Resizes != nil {
 		go pumpSizes(ctx, p, o.Resizes, done)
 	}
+	// Prompts and startup warnings queued while the model was being built are
+	// delivered from here on.
+	b.Attach(p)
 	_, runErr := p.Run()
 	close(done)
 	if runErr != nil {
@@ -223,6 +200,43 @@ func Run(ctx context.Context, o Options) (err error) {
 	}
 	return nil
 }
+
+// inventoryTicker is the root model plus the inventory refresh tick. The tick
+// belongs to app, not to the root: cache_ttl is configuration, and the root
+// knows nothing about it. Everything else is handed to the root unchanged.
+type inventoryTicker struct {
+	root tea.Model
+	env  *tui.Env
+	ttl  time.Duration
+}
+
+var _ tea.Model = (*inventoryTicker)(nil)
+
+// newInventoryTicker wraps root; a non-positive ttl only disables the tick.
+func newInventoryTicker(root tea.Model, env *tui.Env, ttl time.Duration) *inventoryTicker {
+	return &inventoryTicker{root: root, env: env, ttl: ttl}
+}
+
+// Init starts the root and the first tick.
+func (t *inventoryTicker) Init() tea.Cmd {
+	return tea.Batch(t.root.Init(), tui.InventoryTick(t.ttl))
+}
+
+// Update turns a tick into a refresh and re-arms the next one; every other
+// message is the root's.
+func (t *inventoryTicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(tui.InventoryTickMsg); ok {
+		return t, tea.Batch(tui.InventoryRefreshCmd(t.env), tui.InventoryTick(t.ttl))
+	}
+	model, cmd := t.root.Update(msg)
+	if model != nil {
+		t.root = model
+	}
+	return t, cmd
+}
+
+// View renders the root.
+func (t *inventoryTicker) View() string { return t.root.View() }
 
 // restoreSession loads the session file and hands it to the root. "No file yet"
 // is the normal first start; anything else is reported as a startup warning and
@@ -260,20 +274,6 @@ func resolveGlyphs(cfg, env string) (render.GlyphSet, error) {
 			fmt.Sprintf("%s: unknown glyph set %q (want auto, unicode, nerd or ascii)", source, name))
 	}
 	return set, nil
-}
-
-// buildRegistry registers the backends for this run. In M0 only the fake
-// backend exists; real backends arrive with the SSH/Linux work (M2), which is
-// where the configured case grows its checks.
-func buildRegistry(o Options) (*backend.Registry, error) {
-	reg := backend.NewRegistry()
-	if !o.Demo {
-		return nil, errs.New(errs.Config, "app.Run", "no backends configured; try --demo")
-	}
-	if err := reg.Register(fake.New(fake.Options{})); err != nil {
-		return nil, fmt.Errorf("register fake backend: %w", err)
-	}
-	return reg, nil
 }
 
 // tableFactory is the default view factory: the generic table. It lives here,

@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 035, 044, 045, 047, 048, 050, 051
 - **Parallel group:** — (serial; touches `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `./jumper --config-dir lab/jumper` works against the lab: the M2 demo script end to end.
