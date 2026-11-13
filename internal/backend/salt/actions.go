@@ -67,6 +67,11 @@ const (
 	ParamArgs = "args"
 	// ParamKwargs are its keyword arguments, "k=v k=v".
 	ParamKwargs = "kwargs"
+	// ParamSSH asks for salt-ssh instead of the master. It is only honoured
+	// when salt.allow_salt_ssh is set (task 097).
+	ParamSSH = "ssh"
+	// sshParamValue is the ParamSSH value that turns the transport on.
+	sshParamValue = "true"
 )
 
 const (
@@ -625,7 +630,17 @@ func (b *Backend) Plan(ctx context.Context, req action.Request) (action.Plan, er
 		Via:      b.via(),
 		Warnings: []string{rootWarning},
 	}
-	if spec.ID == SpecStateApply {
+	if req.Params[ParamSSH] == sshParamValue {
+		if !b.allowSSH {
+			return action.Plan{}, errs.New(errs.Config, "salt.Plan",
+				"salt-ssh is disabled; set salt.allow_salt_ssh: true to allow it")
+		}
+		// SPEC §8.6: a plan that uses salt-ssh says what it does to the
+		// target.
+		plan.Warnings = append(plan.Warnings, saltSSHPlanWarning()...)
+		plan.Via = saltSSHTool
+	}
+	if spec.ID == SpecStateApply && req.Params[ParamSSH] != sshParamValue {
 		preview, err := b.applyPreview(ctx, minions, req.Params[ParamSLS])
 		if err != nil {
 			return action.Plan{}, err
@@ -658,6 +673,9 @@ func (b *Backend) planSteps(ctx context.Context, spec action.Spec, req action.Re
 	}
 	if isKeySpec(spec.ID) {
 		return b.keySteps(ctx, spec, req)
+	}
+	if req.Params[ParamSSH] == sshParamValue {
+		return b.sshSteps(spec, req)
 	}
 	call, state, timeout, err := b.callFor(spec, req.Params)
 	if err != nil {

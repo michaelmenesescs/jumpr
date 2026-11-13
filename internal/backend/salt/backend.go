@@ -13,6 +13,7 @@ import (
 	"jumper/internal/errs"
 	"jumper/internal/inventory"
 	"jumper/internal/resource"
+	"jumper/internal/transport"
 )
 
 // backendName is used in every Ref and in error Ops.
@@ -40,6 +41,17 @@ type Options struct {
 	// StateTimeout bounds one state apply step in a plan. Zero means 15
 	// minutes (task 075).
 	StateTimeout time.Duration
+	// Executor reaches an individual minion directly over SSH. It is what
+	// salt-call local mode uses; nil means local mode is unavailable
+	// (task 097).
+	Executor transport.Executor
+	// RosterPath is the master's salt-ssh roster. Empty means
+	// DefaultRosterPath.
+	RosterPath string
+	// AllowSaltSSH permits execution through salt-ssh. It must stay false
+	// unless the user set salt.allow_salt_ssh: true: salt-ssh copies a
+	// runtime to the target, which breaks the zero-footprint rule.
+	AllowSaltSSH bool
 }
 
 // healthCall is one in-flight manage.status call that other Health callers can
@@ -60,6 +72,14 @@ type Backend struct {
 	log    *slog.Logger
 	// stateTimeout is Options.StateTimeout; zero means the 15 minute default.
 	stateTimeout time.Duration
+	// ex reaches one minion directly (salt-call local mode). Nil means local
+	// mode is unavailable.
+	ex transport.Executor
+	// rosterPath is Options.RosterPath; empty means DefaultRosterPath.
+	rosterPath string
+	// allowSSH is Options.AllowSaltSSH. Execution through salt-ssh stays
+	// refused until it is set.
+	allowSSH bool
 
 	mu       sync.Mutex
 	health   backend.Health
@@ -91,6 +111,10 @@ func New(o Options) *Backend {
 		log:    o.Log,
 
 		stateTimeout: o.StateTimeout,
+
+		ex:         o.Executor,
+		rosterPath: o.RosterPath,
+		allowSSH:   o.AllowSaltSSH,
 	}
 	if b.now == nil {
 		b.now = time.Now

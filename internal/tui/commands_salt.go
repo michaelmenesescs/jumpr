@@ -50,7 +50,7 @@ const (
 	saltJobCacheWarning = "salt transport: the command and its output stay in the master's job cache"
 
 	// saltUsage is the argument grammar shown on a parse error.
-	saltUsage = "usage: :salt [state [sls]|target|run <fun> [args…] [k=v…]|ping] or :salt -C|-G|-E|-L|-N|-I <expr>|:salt <glob>"
+	saltUsage = "usage: :salt [state [sls]|local state [--host h]|nodegroups|beacons|schedules|target|run [--ssh] <fun> [args…] [k=v…]|ping] or :salt -C|-G|-E|-L|-N|-I <expr>|:salt <glob>"
 )
 
 // SaltOps is what the `:salt` commands need from the Salt backend. The salt
@@ -101,7 +101,7 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 			return runSalt(env, b, args)
 		},
 		Complete: func(_ *Env, args string) []string {
-			return filterPrefix([]string{"ping", "run", "state", "target"}, partialWord(args))
+			return filterPrefix([]string{"beacons", "local", "nodegroups", "ping", "run", "schedules", "state", "target"}, partialWord(args))
 		},
 	}); err != nil {
 		return err
@@ -453,6 +453,23 @@ func runSalt(env *Env, b bus.Bus, args string) tea.Cmd {
 	switch word {
 	case "state":
 		return saltStateCmd(env, strings.TrimSpace(rest))
+	case "local":
+		return saltLocalCmd(env, strings.TrimSpace(rest))
+	case "nodegroups":
+		if strings.TrimSpace(rest) != "" {
+			return Flash(FlashError, "usage: :salt nodegroups")
+		}
+		return saltNodegroupsCmd(env)
+	case "beacons":
+		if strings.TrimSpace(rest) != "" {
+			return Flash(FlashError, "usage: :salt beacons")
+		}
+		return saltBeaconsCmd(env)
+	case "schedules":
+		if strings.TrimSpace(rest) != "" {
+			return Flash(FlashError, "usage: :salt schedules")
+		}
+		return saltSchedulesCmd(env)
 	case "target":
 		if strings.TrimSpace(rest) != "" {
 			return Flash(FlashError, "usage: :salt target")
@@ -535,6 +552,7 @@ func saltTargetLines(set targets.Set, compiled salt.Compiled, unmapped []resourc
 // saltRunCmd proposes a `salt.module.run`: any execution module function on the
 // session targets, planned and executed through the bus.
 func saltRunCmd(env *Env, b bus.Bus, args string) tea.Cmd {
+	args, ssh := splitSSHFlag(args)
 	fun, posArgs, kwargs, err := parseModuleArgs(args)
 	if err != nil {
 		return Flash(FlashError, "%v; %s", err, saltUsage)
@@ -553,6 +571,15 @@ func saltRunCmd(env *Env, b bus.Bus, args string) tea.Cmd {
 	if kwargs != "" {
 		params[salt.ParamKwargs] = kwargs
 	}
+	if ssh {
+		// SPEC §8.6: salt-ssh is opt-in, because it copies a runtime to the
+		// target. The plan carries the warning when it is allowed.
+		gate, ok := saltBackendOf[SaltSSHGate](env)
+		if !ok || !gate.SaltSSHAllowed() {
+			return Flash(FlashError, "salt-ssh is disabled; set salt.allow_salt_ssh: true to allow it")
+		}
+		params[salt.ParamSSH] = "true"
+	}
 	req := action.Request{
 		SpecID:  salt.SpecModuleRun,
 		Targets: actionTargets(env, hosts),
@@ -569,6 +596,18 @@ func saltRunCmd(env *Env, b bus.Bus, args string) tea.Cmd {
 		}
 		return OpenDialogMsg{Dialog: newRunPlanDialog(b, env, saltPlanWarning(p, first))}
 	}
+}
+
+// splitSSHFlag removes a leading --ssh word and reports whether it was there.
+func splitSSHFlag(args string) (rest string, ssh bool) {
+	args = strings.TrimSpace(args)
+	if args == "--ssh" {
+		return "", true
+	}
+	if after, ok := strings.CutPrefix(args, "--ssh "); ok {
+		return strings.TrimSpace(after), true
+	}
+	return args, false
 }
 
 // parseModuleArgs splits `:salt run`'s argument text into the function, its
@@ -774,6 +813,275 @@ func saltHealthy(ctx context.Context, env *Env) bool {
 		return false
 	}
 	return b.Health(ctx).State == backend.HealthOK
+}
+
+// SaltNodegroupOps is what `:salt nodegroups` needs from the Salt backend.
+type SaltNodegroupOps interface {
+	// Nodegroups lists the master's nodegroups with their members.
+	Nodegroups(ctx context.Context) ([]salt.Nodegroup, error)
+}
+
+// SaltRowsOps is what `:salt beacons` and `:salt schedules` need.
+type SaltRowsOps interface {
+	// Beacons reads beacons.list for the given minions.
+	Beacons(ctx context.Context, minions []string) ([]salt.BeaconRow, error)
+	// Schedules reads schedule.list for the given minions.
+	Schedules(ctx context.Context, minions []string) ([]salt.ScheduleRow, error)
+}
+
+// SaltLocalOps is what `:salt local state` needs: salt-call on one host.
+type SaltLocalOps interface {
+	// LocalAvailable reports whether a minion can be reached directly.
+	LocalAvailable() bool
+	// LocalState runs state.apply test=True on the host itself.
+	LocalState(ctx context.Context, host resource.HostID, sls string) (salt.StateRun, error)
+}
+
+// SaltSSHGate is the opt-in check of the salt-ssh transport. It is a separate
+// interface so the commands stay usable with a backend that does not offer it.
+type SaltSSHGate interface {
+	// SaltSSHAllowed reports whether execution through salt-ssh was opted in.
+	SaltSSHAllowed() bool
+}
+
+// saltBackendOf returns the registered Salt backend and whether it implements
+// the requested capability.
+func saltBackendOf[T any](env *Env) (T, bool) {
+	var zero T
+	if env == nil || env.Registry == nil {
+		return zero, false
+	}
+	b, ok := env.Registry.Get(saltBackendName)
+	if !ok || b == nil {
+		return zero, false
+	}
+	ops, ok := b.(T)
+	if !ok {
+		return zero, false
+	}
+	return ops, true
+}
+
+// saltNodegroupsCmd lists the master's nodegroups with their member counts.
+func saltNodegroupsCmd(env *Env) tea.Cmd {
+	ops, ok := saltBackendOf[SaltNodegroupOps](env)
+	if !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), saltTargetTimeout)
+		defer cancel()
+		groups, err := ops.Nodegroups(ctx)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "salt nodegroups: " + err.Error()}
+		}
+		return PushViewMsg{View: newTextPage(env, "salt nodegroups", nodegroupLines(groups))}
+	}
+}
+
+// nodegroupLines renders nodegroups as a table: name, member count, expression,
+// and the error kind of a group whose preview failed.
+func nodegroupLines(groups []salt.Nodegroup) []string {
+	lines := []string{fmt.Sprintf("%s · resolved with --preview-target -N", countOf(len(groups), "nodegroup"))}
+	if len(groups) == 0 {
+		return append(lines, "", "the master defines no nodegroups")
+	}
+	rows := salt.NodegroupRows(groups)
+	nameW, exprW := len("NAME"), len("EXPR")
+	for _, r := range rows {
+		nameW = max(nameW, len(r[0]))
+		exprW = max(exprW, len(r[2]))
+	}
+	lines = append(lines, padRight("NAME", nameW)+"  "+padRight("MEMBERS", 7)+"  "+padRight("EXPR", exprW)+"  NOTE")
+	for _, r := range rows {
+		lines = append(lines, padRight(r[0], nameW)+"  "+padRight(r[1], 7)+"  "+padRight(r[2], exprW)+"  "+r[3])
+	}
+	return lines
+}
+
+// saltBeaconsCmd shows the minions' beacons.
+func saltBeaconsCmd(env *Env) tea.Cmd {
+	ops, ok := saltBackendOf[SaltRowsOps](env)
+	if !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	hosts := sessionHosts(env)
+	if len(hosts) == 0 {
+		return Flash(FlashError, "no targets; try :targets <selector> first")
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), saltTargetTimeout)
+		defer cancel()
+		minions := saltMinions(env, hosts)
+		if len(minions) == 0 {
+			return FlashMsg{Level: FlashError, Text: "none of the targets is a salt minion"}
+		}
+		rows, err := ops.Beacons(ctx, minions)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "salt beacons: " + err.Error()}
+		}
+		return PushViewMsg{View: newTextPage(env, "salt beacons", beaconLines(rows))}
+	}
+}
+
+// saltSchedulesCmd shows the minions' schedules.
+func saltSchedulesCmd(env *Env) tea.Cmd {
+	ops, ok := saltBackendOf[SaltRowsOps](env)
+	if !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	hosts := sessionHosts(env)
+	if len(hosts) == 0 {
+		return Flash(FlashError, "no targets; try :targets <selector> first")
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), saltTargetTimeout)
+		defer cancel()
+		minions := saltMinions(env, hosts)
+		if len(minions) == 0 {
+			return FlashMsg{Level: FlashError, Text: "none of the targets is a salt minion"}
+		}
+		rows, err := ops.Schedules(ctx, minions)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "salt schedules: " + err.Error()}
+		}
+		return PushViewMsg{View: newTextPage(env, "salt schedules", scheduleLines(rows))}
+	}
+}
+
+// saltMinions maps a selection onto minion IDs through the backend's own
+// mapping, falling back to the host ID when the backend does not offer it.
+func saltMinions(env *Env, hosts []resource.HostID) []string {
+	if ops, ok := saltBackendOf[SaltOps](env); ok {
+		minions, _ := minionsOf(ops, hosts)
+		return minions
+	}
+	ids := make([]string, 0, len(hosts))
+	for _, h := range hosts {
+		if h != "" {
+			ids = append(ids, string(h))
+		}
+	}
+	return ids
+}
+
+// beaconLines renders beacons as a table: minion, name, enabled, settings.
+func beaconLines(rows []salt.BeaconRow) []string {
+	lines := []string{fmt.Sprintf("%s · read-only", countOf(len(rows), "beacon"))}
+	if len(rows) == 0 {
+		return append(lines, "", "no beacons configured on the targets")
+	}
+	table := salt.BeaconRows(rows)
+	minionW, nameW := len("MINION"), len("NAME")
+	for _, r := range table {
+		minionW = max(minionW, len(r[0]))
+		nameW = max(nameW, len(r[1]))
+	}
+	lines = append(lines, padRight("MINION", minionW)+"  "+padRight("NAME", nameW)+"  "+padRight("ENABLED", 7)+"  CONFIG")
+	for _, r := range table {
+		lines = append(lines, padRight(r[0], minionW)+"  "+padRight(r[1], nameW)+"  "+padRight(r[2], 7)+"  "+r[3])
+	}
+	return lines
+}
+
+// scheduleLines renders schedules as a table: minion, name, enabled, next run.
+func scheduleLines(rows []salt.ScheduleRow) []string {
+	lines := []string{fmt.Sprintf("%s · read-only", countOf(len(rows), "schedule"))}
+	if len(rows) == 0 {
+		return append(lines, "", "no schedules configured on the targets")
+	}
+	table := salt.ScheduleRows(rows)
+	minionW, nameW := len("MINION"), len("NAME")
+	for _, r := range table {
+		minionW = max(minionW, len(r[0]))
+		nameW = max(nameW, len(r[1]))
+	}
+	lines = append(lines, padRight("MINION", minionW)+"  "+padRight("NAME", nameW)+"  "+padRight("ENABLED", 7)+"  NEXT RUN")
+	for _, r := range table {
+		lines = append(lines, padRight(r[0], minionW)+"  "+padRight(r[1], nameW)+"  "+padRight(r[2], 7)+"  "+r[3])
+	}
+	return lines
+}
+
+// saltLocalCmd dispatches `:salt local …`. Only the state dry run exists: it is
+// the one read that is worth having when the master cannot be driven.
+func saltLocalCmd(env *Env, args string) tea.Cmd {
+	word, rest := splitFirstWord(args)
+	switch word {
+	case "state":
+		return saltLocalStateCmd(env, strings.TrimSpace(rest))
+	case "":
+		return Flash(FlashError, "usage: :salt local state [--host h]")
+	}
+	return Flash(FlashError, "usage: :salt local state [--host h]")
+}
+
+// saltLocalStateCmd runs `salt-call --local`-style state.apply test=True on one
+// host over SSH and shows the same rows the dry-run view groups.
+func saltLocalStateCmd(env *Env, args string) tea.Cmd {
+	ops, ok := saltBackendOf[SaltLocalOps](env)
+	if !ok || !ops.LocalAvailable() {
+		return Flash(FlashError, "salt-call local mode needs an SSH executor")
+	}
+	fields := strings.Fields(args)
+	var host resource.HostID
+	sls := ""
+	for i := 0; i < len(fields); i++ {
+		switch {
+		case fields[i] == "--host" && i+1 < len(fields):
+			host = resource.NormalizeHostID(fields[i+1])
+			i++
+		case strings.HasPrefix(fields[i], "--host="):
+			host = resource.NormalizeHostID(strings.TrimPrefix(fields[i], "--host="))
+		case sls == "":
+			sls = fields[i]
+		default:
+			return Flash(FlashError, "usage: :salt local state [--host h] [sls]")
+		}
+	}
+	if host == "" {
+		hosts := sessionHosts(env)
+		if len(hosts) != 1 {
+			return Flash(FlashError, "usage: :salt local state --host h")
+		}
+		host = hosts[0]
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), saltPillarTimeout)
+		defer cancel()
+		run, err := ops.LocalState(ctx, host, sls)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "salt-call " + string(host) + ": " + err.Error()}
+		}
+		return PushViewMsg{View: newTextPage(env, "salt local "+string(host), localStateLines(host, run))}
+	}
+}
+
+// localStateLines renders one host's local dry run with the same columns the
+// dry-run view uses.
+func localStateLines(host resource.HostID, run salt.StateRun) []string {
+	lines := []string{string(host) + " · " + run.Summary() + " · salt-call --local"}
+	if len(run.Errors) > 0 {
+		lines = append(lines, "", "ERROR")
+		for _, e := range run.Errors {
+			lines = append(lines, "  "+e)
+		}
+	}
+	if len(run.Rows) == 0 {
+		return append(lines, "", "no states returned")
+	}
+	slsW, idW, funW := len("SLS"), len("ID"), len("FUNCTION")
+	rows := salt.RenderRows(run)
+	for _, r := range rows {
+		slsW = max(slsW, len(r[0]))
+		idW = max(idW, len(r[1]))
+		funW = max(funW, len(r[2]))
+	}
+	lines = append(lines, padRight("SLS", slsW)+"  "+padRight("ID", idW)+"  "+padRight("FUNCTION", funW)+"  RESULT  COMMENT")
+	for _, r := range rows {
+		lines = append(lines, padRight(r[0], slsW)+"  "+padRight(r[1], idW)+"  "+padRight(r[2], funW)+"  "+padRight(r[3], 7)+"  "+r[4])
+	}
+	return lines
 }
 
 // countOf renders "14 minions" / "1 minion" — the noun agreeing with n.

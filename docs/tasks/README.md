@@ -182,7 +182,7 @@ only by tasks 001, 098, 105 and 115.
 | [094](094-salt-mine-grains.md) | Mine and grains explorer | 093 | — | done |
 | [095](095-salt-key-management.md) | Salt key management actions | 076 | M7-B | done |
 | [096](096-salt-events.md) | Salt event stream | 094, 045 | — | done |
-| [097](097-salt-misc-salt-ssh-call.md) | Nodegroups, beacons, schedules, salt-ssh awareness, `salt-call` local mode (M7 exit) | 092, 093, 094, 096 | M7-B | todo |
+| [097](097-salt-misc-salt-ssh-call.md) | Nodegroups, beacons, schedules, salt-ssh awareness, `salt-call` local mode (M7 exit) | 092, 093, 094, 096 | M7-B | done |
 
 ### M8 — HTTP + Prometheus/Alertmanager
 

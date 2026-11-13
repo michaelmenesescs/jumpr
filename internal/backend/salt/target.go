@@ -151,6 +151,17 @@ func sortedMinions(minions []string) []string {
 // match to report extra and missing minions.
 func Compile(sel resource.Selector, resolved []string, grainKeys map[string]bool, chunk int) Compiled {
 	minions := append([]string(nil), resolved...)
+	// A selector that is nothing but `@salt:<name>` is the nodegroup itself:
+	// sending -N <name> lets the master resolve it, and the client-side
+	// resolution stays as the expected set.
+	if target, ok := NodegroupTarget(sel); ok {
+		return Compiled{
+			Targets: []Target{target},
+			Native:  true,
+			Minions: minions,
+			Explain: "nodegroup: -N " + target.Expr,
+		}
+	}
 	target, native := CompileSelector(sel, grainKeys)
 	if native && len(minions) > smallSetLimit {
 		return Compiled{

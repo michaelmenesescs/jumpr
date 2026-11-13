@@ -3,6 +3,7 @@ package salt
 import (
 	"context"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,4 +122,75 @@ func aliases(minion string, g Grains, id resource.HostID) []string {
 // isLoopback reports whether addr is an IPv4 or IPv6 loopback address.
 func isLoopback(addr string) bool {
 	return strings.HasPrefix(addr, "127.") || addr == "::1"
+}
+
+// RosterSourceName is the inventory source name of the master's salt-ssh
+// roster. It is also the label namespace of the roster labels.
+const RosterSourceName = "salt-roster"
+
+// RosterSource is the salt-ssh inventory source: one host per roster entry,
+// labelled `salt.roster=true` so a selector can tell them apart from minions.
+// It reads only the master; nothing is installed on a roster host.
+type RosterSource struct {
+	Runner *Runner
+	// Path is the roster on the master; empty means DefaultRosterPath.
+	Path string
+	// Now stamps SeenAt; nil means time.Now.
+	Now func() time.Time
+}
+
+// NewRosterSource wraps a Runner as the roster inventory source.
+func NewRosterSource(r *Runner, path string) *RosterSource {
+	return &RosterSource{Runner: r, Path: path}
+}
+
+// Name is both the source name and its label namespace.
+func (s *RosterSource) Name() string { return RosterSourceName }
+
+// Load reads the master's roster and turns every entry into a host. An
+// unreadable roster is an error the inventory reports under this source name;
+// it never hides the other sources.
+func (s *RosterSource) Load(ctx context.Context) ([]inventory.Host, error) {
+	if s.Runner == nil {
+		return nil, errs.New(errs.Config, "inventory.salt-roster", "no salt runner")
+	}
+	b := &Backend{runner: s.Runner, rosterPath: s.Path, now: s.Now}
+	entries, err := b.Roster(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now
+	if s.Now != nil {
+		now = s.Now
+	}
+	stamp := now()
+
+	hosts := make([]inventory.Host, 0, len(entries))
+	for _, e := range entries {
+		h := RosterHost(e)
+		h.SeenAt = stamp
+		hosts = append(hosts, h)
+	}
+	return hosts, nil
+}
+
+// RosterHost turns one roster entry into an inventory host. The identity is the
+// address the entry dials; the roster key stays an alias.
+func RosterHost(e RosterEntry) inventory.Host {
+	id := resource.NormalizeHostID(e.Address())
+	labels := map[string]string{
+		"host":        string(id),
+		"salt.roster": "true",
+	}
+	if e.User != "" {
+		labels["salt.roster.user"] = e.User
+	}
+	if e.Port > 0 {
+		labels["salt.roster.port"] = strconv.Itoa(e.Port)
+	}
+	var aliases []string
+	if key := resource.NormalizeHostID(e.ID); key != "" && key != id {
+		aliases = append(aliases, string(key))
+	}
+	return inventory.Host{ID: id, Addr: e.Address(), Aliases: aliases, Labels: labels, Sources: []string{RosterSourceName}}
 }

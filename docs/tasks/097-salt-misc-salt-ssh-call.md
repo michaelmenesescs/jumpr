@@ -3,7 +3,7 @@
 - **Milestone:** M7
 - **Depends on:** 092, 093, 094, 096
 - **Parallel group:** M7-B (with 095)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The remaining rows of SPEC §8.6.
