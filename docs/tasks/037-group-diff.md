@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 005
 - **Parallel group:** M2-A (with 026, 027, 028)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 "1,481 identical · 19 differ · 4 errors" — the core of every fleet view.

@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 003
 - **Parallel group:** M2-A (with 026, 027, 037)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Given a host name, produce everything needed to dial it, including the ProxyJump chain, from one or more

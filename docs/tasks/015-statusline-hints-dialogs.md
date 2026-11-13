@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 011
 - **Parallel group:** M0-C (with 012, 013, 014)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The fixed chrome around the panes, as in the mockup: status line with backend health dots on top; flash line and

@@ -65,15 +65,15 @@ only by tasks 001, 098, 105 and 115.
 | [012](012-table-view.md) | Generic table view | 007, 008, 009, 011 | M0-C | done |
 | [013](013-text-view.md) | Text view (scrollable text, key/value detail) | 008, 011 | M0-C | done |
 | [014](014-command-bar.md) | Command bar and command registry | 011 | M0-C | done |
-| [015](015-statusline-hints-dialogs.md) | Status line, hint bar, flash, dialog frame, help | 011 | M0-C | todo |
+| [015](015-statusline-hints-dialogs.md) | Status line, hint bar, flash, dialog frame, help | 011 | M0-C | done |
 | [016](016-root-app.md) | Root model, `app.Run`, `jumper --demo` | 003, 007, 012, 013, 014, 015 | — | todo |
 
 ### M1 — Multiplexer (in-process)
 
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
-| [017](017-mux-layout-tree.md) | Mux layout tree (pure) | 002 | M1-A | todo |
-| [018](018-mux-prefix-machine.md) | Prefix key state machine and mux key table | 010 | M1-A | todo |
+| [017](017-mux-layout-tree.md) | Mux layout tree (pure) | 002 | M1-A | done |
+| [018](018-mux-prefix-machine.md) | Prefix key state machine and mux key table | 010 | M1-A | done |
 | [019](019-mux-session-state.md) | Windows and session state (pure) | 017 | — | todo |
 | [020](020-view-pane.md) | View pane content | 016, 019 | M1-B | todo |
 | [021](021-mux-model.md) | Mux model: panes on screen, routing, ops | 018, 019 | M1-B | todo |
@@ -86,9 +86,9 @@ only by tasks 001, 098, 105 and 115.
 
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
-| [026](026-transport-types-fake.md) | Transport types and scripted fake executor | 005 | M2-A | todo |
-| [027](027-shell-quoting-classify.md) | Shell quoting, sudo wrapping, remote error classification | 002 | M2-A | todo |
-| [028](028-ssh-config.md) | Resolve hosts from ssh_config | 003 | M2-A | todo |
+| [026](026-transport-types-fake.md) | Transport types and scripted fake executor | 005 | M2-A | done |
+| [027](027-shell-quoting-classify.md) | Shell quoting, sudo wrapping, remote error classification | 002 | M2-A | done |
+| [028](028-ssh-config.md) | Resolve hosts from ssh_config | 003 | M2-A | done |
 | [029](029-ssh-auth-hostkeys.md) | SSH authentication and host key verification | 028 | M2-B | todo |
 | [030](030-ssh-test-server.md) | In-process SSH test server | 026 | M2-B | todo |
 | [031](031-ssh-dial.md) | SSH dialer: direct and through a ProxyJump chain | 029, 030 | — | todo |
@@ -97,7 +97,7 @@ only by tasks 001, 098, 105 and 115.
 | [034](034-ssh-shell.md) | SSH ShellOpener (interactive PTY sessions) | 033 | — | todo |
 | [035](035-doctor-ssh-lab.md) | `jumper doctor ssh` and the first lab test | 033 | — | todo |
 | [036](036-fanout-runner.md) | Fan-out runner | 026 | M2-B | todo |
-| [037](037-group-diff.md) | Grouping identical outputs, summary headline, unified diff | 005 | M2-A | todo |
+| [037](037-group-diff.md) | Grouping identical outputs, summary headline, unified diff | 005 | M2-A | done |
 | [038](038-probe-batch.md) | Probe batch compiler and section splitter | 026, 027 | M2-B | todo |
 | [039](039-inventory-core.md) | Inventory: hosts, sources, merge, identity, cache | 028 | M2-D | todo |
 | [040](040-linux-parse-overview.md) | Linux parsers: host overview | 005 | M2-D | todo |

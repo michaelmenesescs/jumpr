@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 002
 - **Parallel group:** M2-A (with 026, 028, 037)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The single place where remote command lines are assembled and where remote failures are classified.

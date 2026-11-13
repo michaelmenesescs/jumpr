@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 002
 - **Parallel group:** M1-A (with 018)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The binary split tree that decides where every pane is. Pure data and arithmetic; no Bubble Tea, no I/O.

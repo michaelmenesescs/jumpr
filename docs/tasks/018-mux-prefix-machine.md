@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 010
 - **Parallel group:** M1-A (with 017)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Turn key presses into multiplexer operations the tmux way: prefix, then one key. Pure and time-injected.

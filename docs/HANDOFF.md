@@ -313,3 +313,14 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   Also removed six orphaned, untracked task-015 WIP files (`internal/tui/{statusline,hints,dialog,dialog_help}.go` + two
   test files) left by an earlier aborted session: they failed their own tests and were not referenced by committed code.
   Task 015 is re-implemented from its task file.
+
+- 2026-11-12 — Parallel wave 1 (tasks 015, 017, 018, 026, 027, 028, 037 merged on `main`, one commit per task,
+  linear history, `go test ./...` green after each merge). Method: one git worktree per task under
+  `~/workspace/wt/t<NNN>`, one agent per worktree, each given only its task file + the BUILD-PLAN sections it names;
+  agents were told **not** to touch `docs/tasks/README.md`, `docs/HANDOFF.md`, `go.mod`, `go.sum` or the Makefile —
+  the coordinator merges in numeric order after re-running `gofmt`/`go vet`/`go test` and diffing the branch against
+  main for forbidden paths. Two got an extra manual read against the task text (018 prefix table, 027 `Wrap` strings).
+  Notable: task 015 also added 3 lines to `internal/tui/msgs.go` (`OpenDialogMsg`), which its task file did not list —
+  accepted because the dialog frame cannot be opened otherwise and `msgs.go` is otherwise untouched.
+  Worktree dirs are outside the repo (`~/workspace/wt`), so `git status` stays clean.
+

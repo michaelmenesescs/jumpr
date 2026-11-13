@@ -5,7 +5,7 @@
 > Status: DRAFT for build · 2026-11-12 · Owner: Michael
 > How it gets built: `docs/BUILD-PLAN.md` (contracts, milestones) and `docs/tasks/` (one file per task).
 
-### Changelog
+## Changelog
 
 **v0.2 (2026-11-12)** — after the mockup review (see `INTERVIEW.md`, "Follow-up"):
 

@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 005
 - **Parallel group:** M2-A (with 027, 028, 037)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The transport contract and a fake that every backend test will use instead of SSH.
