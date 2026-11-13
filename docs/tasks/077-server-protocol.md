@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 002
 - **Parallel group:** M5-A (with 078)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Encode and decode the frames of BUILD-PLAN §6.2.
