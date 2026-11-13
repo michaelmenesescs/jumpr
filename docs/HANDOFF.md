@@ -340,3 +340,15 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   - `cmd/sitrep-lab/` and `lab/` still use the old `sitrep` name and are untouched by design (lab track).
   Tasks whose agents chose to keep the task's listed test names, or that reported "no other deviation", are not listed.
 
+- 2026-11-12 — Merge-integrity notes (coordinator):
+  - **Two cross-task collisions found only after merge**, both fixed on main with a `fix:` commit:
+    (1) `internal/backend/salt` — tasks 068 and 071 each defined `collect` in their tests; renamed 071's to
+    `collectJobs`. (2) `internal/tui` — task 022 called `filterPrefix`, a helper it never defined (its branch was
+    marked failed for touching the index, so it never went through the verify gate); added it next to
+    `dirCompletions`.
+  - **Gate hardened:** the scheduler now rebases a branch onto main and then verifies *the rebased tree* before
+    merging, because the rebased tree is exactly what main becomes. Verifying before the rebase missed both
+    collisions above: each branch passed alone and failed together.
+  - Tasks 022, 031, 080 had edited `docs/tasks/README.md` against instructions; the index hunk was dropped from each
+    commit (`git checkout main -- docs/tasks/README.md`), then rebased and merged. Their task work was unaffected.
+

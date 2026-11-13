@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 020, 021
 - **Parallel group:** — (serial; touches the root)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `jumper --demo` with real panes and windows: the M1 demo script up to zoom.

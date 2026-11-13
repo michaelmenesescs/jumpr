@@ -77,7 +77,7 @@ only by tasks 001, 098, 105 and 115.
 | [019](019-mux-session-state.md) | Windows and session state (pure) | 017 | — | done |
 | [020](020-view-pane.md) | View pane content | 016, 019 | M1-B | done |
 | [021](021-mux-model.md) | Mux model: panes on screen, routing, ops | 018, 019 | M1-B | done |
-| [022](022-root-with-mux.md) | Root integration: panes in the app, window tabs, mux commands | 020, 021 | — | todo |
+| [022](022-root-with-mux.md) | Root integration: panes in the app, window tabs, mux commands | 020, 021 | — | done |
 | [023](023-copy-mode-clipboard.md) | Copy mode and clipboard | 022 | — | todo |
 | [024](024-session-persistence.md) | Session persistence (layout survives restart) | 023 | — | todo |
 | [025](025-io-agnostic-run.md) | Prove the app runs over a plain byte stream (detach de-risk) | 024 | — | todo |
@@ -91,7 +91,7 @@ only by tasks 001, 098, 105 and 115.
 | [028](028-ssh-config.md) | Resolve hosts from ssh_config | 003 | M2-A | done |
 | [029](029-ssh-auth-hostkeys.md) | SSH authentication and host key verification | 028 | M2-B | done |
 | [030](030-ssh-test-server.md) | In-process SSH test server | 026 | M2-B | done |
-| [031](031-ssh-dial.md) | SSH dialer: direct and through a ProxyJump chain | 029, 030 | — | todo |
+| [031](031-ssh-dial.md) | SSH dialer: direct and through a ProxyJump chain | 029, 030 | — | done |
 | [032](032-ssh-pool.md) | SSH connection pool with bastion multiplexing and limits | 031 | — | todo |
 | [033](033-ssh-exec-stream.md) | SSH Executor and Streamer | 027, 032 | — | todo |
 | [034](034-ssh-shell.md) | SSH ShellOpener (interactive PTY sessions) | 033 | — | todo |
@@ -155,7 +155,7 @@ only by tasks 001, 098, 105 and 115.
 | [077](077-server-protocol.md) | Session-server wire protocol codec (pure) | 002 | M5-A | done |
 | [078](078-core-session-split.md) | Split `app` into Core and Session; switchable I/O; in-process attach/detach | 076 | M5-A | todo |
 | [079](079-server.md) | Session server: socket, lock, session registry, control commands | 077, 078 | M5-B | todo |
-| [080](080-client-attach.md) | Client: raw terminal, byte pumps, resize, clean restore | 077 | M5-B | todo |
+| [080](080-client-attach.md) | Client: raw terminal, byte pumps, resize, clean restore | 077 | M5-B | done |
 | [081](081-cli-daemon.md) | CLI subcommands and on-demand server start | 079, 080 | — | todo |
 | [082](082-detach-ux.md) | Detach UX: sessions in the TUI, prompts, environment, restore after restart | 081 | — | todo |
 | [083](083-detach-e2e-tmux.md) | End-to-end detach test through a real PTY; behaviour inside tmux | 082 | — | todo |

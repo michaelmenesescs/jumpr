@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 077
 - **Parallel group:** M5-B (with 079)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The thin client of BUILD-PLAN §6: connect, say hello, pump bytes both ways, restore the terminal no matter how

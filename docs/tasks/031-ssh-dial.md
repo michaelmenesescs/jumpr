@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 029, 030
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 One function that returns a connected `*ssh.Client` for a resolved chain, with timeouts, keepalives and classified
