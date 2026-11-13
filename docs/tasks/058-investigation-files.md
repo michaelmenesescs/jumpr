@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 054
 - **Parallel group:** M3-B (with 056)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Read and write the plain-Markdown records exactly in the format of SPEC §10.
