@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 082
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Prove the whole chain with the real binary and a real terminal device, and finish the nested-in-tmux details.

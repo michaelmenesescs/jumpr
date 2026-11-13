@@ -139,7 +139,7 @@ func runServer(ctx context.Context, inv app.Invocation, home string) int {
 	}
 	err := app.RunServer(ctx, app.ServerOptions{
 		Options: app.Options{
-			Demo:      inv.Demo,
+			Demo:      inv.Demo || inv.DemoServer,
 			ConfigDir: paths.ConfigDir,
 			Home:      home,
 			Debug:     inv.Debug,
@@ -163,7 +163,7 @@ func runServer(ctx context.Context, inv app.Invocation, home string) int {
 func runAttach(ctx context.Context, inv app.Invocation, home string) int {
 	// A jumper inside a jumper terminal pane would fight the outer one for the
 	// keyboard (SPEC §21.4); local panes export $SITREP.
-	if os.Getenv("SITREP") != "" {
+	if os.Getenv(app.SessionEnvVar) != "" {
 		fmt.Fprintln(os.Stderr, "jumper: already inside jumper")
 		return 1
 	}
@@ -313,7 +313,7 @@ func serverArgs(inv app.Invocation, socket string) []string {
 	if inv.Debug {
 		args = append(args, "--debug")
 	}
-	if inv.Demo {
+	if inv.Demo || inv.DemoServer {
 		args = append(args, "--demo")
 	}
 	args = append(args, "-S", socket)

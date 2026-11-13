@@ -38,7 +38,35 @@ const (
 	// leaveScreen undoes enterScreen: bracketed paste off, cursor shown, main
 	// screen back.
 	leaveScreen = "\x1b[?2004l\x1b[?25h\x1b[?1049l"
+
+	// SessionEnvVar marks a shell started by a jumper session. A local pane
+	// exports it, and `jumper` refuses to start inside one (SPEC §21.4): the
+	// inner process would fight the outer one for the keyboard.
+	SessionEnvVar = "SITREP"
+
+	// titlePrefix begins the OSC 2 title sequence the attach preamble writes.
+	titlePrefix = "\x1b]2;jumper: "
 )
+
+// InSession reports whether the environment belongs to a process started by a
+// jumper session's local pane. The check exists before local shell panes do;
+// task 081's nested-attach refusal reads it.
+func InSession(env map[string]string) bool {
+	return env[SessionEnvVar] != ""
+}
+
+// titleSequence is the OSC 2 sequence that names the session in the terminal's
+// title bar: ESC ] 2 ; jumper: <session> BEL. Control characters are dropped
+// so a session name can never smuggle an escape into the terminal.
+func titleSequence(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, name)
+	return titlePrefix + name + "\a"
+}
 
 // Info describes a session the way the CLI's `ls` shows it (BUILD-PLAN §6.2
 // SessionInfo has the same shape on the wire).
@@ -296,7 +324,7 @@ func (s *Session) Attach(in io.Reader, out io.Writer, size Size, env map[string]
 		return err
 	}
 
-	if _, err := io.WriteString(out, enterScreen); err != nil {
+	if _, err := io.WriteString(out, enterScreen+titleSequence(s.name)); err != nil {
 		return errs.Wrap(errs.Internal, "app.Attach", err)
 	}
 	s.out.Set(out)

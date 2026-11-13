@@ -21,6 +21,7 @@ import (
 	"jumper/internal/resource"
 	"jumper/internal/transport"
 	"jumper/internal/transport/transporttest"
+	"jumper/internal/tui"
 	"jumper/internal/tui/theme"
 )
 
@@ -495,5 +496,77 @@ func waitForPhase(t *testing.T, events <-chan bus.Event, phase bus.Phase) {
 		case <-deadline:
 			t.Fatalf("the run never reached %s", phase)
 		}
+	}
+}
+
+// TestSessionTitleOnAttach is requirement 4's third clause: the attach preamble
+// names the session in the terminal's title bar, ESC ] 2 ; jumper: <session> BEL,
+// after the alt-screen preamble that existing tests already match.
+func TestSessionTitleOnAttach(t *testing.T) {
+	core := testCore(t, []string{"web-01"}, nil)
+	sess := testSession(t, core)
+	c := attach(t, sess, "web-01")
+
+	want := "\x1b]2;jumper: " + sess.Name() + "\a"
+	if !strings.Contains(c.out.String(), want) {
+		t.Fatalf("attach output has no title sequence %q", want)
+	}
+	if !strings.Contains(c.out.String(), enterScreen) {
+		t.Fatal("attach output has no alt-screen preamble")
+	}
+}
+
+// TestTmuxPrefixOnAttach is requirement 4's first clause: a client started
+// inside tmux gets mux.prefix_in_tmux, and the status line shows it.
+func TestTmuxPrefixOnAttach(t *testing.T) {
+	core := testCore(t, []string{"web-01"}, nil)
+	sess := testSession(t, core)
+
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { pw.Close() })
+	out := &syncBuffer{}
+	if err := sess.Attach(pr, out, Size{Cols: 120, Rows: 36}, map[string]string{
+		"TERM": "xterm-256color",
+		"TMUX": "/tmp/tmux-501/default,1,0",
+	}); err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	waitForText(t, out, "web-01")
+	// Default config: prefix C-a, prefix_in_tmux C-b.
+	want := tui.PrefixDisplay("ctrl+" + strings.TrimPrefix(core.cfg.Mux.PrefixInTmux, "C-"))
+	if want == "" {
+		t.Fatal("no prefix display")
+	}
+	waitForText(t, out, want)
+}
+
+// TestTmuxClipboardPassthrough is requirement 4's second clause: a session
+// started inside tmux writes OSC 52 in the tmux passthrough form as well as
+// trying pbcopy. An empty PATH makes pbcopy fail, so the OSC 52 fallback is the
+// one that has to land.
+func TestTmuxClipboardPassthrough(t *testing.T) {
+	t.Setenv("PATH", "")
+	out := &syncBuffer{}
+	c := clipboardFactory()(out, true)
+	if err := c.Copy("hi"); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	want := "\x1bPtmux;\x1b\x1b]52;c;aGk=\a\x1b\\"
+	if got := out.String(); !strings.Contains(got, want) {
+		t.Fatalf("clipboard wrote %q, want the tmux passthrough %q", got, want)
+	}
+}
+
+// TestSessionEnvConstant is requirement 5: the marker a local pane exports is
+// defined here, and InSession is the check the nested-attach refusal uses.
+func TestSessionEnvConstant(t *testing.T) {
+	if SessionEnvVar != "SITREP" {
+		t.Fatalf("SessionEnvVar = %q, want SITREP", SessionEnvVar)
+	}
+	if InSession(nil) || InSession(map[string]string{"OTHER": "main"}) {
+		t.Fatal("InSession accepted an environment without the marker")
+	}
+	if !InSession(map[string]string{SessionEnvVar: "main"}) {
+		t.Fatal("InSession ignored the marker")
 	}
 }

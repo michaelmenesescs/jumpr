@@ -55,6 +55,11 @@ type Invocation struct {
 	Standalone bool
 	// Demo is --demo: the built-in fake world.
 	Demo bool
+	// DemoServer is the hidden --demo-server: the session server runs the
+	// built-in fake world while the client attaches to it normally. --demo
+	// implies standalone, which is no use for the end-to-end test; this does
+	// not.
+	DemoServer bool
 	// ReadOnly is --readonly: every write is denied until `:readonly off`.
 	ReadOnly bool
 	// Fresh is --fresh: do not restore the saved layout.
@@ -205,6 +210,8 @@ func (i *Invocation) parseGlobal(args []string, j int) (int, error) {
 		i.Standalone = true
 	case matchesFlag(a, "--demo"):
 		i.Demo = true
+	case matchesFlag(a, "--demo-server"):
+		i.DemoServer = true
 	case matchesFlag(a, "--readonly"):
 		i.ReadOnly = true
 	case matchesFlag(a, "--fresh"):
