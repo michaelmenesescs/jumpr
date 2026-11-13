@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 005
 - **Parallel group:** M0-B (with 007)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 One place for colours and one place for key names, so views never hard-code either.

@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 008 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 010 done; M0 in progress)_
 
 ## State
 
@@ -68,9 +68,19 @@ _Last updated: 2026-11-12 (task 008 done; M0 in progress)_
       `Age` (`—` for zero time), `Percent` (`71%` at ≥ 10, `3.2%` below)). Tests cover every format, NaN and
       negative inputs, MinInt64 and a width property over 8 series × 20 widths.
 
+- [x] **Task 010 done:** `internal/tui/theme` — `Flash` and `Theme` with all 21 `lipgloss.Style` fields of the
+      task, `Dark()` using fixed 256-colour codes (252 base, 245/240 dim/faint, 42/214/203 ok/warn/crit, 75
+      accent, 237 selected background), `SetProfile` (`auto|truecolor|256|16|none`, unknown names ignored) and
+      `(*Theme).StatusStyle` (Unknown→Base, OK/Warn/Crit→their colours, NA→Faint). `internal/tui/keymap` —
+      `Binding{Keys,Help}` with `Matches`, `Map` with all 23 global bindings and `Default()`, `ParsePrefix`
+      (`C-a`→`ctrl+a`, `C-\`→`ctrl+\\`, `C-@`→`ctrl+@`, `C-]`/`C-^`/`C-_`; `errs.Config` otherwise) and
+      `DisplayKey` (`ctrl+a`→`C-a`, everything else unchanged). Tests cover the palette under profiles
+      256/16/none, every status, the full prefix table, matching, a ctrl-key display round-trip and the default
+      key table.
+
 ## Next task
 
-**`docs/tasks/010-theme-keymap.md`** (depends on 005, done). Then 011 needs 006 + 010.
+**`docs/tasks/011-tui-core.md`** (depends on 006 and 010, both done).
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -195,3 +205,11 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   `38m 12s` keeps its seconds while `41d 3h 20m` stops at hours; sub-second → `0s`; (4) `Int`/`Bytes` take the
   magnitude as `uint64` so `math.MinInt64` formats instead of wrapping; (5) `Bar` rounds to the nearest cell
   (`0.3` of 3 → one block) and treats NaN as zero. `make check` green; render tests 1.3 s under `-race`.
+- 2026-11-12 — Task 010: `internal/tui/theme` + `internal/tui/keymap`. Choices: (1) `SetProfile` imports
+  `muesli/termenv` for the profile constants — it is already pinned in `go.mod`/`go.sum` at v0.16.0 as lipgloss's
+  own dependency and `lipgloss.SetColorProfile` takes a `termenv.Profile`, so no new module and no `go.mod` edit
+  (`go mod tidy` would only move the `// indirect` marker); (2) an unknown profile name is a silent no-op because
+  the task fixes the signature as `func SetProfile(name string)` with no error — config validation already rejects
+  anything outside the set; (3) `ParsePrefix` accepts exactly the control keys Bubble Tea has names for (`a`–`z`,
+  `@`, `\`, `]`, `^`, `_`) and rejects `C-[` because the key arrives as `esc`, so it could never match. `make
+  check` green; the new tests take 1.2 s under `-race`.
