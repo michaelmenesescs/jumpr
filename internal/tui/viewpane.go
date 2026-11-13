@@ -11,6 +11,7 @@ import (
 	"jumper/internal/mux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
+	"jumper/internal/tui/keymap"
 	"jumper/internal/tui/theme"
 )
 
@@ -37,6 +38,14 @@ type ViewPane struct {
 	cancel  context.CancelFunc
 	stack   *Stack
 	focused bool
+
+	// panel is the knowledge side panel; nil when no knowledge root is
+	// configured. panelOn is the K toggle (on by default) and w is the last
+	// interior width the pane was drawn at, which decides whether the panel
+	// fits at all.
+	panel   *sidePanel
+	panelOn bool
+	w       int
 }
 
 var _ mux.Content = (*ViewPane)(nil)
@@ -49,11 +58,15 @@ func NewViewPane(env *Env, id mux.PaneID, ctx context.Context, root View) *ViewP
 	}
 	pctx, cancel := context.WithCancel(ctx)
 	p := &ViewPane{
-		env:    env,
-		id:     id,
-		ctx:    pctx,
-		cancel: cancel,
-		stack:  NewStack(root),
+		env:     env,
+		id:      id,
+		ctx:     pctx,
+		cancel:  cancel,
+		stack:   NewStack(root),
+		panelOn: true,
+	}
+	if root := knowledgeRoot(env); root != "" {
+		p.panel = newSidePanel(env, root)
 	}
 	p.attach(root)
 	return p
@@ -66,13 +79,20 @@ func (p *ViewPane) attach(v View) {
 	}
 }
 
-// Init starts the top view. Its messages come back wrapped for this pane.
+// Init starts the top view and, when there is one, the knowledge panel. Its
+// messages come back wrapped for this pane.
 func (p *ViewPane) Init() tea.Cmd {
 	top := p.stack.Top()
-	if top == nil {
-		return nil
+	var cmd tea.Cmd
+	if top != nil {
+		cmd = mux.ForPane(p.id, top.Init())
 	}
-	return mux.ForPane(p.id, top.Init())
+	if p.panel == nil {
+		return cmd
+	}
+	return tea.Batch(cmd,
+		mux.ForPane(p.id, p.panel.Init()),
+		mux.ForPane(p.id, p.panel.trackSubject(knowledgeSubject(p.Subject()))))
 }
 
 // Update resolves OpenQueryMsg here, routes everything else to the stack and
@@ -80,15 +100,89 @@ func (p *ViewPane) Init() tea.Cmd {
 // PaneMsg whose content is a root-level message and forwards it to the root
 // (see IsRootMsg).
 func (p *ViewPane) Update(msg tea.Msg) (mux.Content, tea.Cmd) {
+	if r, ok := msg.(knowledgeRememberMsg); ok {
+		return p, mux.ForPane(p.id, p.rememberCmd(r))
+	}
+	if p.panel != nil {
+		if cmd, handled := p.panel.handleMsg(msg); handled {
+			return p, mux.ForPane(p.id, cmd)
+		}
+		if k, ok := msg.(tea.KeyMsg); ok {
+			if cmd, handled := p.handlePanelKey(k); handled {
+				return p, mux.ForPane(p.id, cmd)
+			}
+		}
+	}
+	var cmd tea.Cmd
 	if q, ok := msg.(OpenQueryMsg); ok {
 		v, err := p.viewFor(q.Query)
 		if err != nil {
-			return p, mux.ForPane(p.id, Flash(FlashError, "%v", err))
+			cmd = Flash(FlashError, "%v", err)
+		} else {
+			p.attach(v)
+			cmd = p.stack.Push(v)
 		}
-		p.attach(v)
-		return p, mux.ForPane(p.id, p.stack.Push(v))
+	} else {
+		cmd = p.stack.Update(msg)
 	}
-	return p, mux.ForPane(p.id, p.stack.Update(msg))
+	return p, mux.ForPane(p.id, p.trackSubject(cmd))
+}
+
+// trackSubject asks the panel to re-match when the top view's subject changed,
+// batching the view's own command in front of it.
+func (p *ViewPane) trackSubject(prev tea.Cmd) tea.Cmd {
+	if p.panel == nil {
+		return prev
+	}
+	next := p.panel.trackSubject(knowledgeSubject(p.Subject()))
+	switch {
+	case prev == nil:
+		return next
+	case next == nil:
+		return prev
+	}
+	return tea.Batch(prev, next)
+}
+
+// handlePanelKey gives the keys that belong to the panel to the panel: tab
+// enters it, K toggles it, and while it has focus it owns every key.
+func (p *ViewPane) handlePanelKey(k tea.KeyMsg) (tea.Cmd, bool) {
+	key := k.String()
+	if cmd, handled := p.panel.handleKey(k); handled {
+		return cmd, true
+	}
+	if p.Capturing() {
+		return nil, false
+	}
+	keys := keymap.Default()
+	if p.env != nil && p.env.Keys != nil {
+		keys = p.env.Keys
+	}
+	if key == "tab" && p.panelVisible() {
+		p.panel.focused = true
+		return nil, true
+	}
+	if keys.Knowledge.Matches(key) {
+		p.panelOn = !p.panelOn
+		if !p.panelOn {
+			p.panel.focused = false
+		}
+		return Flash(FlashInfo, "knowledge panel %s", onOff(p.panelOn)), true
+	}
+	return nil, false
+}
+
+// onOff renders a toggle state for the flash line.
+func onOff(on bool) string {
+	if on {
+		return "on"
+	}
+	return "off"
+}
+
+// panelVisible reports whether the panel fits and is switched on.
+func (p *ViewPane) panelVisible() bool {
+	return p.panel != nil && p.panelOn && p.w >= panelMinWidth
 }
 
 // viewFor resolves a query through the registry and the env's factories. It
@@ -119,16 +213,42 @@ func (p *ViewPane) viewFor(q resource.Query) (View, error) {
 	return v, nil
 }
 
-// View returns the breadcrumb line followed by the stack's h-1 lines.
+// View returns the breadcrumb line followed by the stack's h-1 lines, with the
+// knowledge panel on the right when it fits and is on.
 func (p *ViewPane) View(w, h int) string {
 	if w <= 0 || h <= 0 {
 		return ""
 	}
+	p.w = w
 	line := p.crumbLine(w)
 	if h == 1 {
 		return line
 	}
-	return line + "\n" + p.stack.Render(w, h-1)
+	if !p.panelVisible() {
+		return line + "\n" + p.stack.Render(w, h-1)
+	}
+	body := w - panelWidth
+	main := p.stack.Render(body, h-1)
+	side := p.panel.Render(panelWidth, h-1)
+	return line + "\n" + joinRows(main, side, h-1)
+}
+
+// joinRows puts two equally tall blocks side by side.
+func joinRows(left, right string, h int) string {
+	l := strings.Split(left, "\n")
+	r := strings.Split(right, "\n")
+	out := make([]string, h)
+	for i := 0; i < h; i++ {
+		var a, b string
+		if i < len(l) {
+			a = l[i]
+		}
+		if i < len(r) {
+			b = r[i]
+		}
+		out[i] = a + b
+	}
+	return strings.Join(out, "\n")
 }
 
 // crumbLine renders the crumbs with the last one bold, then the top view's

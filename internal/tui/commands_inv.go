@@ -38,6 +38,14 @@ type TimelineRequestedMsg struct{}
 // cause and resolve the open investigation.
 type InvestigationResolveRequestMsg struct{}
 
+// knowledgeRememberMsg asks every view pane to offer filing the resolved root
+// cause in a knowledge note. The resolve command emits it; the pane knows the
+// unit and the alert of what it is showing.
+type knowledgeRememberMsg struct {
+	Cause  string
+	Alerts []string
+}
+
 // Investigations are appended and read through the log the env carries.
 
 // invLifecycle is the part of the recorder the commands need beyond the frozen
@@ -236,9 +244,6 @@ func runInv(env *Env, args string) tea.Cmd {
 	case "close":
 		return closeInvestigation(env)
 	case "resolve":
-		if rest == "" {
-			return func() tea.Msg { return InvestigationResolveRequestMsg{} }
-		}
 		return resolveInvestigation(env, rest)
 	}
 	return Flash(FlashError, "usage: :inv [open <title>|close|resolve|resume <id>]")
@@ -301,25 +306,122 @@ func closeInvestigation(env *Env) tea.Cmd {
 	}
 }
 
-// resolveInvestigation records the root cause and marks the record resolved.
+// resolveInvestigation resolves the record with the given root cause, or asks
+// for one when none was typed. A resolved record offers its root cause to the
+// knowledge base afterwards.
 func resolveInvestigation(env *Env, rootCause string) tea.Cmd {
 	rootCause = strings.TrimSpace(rootCause)
-	if rootCause == "" {
-		return Flash(FlashError, "usage: :inv resolve <root cause>")
-	}
 	inv, ok := invLog(env)
 	if !ok {
 		return Flash(FlashWarn, "no investigation log configured")
 	}
+	if rootCause == "" {
+		if _, open := env.Recorder.Current(); !open {
+			return Flash(FlashWarn, "no investigation open")
+		}
+		d := NewPromptDialog(themeOf(env), "resolve investigation", "root cause:", "", func(text string) tea.Cmd {
+			return resolveWith(env, inv, text)
+		})
+		return func() tea.Msg { return OpenDialogMsg{Dialog: d} }
+	}
+	return resolveWith(env, inv, rootCause)
+}
+
+// resolveWith writes the resolution and, in the same batch, asks the panes to
+// offer filing the root cause in a knowledge note.
+func resolveWith(env *Env, inv invLifecycle, rootCause string) tea.Cmd {
+	rootCause = strings.TrimSpace(rootCause)
+	if rootCause == "" {
+		return nil
+	}
+	return tea.Batch(
+		func() tea.Msg {
+			if err := inv.Resolve(rootCause); err != nil {
+				return FlashMsg{Level: FlashError, Text: err.Error()}
+			}
+			meta, ok := inv.Current()
+			if !ok {
+				return InvestigationChangedMsg{Meta: nil}
+			}
+			return InvestigationChangedMsg{Meta: &meta}
+		},
+		func() tea.Msg {
+			meta, ok := inv.Current()
+			if !ok {
+				return nil
+			}
+			return knowledgeRememberMsg{Cause: rootCause, Alerts: meta.Alerts}
+		},
+	)
+}
+
+// kbCommand is `:kb`: the knowledge base itself.
+func kbCommand() Command {
+	return Command{
+		Name:  "kb",
+		Usage: ":kb [new host|service|alert|runbook <name>|reindex]",
+		Help:  "create a knowledge note, or reindex the knowledge base",
+		Run:   runKB,
+		Complete: func(_ *Env, args string) []string {
+			word := partialWord(args)
+			fields := strings.Fields(args)
+			if len(fields) == 0 {
+				return filterPrefix([]string{investigation.NoteKindAlert, investigation.NoteKindHost,
+					investigation.NoteKindRunbook, investigation.NoteKindService, "new", "reindex"}, word)
+			}
+			if len(fields) == 1 && fields[0] == "new" {
+				return filterPrefix([]string{investigation.NoteKindAlert, investigation.NoteKindHost,
+					investigation.NoteKindRunbook, investigation.NoteKindService}, word)
+			}
+			return nil
+		},
+	}
+}
+
+// runKB dispatches `:kb`. The file work runs inside the returned command.
+func runKB(env *Env, args string) tea.Cmd {
+	args = strings.TrimSpace(args)
+	if args == "" {
+		return Flash(FlashError, "usage: :kb [new <type> <name>|reindex]")
+	}
+	word, rest := splitFirstWord(args)
+	switch word {
+	case "new":
+		return newKnowledgeNote(env, rest)
+	case "reindex":
+		return func() tea.Msg { return knowledgeReindexMsg{} }
+	}
+	return Flash(FlashError, "usage: :kb [new <type> <name>|reindex]")
+}
+
+// newKnowledgeNote creates (or opens) a note and shows it. Editing stays in the
+// user's editor outside jumper, so the path is flashed.
+func newKnowledgeNote(env *Env, rest string) tea.Cmd {
+	kind, name := splitFirstWord(strings.TrimSpace(rest))
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	name = strings.TrimSpace(name)
+	if kind == "" || name == "" {
+		return Flash(FlashError, "usage: :kb new <host|service|alert|runbook> <name>")
+	}
+	root := knowledgeRoot(env)
+	if root == "" {
+		return Flash(FlashWarn, "no knowledge base configured")
+	}
+	path, err := investigation.NotePath(root, kind, name)
+	if err != nil {
+		return Flash(FlashError, "%v", err)
+	}
+	note := relToRoot(root, path)
 	return func() tea.Msg {
-		if err := inv.Resolve(rootCause); err != nil {
-			return FlashMsg{Level: FlashError, Text: err.Error()}
+		_, created, cerr := investigation.CreateNote(root, kind, name)
+		if cerr != nil {
+			return FlashMsg{Level: FlashError, Text: cerr.Error()}
 		}
-		meta, ok := inv.Current()
-		if !ok {
-			return InvestigationChangedMsg{Meta: nil}
+		flash := "opened " + note
+		if created {
+			flash = "created " + note
 		}
-		return InvestigationChangedMsg{Meta: &meta}
+		return PushViewMsg{View: newNoteView(env, path, flash)}
 	}
 }
 
@@ -357,7 +459,8 @@ func timelineCommand() Command {
 	}
 }
 
-// RegisterInvestigationCommands registers `:inv`, `:note` and `:timeline`.
+// RegisterInvestigationCommands registers `:inv`, `:note`, `:timeline` and the
+// knowledge base command `:kb`.
 func RegisterInvestigationCommands(c *Commands) error {
 	if c == nil {
 		return nil
@@ -368,7 +471,10 @@ func RegisterInvestigationCommands(c *Commands) error {
 	if err := c.Register(noteCommand()); err != nil {
 		return err
 	}
-	return c.Register(timelineCommand())
+	if err := c.Register(timelineCommand()); err != nil {
+		return err
+	}
+	return c.Register(kbCommand())
 }
 
 // invListMsg carries the loaded investigation list into the list view.

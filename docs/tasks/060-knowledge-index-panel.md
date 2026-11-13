@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 059
 - **Parallel group:** M3-C (with 061)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 "Have I seen this before?" — notes and past investigations matching the current host, unit or alert appear in a
