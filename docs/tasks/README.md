@@ -144,7 +144,7 @@ only by tasks 001, 098, 105 and 115.
 | [071](071-salt-job-engine.md) | Salt job engine: async submit, poll, per-minion results | 066 | M4-B | todo |
 | [072](072-salt-jobs-browser.md) | Jobs browser: live and historical jobs, grouped job detail | 068, 071, 048 | M4-C | todo |
 | [073](073-salt-executor.md) | Salt as an execution transport | 071, 036 | M4-C | todo |
-| [074](074-salt-state-returns.md) | State returns: parse, normalize, group by identical diff (pure) | 037, 066 | M4-A | todo |
+| [074](074-salt-state-returns.md) | State returns: parse, normalize, group by identical diff (pure) | 037, 066 | M4-A | done |
 | [075](075-salt-state-view-actions.md) | `:salt state` dry-run view and Salt actions through the bus | 057, 061, 070, 071, 072, 074 | — | todo |
 | [076](076-salt-wiring-lab.md) | Salt wiring, `:salt` commands, `--via salt`, pivots, lab tests (M4 exit) | 068, 069, 072, 073, 075 | — | todo |
 

@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 037, 066
 - **Parallel group:** M4-A (with 070)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Turn a `state.apply` return (real or `test=True`) into rows and into a stable text form so that hosts with the
