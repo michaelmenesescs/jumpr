@@ -167,7 +167,7 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 		go b.listTimers(ctx, out, hosts, q)
 		return out, nil
 	}
-	batch, err := b.batch(kind)
+	batch, err := b.batchFor(kind, q)
 	if err != nil {
 		return nil, err
 	}
@@ -418,6 +418,23 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 				},
 			},
 		}
+	case KindUnitFleet:
+		// A fleet row is one host's copy of the unit, so enter opens that
+		// host's unit detail. The unit comes from the row's fields, not its
+		// Ref: the Ref names the host, one row per host.
+		unit := strings.TrimSpace(r.Str("unit"))
+		if unit == "" {
+			return nil
+		}
+		return []resource.Link{{
+			Label: "detail",
+			Key:   "enter",
+			To: resource.Query{
+				Kind:  KindUnitDetail,
+				Hosts: hosts,
+				Args:  map[string]string{"unit": unit},
+			},
+		}}
 	}
 	return nil
 }

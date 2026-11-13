@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 048, 085
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:unitdiff nginx.service` on the target set: identical unit files grouped, differences one keystroke away. Plus

@@ -1,7 +1,12 @@
 package linux
 
 import (
+	"strconv"
+	"strings"
+
+	"jumper/internal/errs"
 	"jumper/internal/group"
+	"jumper/internal/shq"
 )
 
 // Probe is one read-only catalog probe: a name, a one-line help, the remote
@@ -44,8 +49,9 @@ const (
 	cmdCatalogSaltMinion = "systemctl is-active salt-minion"
 )
 
-// Catalog returns the built-in read-only probes, in display order. `unit-file
-// <unit>` joins the catalog in task 086.
+// Catalog returns the built-in read-only probes, in display order. `unit-file`
+// is parameterized (it takes a unit name), so it is built by UnitFileProbe and
+// not listed here.
 func Catalog() []Probe {
 	return []Probe{
 		{
@@ -91,4 +97,47 @@ func Catalog() []Probe {
 			Cmd:  cmdCatalogSaltMinion,
 		},
 	}
+}
+
+// cmdCatalogUnitFileMissing is what the `unit-file` probe prints on a host that
+// has no file for the unit, so those hosts form a group of their own instead of
+// an empty one.
+const cmdCatalogUnitFileMissing = "no such unit"
+
+// unitFileCmd is `systemctl cat <unit> --no-pager`, or the missing marker when
+// the host has no unit file. The unit name is already validated and quoted with
+// shq; the `||` keeps the batch raw, with no redirection.
+func unitFileCmd(unit string) string {
+	return shq.Join("systemctl", "cat", unit, "--no-pager") + " || echo '" + cmdCatalogUnitFileMissing + "'"
+}
+
+// unitFileNormalize drops nothing but trailing whitespace: every line loses its
+// trailing spaces, tabs and carriage return, and the text loses its trailing
+// blank lines. Nothing else changes, so the `# /etc/systemd/system/...` headers
+// of `systemctl cat` survive and a host with a drop-in never groups with one
+// without.
+func unitFileNormalize(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " 	\r")
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n")
+}
+
+// UnitFileProbe is the parameterized `unit-file` probe for one unit. It is not
+// in Catalog(), whose entries take no argument: `:unitdiff <unit>` builds it,
+// because the unit name is part of the command. An unusable unit name is an
+// errs.Config error.
+func UnitFileProbe(unit string) (Probe, error) {
+	unit = strings.TrimSpace(unit)
+	if !shq.ValidUnitName(unit) {
+		return Probe{}, errs.New(errs.Config, "linux.UnitFileProbe",
+			"invalid unit name "+strconv.Quote(unit))
+	}
+	return Probe{
+		Name:      "unit-file",
+		Help:      "one unit's files, drop-ins included",
+		Cmd:       unitFileCmd(unit),
+		Normalize: unitFileNormalize,
+	}, nil
 }

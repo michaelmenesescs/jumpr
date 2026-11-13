@@ -166,7 +166,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [084](084-unit-detail-tabs.md) | Unit detail view with tabs: status, show, cat, journal | 045, 062 | M6-A | done |
 | [085](085-unit-deps-timers.md) | Dependencies tab and timers list | 084 | — | done |
-| [086](086-unit-file-diff.md) | Unit-file diff across hosts and the unit fleet view | 048, 085 | — | todo |
+| [086](086-unit-file-diff.md) | Unit-file diff across hosts and the unit fleet view | 048, 085 | — | done |
 | [087](087-dropin-preview.md) | Drop-in override preview (no remote write) | 086 | — | todo |
 | [088](088-disks-mounts.md) | Disks and mounts | 044 | M6-A | done |
 | [089](089-network-kinds.md) | Network: interfaces, addresses, routes, neighbours | 088 | — | done |

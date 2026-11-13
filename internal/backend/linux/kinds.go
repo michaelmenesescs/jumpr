@@ -26,6 +26,9 @@ const (
 	KindKernel       resource.KindName = "kernel"
 	KindPkg          resource.KindName = "pkg"
 	KindTimer        resource.KindName = "timer"
+	// KindUnitFleet is one unit across the target hosts: one row per host,
+	// `systemctl show -p ...` each. The query carries the unit in Args["unit"].
+	KindUnitFleet resource.KindName = "unit-fleet"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -61,6 +64,8 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindPkg, true
 	case "timer", "timers":
 		return KindTimer, true
+	case "unit-fleet", "unitfleet", "fleet":
+		return KindUnitFleet, true
 	default:
 		return "", false
 	}
@@ -310,6 +315,25 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "activates", Title: "ACTIVATES", Width: 0},
 			},
 			DefaultSort: "next",
+		},
+		{
+			// One unit across the fleet: a row per target host, so the state of
+			// the same service on twelve machines is one table. The unit name
+			// comes from the query (Args["unit"]) and is not a column.
+			Name:    KindUnitFleet,
+			Aliases: []string{"unitfleet", "fleet"},
+			Title:   "Unit fleet",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "host", Title: "HOST", Width: 16},
+				{ID: "active", Title: "ACTIVE", Width: 9},
+				{ID: "sub", Title: "SUB", Width: 11},
+				{ID: "since", Title: "SINCE", Width: 7, Kind: resource.ColTime},
+				{ID: "restarts", Title: "RESTARTS", Width: 8, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "enabled", Title: "ENABLED", Width: 10},
+				{ID: "mem", Title: "MEM", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+			},
+			DefaultSort: "host",
 		},
 	}
 }

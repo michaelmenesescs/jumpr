@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"jumper/internal/errs"
 	"jumper/internal/probe"
 	"jumper/internal/resource"
+	"jumper/internal/shq"
 	"jumper/internal/transport"
 )
 
@@ -123,6 +125,8 @@ func (b *Backend) rows(kind resource.KindName, host resource.HostID, q resource.
 		return b.cgroupRows(host, sec, bad, retried)
 	case KindPkg:
 		return b.pkgRows(host, sec, bad, retried)
+	case KindUnitFleet:
+		return b.unitFleetRows(host, q, sec, bad, retried)
 	default:
 		return nil, errs.New(errs.Config, "linux.List", fmt.Sprintf("unknown kind %q", kind))
 	}
@@ -446,4 +450,73 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// secUnitFleet is the unit-fleet batch's one section (and probe marker).
+const secUnitFleet = "fleet"
+
+// unitFleetProps are the `systemctl show` properties one fleet row carries.
+const unitFleetProps = "ActiveState,SubState,ActiveEnterTimestamp,NRestarts,UnitFileState,MemoryCurrent"
+
+// unitFleetSections is the fleet batch: one `systemctl show` per host, built
+// with shq because the unit name comes from the user.
+func unitFleetSections(unit string) []probe.Section {
+	return []probe.Section{{
+		ID:  secUnitFleet,
+		Cmd: shq.Join("systemctl", "show", unit, "-p", unitFleetProps, "--no-pager"),
+	}}
+}
+
+// batchFor compiles a kind's batch when the command depends on the query, and
+// otherwise defers to the fixed batch of probes.go. Only unit-fleet is
+// parameterized: its `systemctl show` names the unit.
+func (b *Backend) batchFor(kind resource.KindName, q resource.Query) (probe.Batch, error) {
+	if kind != KindUnitFleet {
+		return b.batch(kind)
+	}
+	unit := strings.TrimSpace(q.Args["unit"])
+	if unit == "" {
+		return probe.Batch{}, errs.New(errs.Config, "linux.List", "unit-fleet needs a unit")
+	}
+	if !shq.ValidUnitName(unit) {
+		return probe.Batch{}, errs.New(errs.Config, "linux.List",
+			"invalid unit name "+strconv.Quote(unit))
+	}
+	return probe.NewBatch(b.newNonce(), unitFleetSections(unit)...)
+}
+
+// unitFleetRows is the one row of one host: the same unit's state there. A host
+// whose `systemctl show` failed fails its row; an unknown unit leaves the cells
+// empty rather than inventing a state.
+func (b *Backend) unitFleetRows(host resource.HostID, q resource.Query, sec map[string]probe.SectionResult, bad, retried map[string]error) ([]resource.Resource, error) {
+	if e := bad[secUnitFleet]; e != nil {
+		return nil, e
+	}
+	unit := strings.TrimSpace(q.Args["unit"])
+	d := UnitDetail(ParseShow(sec[secUnitFleet].Stdout))
+
+	labels := b.labels(host)
+	applyDegraded(labels, nil, retried)
+	fields := map[string]any{
+		"host":     string(host),
+		"unit":     unit,
+		"active":   d.ActiveState,
+		"sub":      d.SubState,
+		"restarts": int64(d.NRestarts),
+		"enabled":  d.UnitFileState,
+	}
+	if !d.ActiveEnterTimestamp.IsZero() {
+		fields["since"] = d.ActiveEnterTimestamp
+	}
+	if d.MemoryCurrent >= 0 {
+		fields["mem"] = d.MemoryCurrent
+	}
+	return []resource.Resource{{
+		Ref:       resource.Ref{Backend: backendName, Kind: KindUnitFleet, Host: host, Name: string(host)},
+		Fields:    fields,
+		Labels:    labels,
+		Status:    unitXStatus(d.ActiveState, d.SubState),
+		Raw:       d,
+		FetchedAt: b.now(),
+	}}, nil
 }
