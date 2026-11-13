@@ -249,4 +249,4 @@ only by tasks 001, 098, 105 and 115.
 
 129 tasks (127 planned + 2 UX-parity tasks added during the MVP build).
 | [142](142-glyph-wiring.md) | Wire the glyph set end to end (config → app → views) | 016, 141, 015 | — | done |
-
+| [143](143-cmdbar-navigation.md) | `:kind` from the command bar switches the view (fix) | 016, 022, 014 | — | todo |
