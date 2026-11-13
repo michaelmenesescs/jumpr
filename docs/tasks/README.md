@@ -250,3 +250,4 @@ only by tasks 001, 098, 105 and 115.
 129 tasks (127 planned + 2 UX-parity tasks added during the MVP build).
 | [142](142-glyph-wiring.md) | Wire the glyph set end to end (config → app → views) | 016, 141, 015 | — | done |
 | [143](143-cmdbar-navigation.md) | `:kind` from the command bar switches the view (fix) | 016, 022, 014 | — | todo |
+| [144](144-homelab-integration.md) | Homelab integration suite (real Ubuntu 24.04 over SSH) | 031, 033, 035, 038, 040, 041, 042, 052 | — | todo |
