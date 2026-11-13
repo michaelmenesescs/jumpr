@@ -22,6 +22,9 @@ const (
 	KindInterface    resource.KindName = "interface"
 	KindRoute        resource.KindName = "route"
 	KindNeigh        resource.KindName = "neigh"
+	KindCgroup       resource.KindName = "cgroup"
+	KindKernel       resource.KindName = "kernel"
+	KindPkg          resource.KindName = "pkg"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -49,6 +52,12 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindRoute, true
 	case "neigh", "neighs", "arp":
 		return KindNeigh, true
+	case "cgroup", "cgroups", "cg", "cgtop":
+		return KindCgroup, true
+	case "kernel", "dmesg", "klog":
+		return KindKernel, true
+	case "pkg", "pkgs", "packages", "package":
+		return KindPkg, true
 	default:
 		return "", false
 	}
@@ -237,6 +246,50 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "state", Title: "STATE", Width: 12},
 			},
 			DefaultSort: "ip",
+		},
+		{
+			Name:    KindCgroup,
+			Aliases: []string{"cgroups", "cg", "cgtop"},
+			Title:   "Cgroups",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "cgroup", Title: "CGROUP", Width: 30},
+				{ID: "tasks", Title: "TASKS", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "cpu", Title: "CPU%", Width: 6, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "memory", Title: "MEMORY", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "input", Title: "INPUT/S", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "output", Title: "OUTPUT/S", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+			},
+			DefaultSort: "-memory",
+		},
+		{
+			// The kernel log reuses the journal's columns and rows; only the
+			// journalctl invocation differs (-k -p 4 -n 300, with sudo).
+			Name:    KindKernel,
+			Aliases: []string{"dmesg", "klog"},
+			Title:   "Kernel log",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "time", Title: "TIME", Width: 8, Kind: resource.ColTime},
+				{ID: "pri", Title: "PRI", Width: 4},
+				{ID: "source", Title: "SOURCE", Width: 16},
+				{ID: "message", Title: "MESSAGE", Width: 0},
+			},
+			DefaultSort: "time",
+		},
+		{
+			// Loaded on demand only: `rpm -qa` is slow and the list is long.
+			Name:    KindPkg,
+			Aliases: []string{"packages"},
+			Title:   "Packages",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "name", Title: "NAME", Width: 28},
+				{ID: "version", Title: "VERSION", Width: 24},
+				{ID: "arch", Title: "ARCH", Width: 8},
+				{ID: "installed", Title: "INSTALLED", Width: 11, Kind: resource.ColTime},
+			},
+			DefaultSort: "name",
 		},
 	}
 }

@@ -170,7 +170,7 @@ only by tasks 001, 098, 105 and 115.
 | [087](087-dropin-preview.md) | Drop-in override preview (no remote write) | 086 | — | todo |
 | [088](088-disks-mounts.md) | Disks and mounts | 044 | M6-A | done |
 | [089](089-network-kinds.md) | Network: interfaces, addresses, routes, neighbours | 088 | — | done |
-| [090](090-cgroup-kernel-file-pkg.md) | cgroups, kernel log, file viewer, packages | 089, 013 | — | todo |
+| [090](090-cgroup-kernel-file-pkg.md) | cgroups, kernel log, file viewer, packages | 089, 013 | — | done |
 | [091](091-proc-drill-in.md) | Process drill-in from `/proc` | 044, 084 | — | todo |
 
 ### M7 — Salt depth

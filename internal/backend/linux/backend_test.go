@@ -460,8 +460,8 @@ func TestBackendUnknownKind(t *testing.T) {
 	if _, err := b.List(context.Background(), resource.Query{Kind: "pod"}); errs.KindOf(err) != errs.Config {
 		t.Errorf("List kind = %s, want config", errs.KindOf(err))
 	}
-	if got := len(b.Kinds()); got != 11 {
-		t.Errorf("Kinds() = %d, want 11", got)
+	if got := len(b.Kinds()); got != 14 {
+		t.Errorf("Kinds() = %d, want 14", got)
 	}
 	if b.Name() != "linux" {
 		t.Errorf("Name() = %q, want linux", b.Name())

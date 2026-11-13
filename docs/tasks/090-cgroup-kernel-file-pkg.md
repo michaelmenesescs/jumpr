@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 089, 013
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The remaining read-only Linux kinds of SPEC §8.1.

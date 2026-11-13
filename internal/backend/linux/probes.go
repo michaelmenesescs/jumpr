@@ -29,6 +29,8 @@ const (
 	secIPRoute   = ipProbeRoute
 	secIPRoute6  = ipProbeRoute6
 	secIPNeigh   = ipProbeNeigh
+	secCgroup    = "cgroup"
+	secPkg       = "pkg"
 )
 
 // Read-only remote commands. They are plain POSIX sh, run through probe so one
@@ -59,6 +61,20 @@ const (
 	cmdIPRoute  = "ip -j route show table main"
 	cmdIPRoute6 = "ip -j -6 route"
 	cmdIPNeigh  = "ip -j neigh"
+	// cmdCgroup prints two iterations a second apart; the parser keeps the
+	// second, where the input/output rates are populated.
+	cmdCgroup = "systemd-cgtop -b -n 2 -d 1 --order=memory"
+	// cmdPkg detects the package manager from /etc/os-release in the same round
+	// trip and prints a "@@family rpm|deb" line before the list, so the parser
+	// knows whether the fourth field is an install time (rpm) or a status
+	// abbrev (deb). Read-only on both families.
+	cmdPkg = `. /etc/os-release 2>/dev/null; ` +
+		`case " $ID $ID_LIKE " in ` +
+		`*rhel*|*fedora*|*centos*|*rocky*|*alma*|*suse*|*rpm*) ` +
+		`echo "` + familyPrefix + `rpm"; ` +
+		`rpm -qa --qf '%{NAME}	%{VERSION}-%{RELEASE}	%{ARCH}	%{INSTALLTIME}\n' ;; ` +
+		`*) echo "` + familyPrefix + `deb"; ` +
+		`dpkg-query -W -f '${Package}	${Version}	${Architecture}	${db:Status-Abbrev}\n' ;; esac`
 )
 
 // overviewSections is the host kind's batch: everything the overview row
@@ -111,6 +127,10 @@ func sectionsFor(kind resource.KindName) []probe.Section {
 		}
 	case KindNeigh:
 		return []probe.Section{{ID: secIPNeigh, Cmd: cmdIPNeigh}}
+	case KindCgroup:
+		return []probe.Section{{ID: secCgroup, Cmd: cmdCgroup}}
+	case KindPkg:
+		return []probe.Section{{ID: secPkg, Cmd: cmdPkg}}
 	default:
 		return nil
 	}

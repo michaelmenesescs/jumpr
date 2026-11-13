@@ -150,6 +150,13 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 		go b.listJournal(ctx, out, hosts, q)
 		return out, nil
 	}
+	if kind == KindKernel {
+		// The kernel log is the journal with fixed kernel options; it keeps the
+		// journal's raw-output path.
+		out := make(chan backend.Result)
+		go b.listKernel(ctx, out, hosts, q)
+		return out, nil
+	}
 	batch, err := b.batch(kind)
 	if err != nil {
 		return nil, err
@@ -160,7 +167,7 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 		defer close(out)
 		total := len(hosts)
 		done := 0
-		results := fanout.Run(ctx, b.exec, hosts, batch.Command(b.timeoutDuration()), fanout.Options{Concurrency: b.concurrency})
+		results := fanout.Run(ctx, b.exec, hosts, batch.Command(b.kindTimeout(kind)), fanout.Options{Concurrency: b.concurrency})
 		for hr := range results {
 			done++
 			res := backend.Result{Host: hr.Host, Done: done, Total: total}
