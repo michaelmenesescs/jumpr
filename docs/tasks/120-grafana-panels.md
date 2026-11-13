@@ -3,7 +3,7 @@
 - **Milestone:** M11
 - **Depends on:** 119, 101
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 timeseries / stat / gauge panels backed by Prometheus or Elasticsearch render as charts (SPEC §8.4).
