@@ -15,6 +15,7 @@ import (
 	"jumper/internal/backend/fake"
 	"jumper/internal/render"
 	"jumper/internal/resource"
+	"jumper/internal/testload"
 	"jumper/internal/tui"
 	"jumper/internal/tui/keymap"
 	"jumper/internal/tui/theme"
@@ -81,14 +82,14 @@ func waitFor(t *testing.T, tm *teatest.TestModel, want ...string) {
 			}
 		}
 		return true
-	}, teatest.WithDuration(3*time.Second))
+	}, teatest.WithDuration(testload.Scale(3*time.Second)))
 }
 
 // finish quits the program and returns the final model's rendered screen.
 func finish(t *testing.T, tm *teatest.TestModel) string {
 	t.Helper()
 	tm.Quit()
-	m := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
+	m := tm.FinalModel(t, teatest.WithFinalTimeout(testload.Scale(3*time.Second)))
 	root, ok := m.(*tui.Root)
 	if !ok {
 		t.Fatalf("final model is %T, want *tui.Root", m)
