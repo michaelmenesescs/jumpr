@@ -2,11 +2,16 @@
 // servers from the laptop (see docs/SPEC.md). This file is the only one that
 // touches os.Stdin, os.Stdout, os.Stderr and os.Exit (BUILD-PLAN §6.1); every
 // other package gets readers, writers and values passed in.
+//
+// It is subcommand dispatch only (BUILD-PLAN §3): parsing lives in
+// internal/app/cli.go, the server in internal/app/serve.go, the on-demand start
+// in internal/app/spawn.go.
 package main
 
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -21,6 +26,7 @@ import (
 	"jumper/internal/app"
 	"jumper/internal/errs"
 	"jumper/internal/interact"
+	"jumper/internal/server"
 )
 
 // version is set at build time with
@@ -34,26 +40,17 @@ func main() {
 	os.Exit(run(os.Args[1:]))
 }
 
-// run parses the command line and runs the app. It returns the process exit
-// code.
+// run parses the command line and runs the command. It returns the process exit
+// code: 0 on success, 1 for a failed attach or control command, 2 for a bad
+// command line or a command that needs a terminal and has none.
 func run(args []string) int {
-	fs := flag.NewFlagSet("jumper", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	demo := fs.Bool("demo", false, "run against the built-in fake world (no SSH)")
-	configDir := fs.String("config-dir", "", "configuration directory (default ~/.config/jumper)")
-	debug := fs.Bool("debug", false, "write a debug log to ~/.cache/jumper/jumper.log")
-	fresh := fs.Bool("fresh", false, "start a fresh session instead of restoring the saved layout")
-	readonly := fs.Bool("readonly", false, "start read-only: every write is denied until :readonly off")
-	showVersion := fs.Bool("version", false, "print the version and exit")
-	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
-			return 0
+	inv, err := app.ParseCLI(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %s\n", errorText(err))
+		if errs.KindOf(err) == errs.Config {
+			fmt.Fprint(os.Stderr, app.Usage())
 		}
 		return 2
-	}
-	if *showVersion {
-		fmt.Printf("jumper %s\n", version)
-		return 0
 	}
 
 	home, err := os.UserHomeDir()
@@ -65,65 +62,188 @@ func run(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if rest := fs.Args(); len(rest) > 0 {
-		switch rest[0] {
-		case "version":
-			fmt.Printf("jumper %s\n", version)
-			return 0
-		case "init":
-			dir, code := initArgs(rest[1:], *configDir)
-			if code >= 0 {
-				return code
-			}
-			return app.Init(app.Options{
-				Out:       os.Stdout,
-				ConfigDir: dir,
-				Home:      home,
-			}, os.Stdout)
-		case "doctor":
-			// Both doctor subcommands live here: `ssh <host>` probes a real
-			// host, `conn <profile> <url>` probes an HTTP connection profile,
-			// and no argument runs the full report.
-			if len(rest) > 1 && rest[1] == "conn" {
-				return runDoctor(ctx, rest[1:], home, *configDir)
-			}
-			pos, dir, code := doctorArgs(rest[1:], *configDir)
-			if code >= 0 {
-				return code
-			}
-			return app.Doctor(ctx, app.Options{
-				In:        os.Stdin,
-				Out:       os.Stdout,
-				ConfigDir: dir,
-				Home:      home,
-				Debug:     *debug,
-				Version:   version,
-				Env:       environ(),
-				Prompter:  newTermPrompter(os.Stdin, os.Stderr),
-			}, pos, os.Stdout)
-		default:
-			fmt.Fprintf(os.Stderr, "jumper: unknown subcommand %q\n", rest[0])
-			return 2
+	switch inv.Command {
+	case app.CommandHelp:
+		fmt.Print(app.Usage())
+		return 0
+	case app.CommandVersion:
+		fmt.Printf("jumper %s\n", version)
+		return 0
+	case app.CommandInit:
+		dir, code := initArgs(inv.Args, inv.ConfigDir)
+		if code >= 0 {
+			return code
 		}
+		return app.Init(app.Options{
+			Out:       os.Stdout,
+			ConfigDir: dir,
+			Home:      home,
+		}, os.Stdout)
+	case app.CommandDoctor:
+		// Both doctor subcommands live here: `ssh <host>` probes a real host,
+		// `conn <profile> <url>` probes an HTTP connection profile, and no
+		// argument runs the full report.
+		if len(inv.Args) > 0 && inv.Args[0] == "conn" {
+			return runDoctor(ctx, inv.Args, home, inv.ConfigDir)
+		}
+		pos, dir, code := doctorArgs(inv.Args, inv.ConfigDir)
+		if code >= 0 {
+			return code
+		}
+		return app.Doctor(ctx, app.Options{
+			In:        os.Stdin,
+			Out:       os.Stdout,
+			ConfigDir: dir,
+			Home:      home,
+			Debug:     inv.Debug,
+			Version:   version,
+			Env:       environ(),
+			Prompter:  newTermPrompter(os.Stdin, os.Stderr),
+		}, pos, os.Stdout)
+	case app.CommandServer:
+		return runServer(ctx, inv, home)
+	case app.CommandLs, app.CommandKillSession, app.CommandKillServer:
+		// Control commands read the server; they never start one, because
+		// "nothing is running" is a real answer.
+		return runControl(ctx, inv, home, false)
+	case app.CommandNew:
+		if inv.Detached {
+			// `new -d` needs a server but never a terminal.
+			return runControl(ctx, inv, home, true)
+		}
+		return runAttach(ctx, inv, home)
+	case app.CommandAttach:
+		return runAttach(ctx, inv, home)
+	}
+	fmt.Fprintf(os.Stderr, "jumper: unknown command %q\n", inv.Command)
+	return 2
+}
+
+// errorText is the user-facing text of an error: an *errs.Error's message
+// without the operation prefix, since the CLI's lines are read by people.
+func errorText(err error) string {
+	var ee *errs.Error
+	if errors.As(err, &ee) && ee.Msg != "" {
+		return ee.Msg
+	}
+	return err.Error()
+}
+
+// runServer runs the session server in this process (BUILD-PLAN §6).
+func runServer(ctx context.Context, inv app.Invocation, home string) int {
+	paths := app.Paths(inv, home)
+	socket := app.SocketPath(inv, os.Getenv("JUMPER_SOCKET"), home)
+	if err := app.CheckSocketPath(socket); err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	err := app.RunServer(ctx, app.ServerOptions{
+		Options: app.Options{
+			Demo:      inv.Demo,
+			ConfigDir: paths.ConfigDir,
+			Home:      home,
+			Debug:     inv.Debug,
+			ReadOnly:  inv.ReadOnly,
+			Fresh:     inv.Fresh,
+			Version:   version,
+			Env:       environ(),
+		},
+		SocketPath: socket,
+		Foreground: inv.Foreground,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// runAttach attaches the terminal to a session, standalone or through the
+// session server.
+func runAttach(ctx context.Context, inv app.Invocation, home string) int {
+	// A jumper inside a jumper terminal pane would fight the outer one for the
+	// keyboard (SPEC §21.4); local panes export $SITREP.
+	if os.Getenv("SITREP") != "" {
+		fmt.Fprintln(os.Stderr, "jumper: already inside jumper")
+		return 1
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Fprintln(os.Stderr, "jumper: not a terminal")
+		return 2
 	}
 
-	// The session's output is a switchable pipe, not the terminal, so Bubble
-	// Tea can no longer measure it: the size and every SIGWINCH are read here
-	// and handed to the app (task 078, BUILD-PLAN §6).
+	env := clientEnv()
+	if inv.Standalone {
+		return runStandalone(ctx, inv, home, env)
+	}
+
+	paths := app.Paths(inv, home)
+	socket := app.SocketPath(inv, os.Getenv("JUMPER_SOCKET"), home)
+	if err := app.CheckSocketPath(socket); err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	if err := app.EnsureServer(ctx, socket, exe, serverArgs(inv, socket), os.Environ(),
+		app.LogPath(paths.CacheDir)); err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	if msg := app.ConfigWarning(app.StatePath(paths.CacheDir), paths.ConfigDir); msg != "" {
+		fmt.Fprintln(os.Stderr, msg)
+	}
+
+	resizes, stopResizes := signalEvents(syscall.SIGWINCH)
+	defer stopResizes()
+	hangups, stopHangups := signalEvents(syscall.SIGHUP, syscall.SIGTERM)
+	defer stopHangups()
+
+	cols, rows := sizeOf()
+	exit, err := server.Attach(ctx, server.ClientOptions{
+		SocketPath: socket,
+		Hello:      inv.Hello(version, cols, rows, env),
+		In:         os.Stdin,
+		Out:        os.Stdout,
+		MakeRaw:    makeRaw,
+		Size:       sizeOf,
+		Resizes:    resizes,
+		Hangup:     hangups,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	if msg := exit.UserMessage(); msg != "" {
+		fmt.Fprintln(os.Stdout, msg)
+	}
+	if exit.Reason == "error" {
+		return 1
+	}
+	return 0
+}
+
+// runStandalone runs one process with one session, wired to the real terminal:
+// the debugging mode, and the only mode there was before M5 (BUILD-PLAN §6).
+func runStandalone(ctx context.Context, inv app.Invocation, home string, env map[string]string) int {
+	paths := app.Paths(inv, home)
 	size, resizes, stopSizes := watchSize(os.Stdout)
 	defer stopSizes()
 
-	err = app.Run(ctx, app.Options{
+	err := app.Run(ctx, app.Options{
 		In:        os.Stdin,
 		Out:       os.Stdout,
-		Demo:      *demo,
-		ConfigDir: *configDir,
+		Demo:      inv.Demo,
+		ConfigDir: paths.ConfigDir,
 		Home:      home,
-		Debug:     *debug,
-		Fresh:     *fresh,
-		ReadOnly:  *readonly,
+		Debug:     inv.Debug,
+		Fresh:     inv.Fresh,
+		ReadOnly:  inv.ReadOnly,
 		Version:   version,
-		Env:       nil,
+		Env:       env,
 		Prompter:  newTermPrompter(os.Stdin, os.Stderr),
 		Size:      size,
 		Resizes:   resizes,
@@ -133,6 +253,130 @@ func run(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// runControl runs a control command over the socket (ls, kill-session,
+// kill-server, new -d). ensure says whether the server may be started first.
+func runControl(ctx context.Context, inv app.Invocation, home string, ensure bool) int {
+	paths := app.Paths(inv, home)
+	socket := app.SocketPath(inv, os.Getenv("JUMPER_SOCKET"), home)
+	if err := app.CheckSocketPath(socket); err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	if ensure {
+		exe, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+			return 1
+		}
+		if err := app.EnsureServer(ctx, socket, exe, serverArgs(inv, socket), os.Environ(),
+			app.LogPath(paths.CacheDir)); err != nil {
+			fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+			return 1
+		}
+	}
+
+	res, err := server.Control(ctx, socket, inv.Hello(version, 0, 0, nil))
+	if err != nil {
+		if errs.KindOf(err) == errs.Unreachable {
+			fmt.Fprintln(os.Stderr, "jumper: no server running")
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	if !res.OK {
+		msg := res.Error
+		if msg == "" {
+			msg = "server refused the command"
+		}
+		fmt.Fprintf(os.Stderr, "jumper: %s\n", msg)
+		return 1
+	}
+	if inv.Command == app.CommandLs {
+		for _, s := range res.Sessions {
+			fmt.Println(app.FormatSessionLine(s))
+		}
+	}
+	return 0
+}
+
+// serverArgs is how a client starts the server: the same binary with the
+// client's configuration directory, its debug flag and the resolved socket, so
+// both sides agree on where the socket is.
+func serverArgs(inv app.Invocation, socket string) []string {
+	args := []string{"server"}
+	if inv.ConfigDir != "" {
+		args = append(args, "--config-dir", inv.ConfigDir)
+	}
+	if inv.Debug {
+		args = append(args, "--debug")
+	}
+	if inv.Demo {
+		args = append(args, "--demo")
+	}
+	args = append(args, "-S", socket)
+	return args
+}
+
+// clientEnv is the environment an attach carries to the server: TERM,
+// COLORTERM, SSH_AUTH_SOCK and TMUX only (BUILD-PLAN §6.2).
+func clientEnv() map[string]string {
+	env := make(map[string]string, 4)
+	for _, key := range []string{"TERM", "COLORTERM", "SSH_AUTH_SOCK", "TMUX"} {
+		if v := os.Getenv(key); v != "" {
+			env[key] = v
+		}
+	}
+	return env
+}
+
+// sizeOf reads the terminal size. It is handed to the client as its Size func,
+// so the size sent with every RESIZE is current.
+func sizeOf() (cols, rows int) {
+	w, h, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		return 0, 0
+	}
+	return w, h
+}
+
+// makeRaw puts the terminal in raw mode and returns the restore function.
+func makeRaw() (func(), error) {
+	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return nil, err
+	}
+	return func() { _ = term.Restore(int(os.Stdin.Fd()), state) }, nil
+}
+
+// signalEvents turns the given signals into one channel of events, coalescing
+// repeats: a resize the client has not sent yet is already stale. The returned
+// stop function unregisters the signals.
+func signalEvents(sigs ...os.Signal) (<-chan struct{}, func()) {
+	ch := make(chan struct{}, 1)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, sigs...)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-sig:
+				select {
+				case ch <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+	stop := func() {
+		signal.Stop(sig)
+		close(done)
+	}
+	return ch, stop
 }
 
 // watchSize reads the terminal size once and reports every later SIGWINCH as

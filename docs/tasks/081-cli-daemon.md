@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 079, 080
 - **Parallel group:** — (serial; touches `main` and `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `jumper` just works: it starts the server when needed and attaches. All the tmux-style subcommands exist.
