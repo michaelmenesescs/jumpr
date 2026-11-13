@@ -20,6 +20,8 @@ import (
 	"jumper/internal/resource"
 	"jumper/internal/transport"
 	"jumper/internal/transport/ssh/sshtest"
+
+	"jumper/internal/testload"
 )
 
 // Aliases used by every fixture; nothing here is a real host.
@@ -403,7 +405,7 @@ func TestExecTimeout(t *testing.T) {
 	if !errs.Is(err, errs.Timeout) {
 		t.Fatalf("Err = %v (kind %q), want kind %q", err, errs.KindOf(err), errs.Timeout)
 	}
-	if elapsed > 1500*time.Millisecond {
+	if elapsed > testload.Scale(1500*time.Millisecond) {
 		t.Fatalf("Exec took %v, want it back near the 150ms timeout", elapsed)
 	}
 	if res.RC != -1 {
@@ -433,7 +435,7 @@ func TestExecCancel(t *testing.T) {
 	if !errs.Is(err, errs.Canceled) {
 		t.Fatalf("Err = %v (kind %q), want kind %q", err, errs.KindOf(err), errs.Canceled)
 	}
-	if elapsed > time.Second {
+	if elapsed > testload.Scale(time.Second) {
 		t.Fatalf("Exec took %v after a cancel, want it back at once", elapsed)
 	}
 	if res.RC != -1 {

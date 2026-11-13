@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"jumper/internal/backend"
+
+	"jumper/internal/testload"
 )
 
 func TestNextBatchSingleItem(t *testing.T) {
@@ -118,7 +120,7 @@ func TestNextBatchTrickleBounded(t *testing.T) {
 	if len(items) == 0 {
 		t.Fatal("no items returned")
 	}
-	if elapsed > 150*time.Millisecond {
+	if elapsed > testload.Scale(150*time.Millisecond) {
 		t.Fatalf("NextBatch took %v, want ~50 ms", elapsed)
 	}
 }

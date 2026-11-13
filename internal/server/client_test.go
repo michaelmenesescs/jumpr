@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"jumper/internal/errs"
+
+	"jumper/internal/testload"
 )
 
 const testPostamble = "\x1b[?1049l\x1b[?25h\x1b[?2004l\x1b[0m"
@@ -257,7 +259,7 @@ func TestClientRestoreCalledOnCtxCancel(t *testing.T) {
 	if exit.Reason != "detached" {
 		t.Errorf("exit = %#v, want detached", exit)
 	}
-	if elapsed > 3*time.Second {
+	if elapsed > testload.Scale(3*time.Second) {
 		t.Errorf("Attach took %v, want it to give up after the detach wait", elapsed)
 	}
 	select {

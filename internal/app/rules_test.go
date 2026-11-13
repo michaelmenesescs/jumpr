@@ -52,7 +52,7 @@ var detachRules = []rule{
 	{what: "import of", pkg: "os/exec", imports: true,
 		// labtest runs the lab's provisioning scripts; it is //go:build lab
 		// tooling, never part of the product binary.
-		allow: []string{"app", "transport/sysssh", "transport/httpx", "labtest"}},
+		allow: []string{"app", "transport/sysssh", "transport/httpx", "labtest", "testload"}},
 	{what: "call to", pkg: teaPath, calls: true,
 		names: []string{"ExecProcess", "Suspend", "Printf", "Println"}},
 }

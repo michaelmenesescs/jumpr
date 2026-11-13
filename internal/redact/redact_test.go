@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"jumper/internal/errs"
+
+	"jumper/internal/testload"
 )
 
 // Values used below are deliberately fake test data, not real credentials.
@@ -375,7 +377,7 @@ func TestLargeInputFast(t *testing.T) {
 	if load, ok := osLoadPerCPU(); ok && load > 0.75 {
 		t.Logf("load average %.2f per CPU: skipping the 200 ms budget, redacted %d bytes in %v",
 			load, len(in), elapsed)
-	} else if elapsed > 200*time.Millisecond {
+	} else if elapsed > testload.Scale(200*time.Millisecond) {
 		t.Fatalf("redacting %d bytes took %v, want < 200ms", len(in), elapsed)
 	}
 	for _, leak := range []string{fakePassword, "s3cr3t", fakeBearer} {

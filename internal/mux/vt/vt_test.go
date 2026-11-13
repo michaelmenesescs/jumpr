@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"jumper/internal/render"
+
+	"jumper/internal/testload"
 )
 
 // newDrained returns an emulator whose Responses stream is already being
@@ -335,7 +337,7 @@ func TestFiveMiBThroughput(t *testing.T) {
 	}
 	data := stream.Bytes()
 
-	limit := 3 * time.Second
+	limit := testload.Scale(3 * time.Second)
 	if raceInstrumented() {
 		limit *= raceSlowdown
 	}

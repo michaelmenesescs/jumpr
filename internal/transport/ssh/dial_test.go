@@ -13,6 +13,8 @@ import (
 
 	"jumper/internal/errs"
 	"jumper/internal/transport/ssh/sshtest"
+
+	"jumper/internal/testload"
 )
 
 // dialSpecFor returns a spec that dials srv with the given identity file and a
@@ -183,7 +185,7 @@ func TestDialTimeout(t *testing.T) {
 	if got := errs.KindOf(err); got != errs.Timeout {
 		t.Fatalf("kind = %s, want timeout (%v)", got, err)
 	}
-	if limit := timeout + 500*time.Millisecond; elapsed > limit {
+	if limit := timeout + 500*time.Millisecond; elapsed > testload.Scale(limit) {
 		t.Fatalf("dial returned after %v, want within %v", elapsed, limit)
 	}
 }

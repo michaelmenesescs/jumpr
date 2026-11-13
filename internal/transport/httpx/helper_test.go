@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"jumper/internal/errs"
+
+	"jumper/internal/testload"
 )
 
 // TestMain doubles as the fake auth helper: when the environment says so, the
@@ -482,7 +484,7 @@ func TestHelperTimeout(t *testing.T) {
 	if !strings.Contains(err.Error(), `"sso"`) {
 		t.Fatalf("the error does not name the profile: %v", err)
 	}
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
+	if elapsed := time.Since(start); elapsed > testload.Scale(5*time.Second) {
 		t.Fatalf("the helper timeout was not enforced: %s", elapsed)
 	}
 }

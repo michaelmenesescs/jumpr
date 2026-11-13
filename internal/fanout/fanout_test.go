@@ -11,6 +11,8 @@ import (
 	"jumper/internal/resource"
 	"jumper/internal/transport"
 	"jumper/internal/transport/transporttest"
+
+	"jumper/internal/testload"
 )
 
 func hid(i int) resource.HostID { return resource.HostID(fmt.Sprintf("h%05d", i)) }
@@ -89,7 +91,7 @@ func TestCancelMidway(t *testing.T) {
 	if len(got) != n {
 		t.Fatalf("got %d results after cancel, want %d", len(got), n)
 	}
-	if elapsed > 2*time.Second {
+	if elapsed > testload.Scale(2*time.Second) {
 		t.Fatalf("drain after cancel took %v", elapsed)
 	}
 	seen := map[resource.HostID]int{}

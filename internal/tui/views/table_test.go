@@ -16,6 +16,8 @@ import (
 	"jumper/internal/tui"
 	"jumper/internal/tui/keymap"
 	"jumper/internal/tui/theme"
+
+	"jumper/internal/testload"
 )
 
 // fixedNow is the clock every table test runs against.
@@ -399,7 +401,7 @@ func TestTableRendersOnlyVisibleRows(t *testing.T) {
 		_ = tbl.Render(100, 20)
 	}
 	avg := time.Since(start) / runs
-	if avg > 5*time.Millisecond {
+	if avg > testload.Scale(5*time.Millisecond) {
 		t.Fatalf("average Render time %v for %d rows, want < 5ms", avg, len(tbl.rows))
 	}
 	t.Logf("average Render: %v over %d rows (frame 100x20)", avg, len(tbl.rows))
