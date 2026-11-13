@@ -35,9 +35,11 @@ const defaultTimeout = 30 * time.Second
 const healthSamples = 20
 
 // Options configures a Backend. Exec and Inventory are required in production;
-// the rest fall back to safe defaults (30 s, a random nonce, the wall clock).
+// Stream is only needed for journal follow. The rest fall back to safe defaults
+// (30 s, a random nonce, the wall clock).
 type Options struct {
 	Exec        transport.Executor
+	Stream      transport.Streamer
 	Inventory   inventory.Inventory
 	Concurrency int
 	Timeout     time.Duration
@@ -49,6 +51,7 @@ type Options struct {
 // Backend implements backend.Backend for Linux hosts reached over SSH.
 type Backend struct {
 	exec        transport.Executor
+	stream      transport.Streamer
 	inv         inventory.Inventory
 	concurrency int
 	timeout     time.Duration
@@ -67,6 +70,7 @@ var _ backend.Backend = (*Backend)(nil)
 func New(o Options) *Backend {
 	b := &Backend{
 		exec:        o.Exec,
+		stream:      o.Stream,
 		inv:         o.Inventory,
 		concurrency: o.Concurrency,
 		timeout:     o.Timeout,
@@ -139,6 +143,12 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 	}
 	if b.exec == nil {
 		return nil, errs.New(errs.Config, "linux.List", "no transport executor configured")
+	}
+	if kind == KindJournal {
+		// journalctl is not a probe batch: one command per host, raw output.
+		out := make(chan backend.Result)
+		go b.listJournal(ctx, out, hosts, q)
+		return out, nil
 	}
 	batch, err := b.batch(kind)
 	if err != nil {
@@ -266,10 +276,11 @@ func (b *Backend) Get(ctx context.Context, ref resource.Ref) (resource.Resource,
 	return resource.Resource{}, errs.New(errs.NotAvailable, "linux.Get", "no resource "+ref.String())
 }
 
-// Links returns the pivots from r. Only a host has pivots so far; units get a
-// journal link in task 045.
+// Links returns the pivots from r: a host opens its units, processes, sockets
+// and journal; a unit opens its journal.
 func (b *Backend) Links(r resource.Resource) []resource.Link {
-	if kind, ok := normalizeKind(r.Ref.Kind); !ok || kind != KindHost {
+	kind, ok := normalizeKind(r.Ref.Kind)
+	if !ok {
 		return nil
 	}
 	host := r.Ref.Host
@@ -279,12 +290,32 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 	if host == "" {
 		return nil
 	}
+	host = resource.NormalizeHostID(string(host))
 	hosts := []resource.HostID{host}
-	return []resource.Link{
-		{Label: "units", Key: "u", To: resource.Query{Kind: KindUnit, Hosts: hosts}},
-		{Label: "processes", Key: "p", To: resource.Query{Kind: KindProcess, Hosts: hosts}},
-		{Label: "sockets", Key: "s", To: resource.Query{Kind: KindSocket, Hosts: hosts}},
+
+	switch kind {
+	case KindHost:
+		return []resource.Link{
+			{Label: "units", Key: "u", To: resource.Query{Kind: KindUnit, Hosts: hosts}},
+			{Label: "processes", Key: "p", To: resource.Query{Kind: KindProcess, Hosts: hosts}},
+			{Label: "sockets", Key: "s", To: resource.Query{Kind: KindSocket, Hosts: hosts}},
+			{Label: "journal", Key: "j", To: resource.Query{Kind: KindJournal, Hosts: hosts}},
+		}
+	case KindUnit:
+		if r.Ref.Name == "" {
+			return nil
+		}
+		return []resource.Link{{
+			Label: "journal",
+			Key:   "j",
+			To: resource.Query{
+				Kind:  KindJournal,
+				Hosts: hosts,
+				Args:  map[string]string{"unit": r.Ref.Name},
+			},
+		}}
 	}
+	return nil
 }
 
 // Health reports the recent transport error rate. It never runs a command.

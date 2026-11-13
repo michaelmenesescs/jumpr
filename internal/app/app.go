@@ -73,6 +73,9 @@ func Run(ctx context.Context, o Options) (err error) {
 		Factories: make(map[resource.KindName]tui.Factory),
 		Log:       logger,
 	}
+	for kind, f := range views.Factories() {
+		env.Factories[kind] = f
+	}
 	cmds := tui.NewCommands()
 	tui.RegisterBuiltins(cmds)
 

@@ -13,6 +13,7 @@ const (
 	KindUnit    resource.KindName = "unit"
 	KindProcess resource.KindName = "process"
 	KindSocket  resource.KindName = "socket"
+	KindJournal resource.KindName = "journal"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -27,6 +28,8 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindProcess, true
 	case "socket", "sockets", "ss", "s":
 		return KindSocket, true
+	case "journal", "journals", "j", "logs":
+		return KindJournal, true
 	default:
 		return "", false
 	}
@@ -100,6 +103,21 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "local", Title: "LOCAL", Width: 24},
 				{ID: "peer", Title: "PEER", Width: 24},
 				{ID: "process", Title: "PROCESS", Width: 0},
+			},
+		},
+		{
+			// Journal rows carry a "host" field as well; a view that lists more
+			// than one host prepends a host column and merge-sorts by time,
+			// because KindSpec is not query-dependent.
+			Name:    KindJournal,
+			Aliases: []string{"journals", "j", "logs"},
+			Title:   "Journal",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "time", Title: "TIME", Width: 8, Kind: resource.ColTime},
+				{ID: "pri", Title: "PRI", Width: 4},
+				{ID: "source", Title: "SOURCE", Width: 16},
+				{ID: "message", Title: "MESSAGE", Width: 0},
 			},
 		},
 	}

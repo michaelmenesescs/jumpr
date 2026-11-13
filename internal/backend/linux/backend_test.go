@@ -370,10 +370,10 @@ func TestBackendGetUnit(t *testing.T) {
 func TestBackendLinksFromHost(t *testing.T) {
 	b := newTestBackend(t, transporttest.New(), inv("web-01"))
 	links := b.Links(resource.Resource{Ref: resource.Ref{Backend: "linux", Kind: KindHost, Host: "web-01", Name: "web-01"}})
-	if len(links) != 3 {
-		t.Fatalf("got %d links, want 3", len(links))
+	if len(links) != 4 {
+		t.Fatalf("got %d links, want 4", len(links))
 	}
-	want := map[string]resource.KindName{"u": KindUnit, "p": KindProcess, "s": KindSocket}
+	want := map[string]resource.KindName{"u": KindUnit, "p": KindProcess, "s": KindSocket, "j": KindJournal}
 	for _, l := range links {
 		kind, ok := want[l.Key]
 		if !ok {
@@ -391,8 +391,8 @@ func TestBackendLinksFromHost(t *testing.T) {
 	if len(want) != 0 {
 		t.Errorf("missing link keys %v", want)
 	}
-	if got := b.Links(resource.Resource{Ref: resource.Ref{Kind: KindUnit, Host: "web-01", Name: "nginx.service"}}); len(got) != 0 {
-		t.Errorf("unit links = %v, want none", got)
+	if got := b.Links(resource.Resource{Ref: resource.Ref{Kind: KindUnit, Host: "web-01", Name: "nginx.service"}}); len(got) != 1 || got[0].To.Args["unit"] != "nginx.service" {
+		t.Errorf("unit links = %v, want one journal link with the unit arg", got)
 	}
 }
 
@@ -448,8 +448,8 @@ func TestBackendUnknownKind(t *testing.T) {
 	if _, err := b.List(context.Background(), resource.Query{Kind: "pod"}); errs.KindOf(err) != errs.Config {
 		t.Errorf("List kind = %s, want config", errs.KindOf(err))
 	}
-	if got := len(b.Kinds()); got != 4 {
-		t.Errorf("Kinds() = %d, want 4", got)
+	if got := len(b.Kinds()); got != 5 {
+		t.Errorf("Kinds() = %d, want 5", got)
 	}
 	if b.Name() != "linux" {
 		t.Errorf("Name() = %q, want linux", b.Name())

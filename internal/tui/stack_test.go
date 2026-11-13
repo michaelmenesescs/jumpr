@@ -37,6 +37,48 @@ func (v *stubView) CopyLines() []string { return nil }
 
 var _ View = (*stubView)(nil)
 
+// closerView is a stubView that records Close calls.
+type closerView struct {
+	stubView
+	closed int
+}
+
+func (v *closerView) Close() error {
+	v.closed++
+	return nil
+}
+
+var _ View = (*closerView)(nil)
+
+func TestStackClosesPoppedAndReplacedViews(t *testing.T) {
+	root := &stubView{crumb: "root"}
+	s := NewStack(root)
+
+	child := &closerView{stubView: stubView{crumb: "child"}}
+	s.Push(child)
+
+	other := &closerView{stubView: stubView{crumb: "other"}}
+	s.Replace(other)
+	if child.closed != 1 {
+		t.Fatalf("Replace did not close the replaced view (closed = %d)", child.closed)
+	}
+	if other.closed != 0 {
+		t.Fatalf("Replace closed the new view (closed = %d)", other.closed)
+	}
+
+	if !s.Pop() {
+		t.Fatal("Pop returned false with a child on the stack")
+	}
+	if other.closed != 1 {
+		t.Fatalf("Pop did not close the popped view (closed = %d)", other.closed)
+	}
+
+	// The root is never popped, so it is never closed.
+	if s.Pop() {
+		t.Fatal("Pop popped the root")
+	}
+}
+
 func TestStackPushPopReplace(t *testing.T) {
 	root := &stubView{crumb: "root"}
 	s := NewStack(root)

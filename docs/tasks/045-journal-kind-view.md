@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 042, 044, 013
 - **Parallel group:** M2-E (with 046)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `j` on a host or unit shows the journal for the session time window; `w` follows it live.

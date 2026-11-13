@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"io"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/render"
@@ -49,19 +51,22 @@ func (s *Stack) Push(v View) tea.Cmd {
 	return v.Init()
 }
 
-// Pop drops the top view. It refuses to pop the root and reports false then.
+// Pop drops the top view, closing it when it is an io.Closer. It refuses to pop
+// the root and reports false then.
 func (s *Stack) Pop() bool {
 	if len(s.views) <= 1 {
 		return false
 	}
 	last := len(s.views) - 1
+	s.closeView(s.views[last])
 	s.views[last] = nil
 	s.views = s.views[:last]
 	return true
 }
 
-// Replace swaps the top view for v and returns v's Init command. Replacing
-// the root is allowed: the stack always keeps exactly one view.
+// Replace swaps the top view for v, closes the view it replaces when that view
+// is an io.Closer, and returns v's Init command. Replacing the root is allowed:
+// the stack always keeps exactly one view.
 func (s *Stack) Replace(v View) tea.Cmd {
 	if v == nil {
 		return nil
@@ -69,9 +74,23 @@ func (s *Stack) Replace(v View) tea.Cmd {
 	if len(s.views) == 0 {
 		s.views = append(s.views, v)
 	} else {
+		if old := s.views[len(s.views)-1]; old != nil && old != v {
+			s.closeView(old)
+		}
 		s.views[len(s.views)-1] = v
 	}
 	return v.Init()
+}
+
+// closeView releases a view's resources: views that hold streams cancel them in
+// Close (io.Closer), so a popped journal stops following.
+func (s *Stack) closeView(v View) {
+	if v == nil {
+		return
+	}
+	if c, ok := v.(io.Closer); ok {
+		_ = c.Close()
+	}
 }
 
 // Update handles the navigation messages itself and routes everything else to
