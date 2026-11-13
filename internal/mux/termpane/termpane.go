@@ -92,12 +92,18 @@ type conn struct {
 	wg     sync.WaitGroup
 }
 
-// Pane is a terminal pane: mux.Content over one SSH shell.
+// OpenFunc opens one interactive shell. A pane does not care where the shell
+// runs: an SSH host and a Kubernetes pod exec are two implementations.
+type OpenFunc func(ctx context.Context, req transport.PTYRequest) (transport.Shell, error)
+
+// Pane is a terminal pane: mux.Content over one interactive shell.
 type Pane struct {
-	id     mux.PaneID
-	host   resource.HostID
-	opener transport.ShellOpener
-	opts   Options
+	id    mux.PaneID
+	host  resource.HostID
+	open  OpenFunc
+	title string
+	label string // ContentState.Host; "" means string(host)
+	opts  Options
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -118,9 +124,47 @@ type Pane struct {
 
 var _ mux.Content = (*Pane)(nil)
 
-// New builds a pane that connects to host through opener. ctx bounds every
-// connection the pane makes; Close cancels the context it derives from it.
+// New builds a pane that connects to host through opener: the SSH constructor,
+// a thin wrapper over NewShell. ctx bounds every connection the pane makes;
+// Close cancels the context it derives from it.
 func New(id mux.PaneID, ctx context.Context, opener transport.ShellOpener, host resource.HostID, o Options) *Pane {
+	var open OpenFunc
+	if opener != nil {
+		open = func(ctx context.Context, req transport.PTYRequest) (transport.Shell, error) {
+			return opener.OpenShell(ctx, host, req)
+		}
+	}
+	p := newPane(id, ctx, open, o)
+	p.host = host
+	return p
+}
+
+// NewShell builds a pane over any shell factory and shows title in its border.
+// host is what session persistence records for the pane; empty means the pane
+// has no reconnect target of its own.
+func NewShell(id mux.PaneID, ctx context.Context, open OpenFunc, title, host string, o Options) *Pane {
+	p := newPane(id, ctx, open, o)
+	p.title = title
+	p.label = host
+	return p
+}
+
+// NewPod builds a Kubernetes pod exec pane. The content state names the pod the
+// way a restart needs it: k8s:<ctx>/<ns>/<pod>/<container>.
+func NewPod(id mux.PaneID, ctx context.Context, open OpenFunc, kubeCtx, ns, pod, container string, o Options) *Pane {
+	title := pod
+	if ns != "" {
+		title = ns + "/" + pod
+	}
+	if container != "" && container != pod {
+		title += ":" + container
+	}
+	host := "k8s:" + kubeCtx + "/" + ns + "/" + pod + "/" + container
+	return NewShell(id, ctx, open, "k8s "+title, host, o)
+}
+
+// newPane applies the option defaults and derives the pane's context.
+func newPane(id mux.PaneID, ctx context.Context, open OpenFunc, o Options) *Pane {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -136,8 +180,7 @@ func New(id mux.PaneID, ctx context.Context, opener transport.ShellOpener, host 
 	pctx, cancel := context.WithCancel(ctx)
 	return &Pane{
 		id:     id,
-		host:   host,
-		opener: opener,
+		open:   open,
 		opts:   o,
 		ctx:    pctx,
 		cancel: cancel,
@@ -310,15 +353,16 @@ func (p *Pane) reconnect() tea.Cmd {
 // connect is the tea.Cmd that opens the shell.
 func (p *Pane) connect(gen int) tea.Cmd {
 	return func() tea.Msg {
-		if p.opener == nil {
-			return failedMsg{gen: gen, err: errs.New(errs.Config, "termpane.OpenShell", "no SSH opener")}
+		if p.open == nil {
+			return failedMsg{gen: gen, err: errs.New(errs.Config, "termpane.OpenShell", "no shell opener")}
 		}
 		p.mu.Lock()
 		cols, rows := p.cols, p.rows
+		open := p.open
 		p.mu.Unlock()
 		ctx, cancel := context.WithTimeout(p.ctx, connectTimeout)
 		defer cancel()
-		sh, err := p.opener.OpenShell(ctx, p.host, transport.PTYRequest{
+		sh, err := open(ctx, transport.PTYRequest{
 			Term: p.opts.Term,
 			Cols: cols,
 			Rows: rows,
@@ -510,10 +554,13 @@ func (p *Pane) View(w, h int) string {
 // Title is the pane border title. A pane whose host policy protects says so
 // (SPEC §11.1).
 func (p *Pane) Title() string {
-	title := "ssh " + p.shortHost()
 	p.mu.Lock()
+	title := p.title
 	protected := p.protected
 	p.mu.Unlock()
+	if title == "" {
+		title = "ssh " + p.shortHost()
+	}
 	if protected {
 		title += " (protected)"
 	}
@@ -598,7 +645,13 @@ func (p *Pane) CopyLines() []string {
 
 // State is what session persistence records for this pane.
 func (p *Pane) State() mux.ContentState {
-	return mux.ContentState{Type: "term", Host: string(p.host)}
+	p.mu.Lock()
+	label := p.label
+	p.mu.Unlock()
+	if label == "" {
+		label = string(p.host)
+	}
+	return mux.ContentState{Type: "term", Host: label}
 }
 
 // Close releases the shell, the emulator and every goroutine. It is safe to

@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 106, 050
 - **Parallel group:** M9-B (with 109)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `s` on a pod opens a shell in a pane (never taking over the TTY); `shift+f` forwards a port.
