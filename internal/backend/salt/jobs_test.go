@@ -152,7 +152,7 @@ func fastOptions() jobOptions {
 }
 
 // collect drains the job's results and fails if it does not finish in time.
-func collect(t *testing.T, j *Job, wait time.Duration) []MinionResult {
+func collectJobs(t *testing.T, j *Job, wait time.Duration) []MinionResult {
 	t.Helper()
 	var out []MinionResult
 	deadline := time.After(wait)
@@ -211,7 +211,7 @@ func TestJobStartStreamsEachMinionOnce(t *testing.T) {
 	if got := j.JIDs(); len(got) != 1 || got[0] != jidA {
 		t.Fatalf("JIDs = %v, want [%s]", got, jidA)
 	}
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 2 {
 		t.Fatalf("results = %d (%+v), want 2 emitted exactly once each", len(got), got)
 	}
@@ -243,7 +243,7 @@ func TestJobNoReturnAfterTimeout(t *testing.T) {
 	opt.timeout = 40 * time.Millisecond
 	j := submitList(t, m, "web-01,web-02", "cmd.run_all", []string{"web-01", "web-02"}, opt)
 
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 2 {
 		t.Fatalf("results = %d (%+v), want one per expected minion", len(got), got)
 	}
@@ -283,7 +283,7 @@ func TestJobChunkedTargetsMerge(t *testing.T) {
 	if got := j.JIDs(); len(got) != 2 || got[0] != jidA || got[1] != jidB {
 		t.Fatalf("JIDs = %v, want [%s %s]", got, jidA, jidB)
 	}
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 2 {
 		t.Fatalf("results = %d (%+v), want both chunks on one stream", len(got), got)
 	}
@@ -305,7 +305,7 @@ func TestJobUnexpectedMinionFlagged(t *testing.T) {
 	})
 	j := submitList(t, m, "web-01", "cmd.run_all", []string{"web-01"}, fastOptions())
 
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 2 {
 		t.Fatalf("results = %d (%+v), want both", len(got), got)
 	}
@@ -364,7 +364,7 @@ func TestJobPollErrorsRetriedThenGiveUp(t *testing.T) {
 	})
 	j := submitList(t, m, "web-01,web-02", "cmd.run_all", []string{"web-01", "web-02"}, fastOptions())
 
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 2 {
 		t.Fatalf("results = %d (%+v), want NoReturn for both", len(got), got)
 	}
@@ -390,7 +390,7 @@ func TestJobEmptyMinionsDoesNotFinishEarly(t *testing.T) {
 	})
 	j := submitList(t, m, "web-01", "cmd.run_all", nil, fastOptions())
 
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 1 || got[0].Minion != "web-01" || got[0].NoReturn {
 		t.Fatalf("results = %+v, want the late web-01 result", got)
 	}
@@ -436,7 +436,7 @@ func TestJobSubmitErrorsKeepWorkingChunks(t *testing.T) {
 	if got := j.JIDs(); len(got) != 1 {
 		t.Fatalf("JIDs = %v, want the submitted chunk only", got)
 	}
-	got := collect(t, j, 2*time.Second)
+	got := collectJobs(t, j, 2*time.Second)
 	if len(got) != 1 || got[0].Minion != "web-01" || got[0].NoReturn || !got[0].Success {
 		t.Fatalf("results = %+v, want the surviving chunk's web-01 result", got)
 	}
