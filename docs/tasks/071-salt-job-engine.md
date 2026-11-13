@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 066
 - **Parallel group:** M4-B (with 068, 069)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Run any Salt function on a target as an async job and stream per-minion results, with explicit "no return".
