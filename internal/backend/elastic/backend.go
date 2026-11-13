@@ -46,6 +46,9 @@ const (
 	// ArgColumns lists extra `_source` fields (comma separated) the user added
 	// as columns.
 	ArgColumns = "columns"
+	// ArgUnit filters the list on the source's `unit_field`, so a unit detail
+	// can pivot to that unit's log lines.
+	ArgUnit = "unit"
 )
 
 // LogSource is one saved log source (SPEC §8.5): where a kind of log lives
@@ -57,11 +60,15 @@ type LogSource struct {
 	HostField    string
 	MessageField string
 	LevelField   string
+	// UnitField is the document field that carries the systemd unit, when the
+	// source has one. It is empty for sources that do not log a unit, and then
+	// a unit filter is unavailable.
+	UnitField string
 }
 
 // Normalized returns the source with its defaults applied: an empty time field
 // becomes @timestamp, the Elastic Common Schema default. Everything else stays
-// as configured; an empty host, message or level field simply means that
+// as configured; an empty host, message, level or unit field simply means that
 // filter or column is unavailable.
 func (s LogSource) Normalized() LogSource {
 	s.Name = strings.TrimSpace(s.Name)
@@ -70,6 +77,7 @@ func (s LogSource) Normalized() LogSource {
 	s.HostField = strings.TrimSpace(s.HostField)
 	s.MessageField = strings.TrimSpace(s.MessageField)
 	s.LevelField = strings.TrimSpace(s.LevelField)
+	s.UnitField = strings.TrimSpace(s.UnitField)
 	if s.TimeField == "" {
 		s.TimeField = defaultTimeField
 	}
@@ -108,6 +116,9 @@ type LogQuery struct {
 	Query string
 	// Window is the investigation time window.
 	Window resource.TimeWindow
+	// Unit filters the search on the source's unit field (systemd unit name).
+	// It is ignored when the source configures no unit field.
+	Unit string
 	// Columns are extra `_source` fields the user added as columns.
 	Columns []string
 	// After is the sort of the previous page, for search_after paging.
@@ -266,7 +277,7 @@ func (b *Backend) Logs(ctx context.Context, q LogQuery) (LogPage, error) {
 	page, err := cluster.Client.Search(ctx, SearchOptions{
 		Source:      src,
 		Hosts:       q.Hosts,
-		QueryString: q.Query,
+		QueryString: withUnit(q.Query, src.UnitField, q.Unit),
 		From:        from,
 		To:          to,
 		Columns:     q.Columns,
@@ -289,6 +300,232 @@ func pageSize(size int) int {
 		return SearchSize
 	}
 	return size
+}
+
+// withUnit adds the unit filter to the user's query_string text. Elasticsearch
+// users type query_string, so a unit is one more term of it; the value is quoted
+// and escaped, never concatenated into a command or a URL. An empty field (a
+// source that logs no unit) or an empty unit leaves the text alone.
+func withUnit(query, field, unit string) string {
+	field = strings.TrimSpace(field)
+	unit = strings.TrimSpace(unit)
+	if field == "" || unit == "" {
+		return query
+	}
+	term := field + ":" + quoteQueryStringValue(unit)
+	if q := strings.TrimSpace(query); q != "" {
+		return "(" + q + ") AND " + term
+	}
+	return term
+}
+
+// quoteQueryStringValue quotes a value for query_string, escaping backslashes
+// and double quotes.
+func quoteQueryStringValue(v string) string {
+	v = strings.ReplaceAll(v, `\`, `\\`)
+	v = strings.ReplaceAll(v, `"`, `\"`)
+	return `"` + v + `"`
+}
+
+// Tail poll intervals and the line cap (SPEC §8.5): a tail polls every
+// TailPollInterval and slows down to TailIdleInterval after TailIdleAfter empty
+// polls, so a quiet source does not cost a query every two seconds.
+const (
+	TailPollInterval = 2 * time.Second
+	TailIdleInterval = 5 * time.Second
+	TailIdleAfter    = 3
+	TailMaxLines     = 20000
+)
+
+// TailOptions is one live tail of one configured log source.
+type TailOptions struct {
+	// Query names the source and carries the filters the tail follows with.
+	// Query.After and Query.Size are ignored: the tail keeps its own cursor.
+	Query LogQuery
+	// Poll is the interval after a poll that found lines. Zero means
+	// TailPollInterval.
+	Poll time.Duration
+	// Idle is the interval after IdleAfter empty polls. Zero means
+	// TailIdleInterval.
+	Idle time.Duration
+	// IdleAfter is how many empty polls slow a tail down. Zero means
+	// TailIdleAfter.
+	IdleAfter int
+	// Max caps the lines one tail delivers. Zero means TailMaxLines.
+	Max int
+}
+
+// TailResult is one poll of a live tail.
+type TailResult struct {
+	// Rows are the lines the poll found, oldest first. A poll that found
+	// nothing carries none.
+	Rows []LogRow
+	// Lag is now minus the newest event the tail has seen; zero until it has
+	// seen one. It is what the screen shows as how far behind the tail is.
+	Lag time.Duration
+	// Err is a poll that failed. A tail stops after delivering it.
+	Err error
+}
+
+// Tail follows a configured log source: it polls with search_after from the
+// last hit, so a line is delivered once, even when several lines share a
+// timestamp. It returns as soon as the work is started and closes the channel
+// when ctx is done, when Max lines have been delivered, or after an error.
+func (b *Backend) Tail(ctx context.Context, o TailOptions) (<-chan TailResult, error) {
+	if _, _, err := b.resolve(o.Query); err != nil {
+		return nil, err
+	}
+	t := &tailer{b: b, q: o.Query}
+	t.poll = o.Poll
+	if t.poll <= 0 {
+		t.poll = TailPollInterval
+	}
+	t.idle = o.Idle
+	if t.idle <= 0 {
+		t.idle = TailIdleInterval
+	}
+	t.idleAfter = o.IdleAfter
+	if t.idleAfter <= 0 {
+		t.idleAfter = TailIdleAfter
+	}
+	t.max = o.Max
+	if t.max <= 0 {
+		t.max = TailMaxLines
+	}
+
+	out := make(chan TailResult, 1)
+	go func() {
+		defer close(out)
+		t.run(ctx, out)
+	}()
+	return out, nil
+}
+
+// tailer is one running tail: the cursor, the poll counters and the interval
+// state. It is touched by its own goroutine only.
+type tailer struct {
+	b *Backend
+	q LogQuery
+
+	poll, idle time.Duration
+	idleAfter  int
+	max        int
+
+	from  time.Time
+	after []any
+	last  time.Time
+	empty int
+	total int
+}
+
+// run polls until ctx is done, the cap is reached or a poll fails.
+func (t *tailer) run(ctx context.Context, out chan<- TailResult) {
+	// The tail keeps the window's lower bound and leaves the upper one open:
+	// lines that arrive while it runs are what it is for.
+	t.from, _ = t.q.Window.Bounds(t.b.now())
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		rows, lag, err := t.pollOnce(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			select {
+			case <-ctx.Done():
+			case out <- TailResult{Err: err, Lag: lag}:
+			}
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case out <- TailResult{Rows: rows, Lag: lag}:
+		}
+		if t.total >= t.max {
+			return
+		}
+		if !t.wait(ctx) {
+			return
+		}
+	}
+}
+
+// pollOnce reads every page that is waiting, up to the line cap, and returns the
+// new rows and the lag. One empty poll counts towards the slowdown.
+func (t *tailer) pollOnce(ctx context.Context) ([]LogRow, time.Duration, error) {
+	var rows []LogRow
+	for t.total < t.max {
+		remaining := t.max - t.total
+		page, err := t.b.Logs(ctx, t.logQuery(remaining))
+		if err != nil {
+			return rows, t.lag(), err
+		}
+		got := page.Rows
+		if len(got) > remaining {
+			got = got[:remaining]
+		}
+		rows = append(rows, got...)
+		t.total += len(got)
+		if len(page.Rows) > 0 {
+			t.last = page.Rows[len(page.Rows)-1].Time
+		}
+		if n := len(got); n > 0 {
+			t.after = got[n-1].Sort
+		}
+		if !page.Full || len(page.After) == 0 || len(got) == 0 {
+			break
+		}
+	}
+	if len(rows) == 0 {
+		t.empty++
+	} else {
+		t.empty = 0
+	}
+	return rows, t.lag(), nil
+}
+
+// logQuery is the next page the tail reads: the same filters, the cursor and
+// the window's lower bound, with the upper bound left open.
+func (t *tailer) logQuery(size int) LogQuery {
+	q := t.q
+	q.Window = resource.TimeWindow{From: t.from}
+	q.After = t.after
+	q.Size = size
+	return q
+}
+
+// lag is now minus the newest event the tail has seen; zero before the first.
+func (t *tailer) lag() time.Duration {
+	if t.last.IsZero() {
+		return 0
+	}
+	d := t.b.now().Sub(t.last)
+	if d < 0 {
+		return 0
+	}
+	return d
+}
+
+// interval is how long the tail waits after its last poll.
+func (t *tailer) interval() time.Duration {
+	if t.empty >= t.idleAfter {
+		return t.idle
+	}
+	return t.poll
+}
+
+// wait sleeps for the current interval and reports whether the tail continues.
+func (t *tailer) wait(ctx context.Context) bool {
+	timer := time.NewTimer(t.interval())
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 // rows maps hits onto log rows, reading the configured fields from each
@@ -379,6 +616,7 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 					Source:  ref.Source.Name,
 					Hosts:   q.Hosts,
 					Query:   q.Args[ArgQuery],
+					Unit:    q.Args[ArgUnit],
 					Window:  q.Window,
 					Columns: splitColumns(q.Args[ArgColumns]),
 					After:   after,

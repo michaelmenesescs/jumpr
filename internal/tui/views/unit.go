@@ -11,6 +11,7 @@ import (
 
 	"jumper/internal/action"
 	"jumper/internal/backend"
+	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/linux"
 	"jumper/internal/errs"
 	"jumper/internal/render"
@@ -195,8 +196,8 @@ func (u *Unit) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 	return u, cmd
 }
 
-// handleKey handles the detail's own keys: `x` actions, `r` refresh, and `E`
-// drop-in preview from the cat tab (task 087).
+// handleKey handles the detail's own keys: `x` actions, `r` refresh, `l` logs
+// for this unit and `E` drop-in preview from the cat tab (task 087).
 func (u *Unit) handleKey(m tea.KeyMsg) (tea.Cmd, bool) {
 	key := m.String()
 	switch {
@@ -204,10 +205,24 @@ func (u *Unit) handleKey(m tea.KeyMsg) (tea.Cmd, bool) {
 		return u.actions(), true
 	case u.keys.Refresh.Matches(key):
 		return u.refresh(), true
+	case key == "l":
+		return u.logs(), true
 	case key == "E" && u.tabs.Active() == u.cat:
 		return u.openDropIn(), true
 	}
 	return nil, false
+}
+
+// logs opens the central logs filtered by this unit. The filter needs a log
+// source with a configured unit field; without one the backend ignores it and
+// the screen says so in its banner.
+func (u *Unit) logs() tea.Cmd {
+	return tui.OpenQuery(resource.Query{
+		Kind:   elastic.KindLog,
+		Hosts:  []resource.HostID{u.host},
+		Args:   map[string]string{elastic.ArgUnit: u.name},
+		Window: u.window,
+	})
 }
 
 // refresh reloads the batch, the journal and the deps tab when they have been
@@ -473,6 +488,7 @@ func (u *Unit) Crumb() string { return u.name }
 func (u *Unit) Hints() []tui.KeyHint {
 	hints := u.tabs.Hints()
 	hints = append(hints,
+		tui.KeyHint{Key: "l", Text: "logs"},
 		tui.KeyHint{Key: firstKey(u.keys.Actions), Text: "actions"},
 		tui.KeyHint{Key: firstKey(u.keys.Refresh), Text: "refresh"},
 	)

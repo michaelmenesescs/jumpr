@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -21,8 +22,10 @@ import (
 )
 
 const (
-	// esLogsMaxRows caps the rows the screen keeps in memory.
+	// esLogsMaxRows caps the rows a plain load keeps in memory.
 	esLogsMaxRows = 5000
+	// esLogsTailMaxRows caps the rows a live tail keeps in memory (task 122).
+	esLogsTailMaxRows = 20000
 	// esLogsPageSize is the page each selected source is asked for, matching
 	// the backend's `_search` size.
 	esLogsPageSize = elastic.SearchSize
@@ -44,6 +47,8 @@ type esLogsSource interface {
 	Logs(ctx context.Context, q elastic.LogQuery) (elastic.LogPage, error)
 	// FieldCaps lists the fields a column can be added for.
 	FieldCaps(ctx context.Context, cluster, source string) ([]elastic.Field, error)
+	// Tail follows a configured source, polling with search_after.
+	Tail(ctx context.Context, o elastic.TailOptions) (<-chan elastic.TailResult, error)
 }
 
 // esLogsDataMsg is one finished load: the merged first page of every selected
@@ -60,6 +65,21 @@ type esLogsFieldsMsg struct {
 	seq    int
 	fields []elastic.Field
 	err    error
+}
+
+// esLogsTailStartMsg is one started tail: the merged channel of every selected
+// source, or the error that kept the tail from starting.
+type esLogsTailStartMsg struct {
+	seq int
+	ch  <-chan elastic.TailResult
+	err error
+}
+
+// esLogsTailMsg is one poll of a running tail.
+type esLogsTailMsg struct {
+	seq    int
+	result elastic.TailResult
+	closed bool
 }
 
 // esLogsMode is what the keyboard is doing.
@@ -88,6 +108,8 @@ type ESLogs struct {
 	window  resource.TimeWindow
 	hosts   []resource.HostID
 	columns []string
+	// unit filters the search on the source's unit field (a unit detail's `l`).
+	unit string
 
 	rows   []elastic.LogRow
 	view   []elastic.LogRow
@@ -99,6 +121,14 @@ type ESLogs struct {
 	err     error
 	seq     int
 	cancel  context.CancelFunc
+
+	// tail is the `w` live follow: its own generation, context and stream.
+	tailing    bool
+	tailSeq    int
+	tailCancel context.CancelFunc
+	tailCh     <-chan elastic.TailResult
+	lag        time.Duration
+	capped     bool
 
 	mode  esLogsMode
 	input textinput.Model
@@ -120,8 +150,8 @@ type ESLogs struct {
 var _ tui.View = (*ESLogs)(nil)
 
 // NewESLogs builds the `:logs` screen over src. q.Args["cluster"],
-// q.Args["source"], q.Args["query"] and q.Args["columns"] narrow the search;
-// q.Hosts and q.Window come from the session.
+// q.Args["source"], q.Args["query"], q.Args["unit"] and q.Args["columns"] narrow
+// the search; q.Hosts and q.Window come from the session.
 func NewESLogs(env *tui.Env, src esLogsSource, q resource.Query) *ESLogs {
 	e := &ESLogs{
 		env:     env,
@@ -129,6 +159,7 @@ func NewESLogs(env *tui.Env, src esLogsSource, q resource.Query) *ESLogs {
 		cluster: strings.TrimSpace(q.Args[elastic.ArgCluster]),
 		source:  strings.TrimSpace(q.Args[elastic.ArgSource]),
 		query:   strings.TrimSpace(q.Args[elastic.ArgQuery]),
+		unit:    strings.TrimSpace(q.Args[elastic.ArgUnit]),
 		window:  q.Window,
 		hosts:   append([]resource.HostID{}, q.Hosts...),
 		columns: splitList(q.Args[elastic.ArgColumns]),
@@ -233,6 +264,7 @@ func (e *ESLogs) load() tea.Cmd {
 	q := elastic.LogQuery{
 		Hosts:   append([]resource.HostID{}, e.hosts...),
 		Query:   e.query,
+		Unit:    e.unit,
 		Window:  e.window,
 		Columns: append([]string{}, e.columns...),
 		Size:    esLogsPageSize,
@@ -272,8 +304,170 @@ func (e *ESLogs) load() tea.Cmd {
 	}
 }
 
-// Update handles loads, the session window and keys. A load for a canceled Seq
-// is dropped.
+// toggleTail starts the live follow (`w`) or stops it.
+func (e *ESLogs) toggleTail() tea.Cmd {
+	if e.tailing {
+		e.stopTail()
+		return tui.Flash(tui.FlashInfo, "tail stopped")
+	}
+	if e.src == nil || len(e.sources) == 0 {
+		return tui.Flash(tui.FlashWarn, "no log source to follow")
+	}
+	return e.startTail()
+}
+
+// startTail cancels a previous tail and starts one per selected source. The
+// backend polls with search_after from its last hit, so a line is shown once.
+func (e *ESLogs) startTail() tea.Cmd {
+	e.stopTail()
+	ctx, cancel := context.WithCancel(context.Background())
+	e.tailCancel = cancel
+	e.tailSeq++
+	seq := e.tailSeq
+	e.tailing = true
+	e.capped = false
+	e.lag = 0
+
+	src := e.src
+	sources := append([]elastic.SourceRef{}, e.sources...)
+	q := elastic.LogQuery{
+		Hosts:   append([]resource.HostID{}, e.hosts...),
+		Query:   e.query,
+		Unit:    e.unit,
+		Window:  e.window,
+		Columns: append([]string{}, e.columns...),
+		Now:     e.now(),
+	}
+	return func() tea.Msg {
+		merged := make(chan elastic.TailResult, 8)
+		var wg sync.WaitGroup
+		for _, ref := range sources {
+			lq := q
+			lq.Cluster, lq.Source = ref.Cluster, ref.Source.Name
+			ch, err := src.Tail(ctx, elastic.TailOptions{Query: lq})
+			if err != nil {
+				cancel()
+				return esLogsTailStartMsg{seq: seq, err: err}
+			}
+			wg.Add(1)
+			go func(ch <-chan elastic.TailResult) {
+				defer wg.Done()
+				for res := range ch {
+					select {
+					case <-ctx.Done():
+						return
+					case merged <- res:
+					}
+				}
+			}(ch)
+		}
+		go func() {
+			wg.Wait()
+			close(merged)
+		}()
+		return esLogsTailStartMsg{seq: seq, ch: merged}
+	}
+}
+
+// stopTail cancels the running tail, if any.
+func (e *ESLogs) stopTail() {
+	if e.tailCancel != nil {
+		e.tailCancel()
+		e.tailCancel = nil
+	}
+	e.tailCh = nil
+	e.tailing = false
+}
+
+// tailStarted stores the stream a started tail returned and asks for its first
+// poll.
+func (e *ESLogs) tailStarted(m esLogsTailStartMsg) tea.Cmd {
+	if m.seq != e.tailSeq {
+		return nil
+	}
+	if m.err != nil {
+		e.stopTail()
+		return tui.Flash(tui.FlashError, "tail: %v", m.err)
+	}
+	e.tailCh = m.ch
+	return e.nextTailBatch()
+}
+
+// nextTailBatch asks for the next poll of the running tail.
+func (e *ESLogs) nextTailBatch() tea.Cmd {
+	ch, seq := e.tailCh, e.tailSeq
+	if ch == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		results, closed := tui.NextBatch(ch, 64)
+		msg := esLogsTailMsg{seq: seq, closed: closed}
+		for _, res := range results {
+			if res.Err != nil {
+				msg.result.Err = res.Err
+			}
+			msg.result.Rows = append(msg.result.Rows, res.Rows...)
+			msg.result.Lag = res.Lag
+		}
+		return msg
+	}
+}
+
+// tailBatch stores one poll: new rows go on the end, the newest
+// esLogsTailMaxRows are kept, and the cursor follows the bottom while tailing.
+func (e *ESLogs) tailBatch(m esLogsTailMsg) tea.Cmd {
+	if m.seq != e.tailSeq {
+		return nil
+	}
+	if m.result.Err != nil {
+		e.stopTail()
+		e.err = m.result.Err
+		return tui.Flash(tui.FlashError, "tail stopped: %v", m.result.Err)
+	}
+	e.lag = m.result.Lag
+	e.loaded = e.now()
+	justCapped := false
+	if len(m.result.Rows) > 0 {
+		e.err = nil
+		e.rows = append(e.rows, m.result.Rows...)
+		if extra := len(e.rows) - esLogsTailMaxRows; extra > 0 {
+			e.rows = e.rows[extra:]
+			if !e.capped {
+				e.capped = true
+				justCapped = true
+			}
+		}
+		sortLogRows(e.rows)
+		e.refilter()
+		e.cursor = len(e.view) - 1
+	}
+	if m.closed {
+		e.stopTail()
+		return nil
+	}
+	if justCapped {
+		return tea.Batch(e.nextTailBatch(),
+			tui.Flash(tui.FlashWarn, "tail keeps the newest %d lines", esLogsTailMaxRows))
+	}
+	return e.nextTailBatch()
+}
+
+// sortLogRows orders rows by time, then index and id, so rows of several
+// sources interleave correctly.
+func sortLogRows(rows []elastic.LogRow) {
+	sort.SliceStable(rows, func(i, j int) bool {
+		if !rows[i].Time.Equal(rows[j].Time) {
+			return rows[i].Time.Before(rows[j].Time)
+		}
+		if rows[i].Index != rows[j].Index {
+			return rows[i].Index < rows[j].Index
+		}
+		return rows[i].ID < rows[j].ID
+	})
+}
+
+// Update handles loads, the tail, the session window and keys. A load or a poll
+// for a canceled Seq is dropped.
 func (e *ESLogs) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 	switch m := msg.(type) {
 	case esLogsDataMsg:
@@ -293,8 +487,15 @@ func (e *ESLogs) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			}
 		}
 		return e, nil
+	case esLogsTailStartMsg:
+		return e, e.tailStarted(m)
+	case esLogsTailMsg:
+		return e, e.tailBatch(m)
 	case tui.WindowChangedMsg:
 		e.window = m.Window
+		if e.tailing {
+			return e, tea.Batch(e.load(), e.startTail())
+		}
 		return e, e.load()
 	case tea.KeyMsg:
 		return e, e.handleKey(m)
@@ -360,6 +561,8 @@ func (e *ESLogs) handleKey(k tea.KeyMsg) tea.Cmd {
 		return e.beginInput(esLogsQuery, e.query)
 	case k.String() == "c":
 		return e.beginInput(esLogsColumn, "")
+	case k.String() == "w":
+		return e.toggleTail()
 	case keys.Open.Matches(k.String()):
 		return e.openDetail()
 	case keys.Back.Matches(k.String()):
@@ -600,12 +803,14 @@ func (e *ESLogs) rowText(r elastic.LogRow) string {
 	return strings.Join(parts, "  ")
 }
 
-// Close cancels a running load. The view stack calls it on pop and replace.
+// Close cancels a running load and a running tail. The view stack calls it on
+// pop and replace, which is what stops the tail when the screen closes.
 func (e *ESLogs) Close() error {
 	if e.cancel != nil {
 		e.cancel()
 		e.cancel = nil
 	}
+	e.stopTail()
 	return nil
 }
 
@@ -677,6 +882,15 @@ func (e *ESLogs) banner() string {
 	parts = append(parts, count)
 	if e.query != "" {
 		parts = append(parts, "q="+e.query)
+	}
+	if e.unit != "" {
+		parts = append(parts, "unit="+e.unit)
+	}
+	if e.tailing {
+		parts = append(parts, "tail")
+		if e.lag > 0 {
+			parts = append(parts, "lag "+render.Duration(e.lag))
+		}
 	}
 	if e.filter != "" {
 		parts = append(parts, "/filter: "+e.filter)
@@ -826,8 +1040,12 @@ func (e *ESLogs) footerText() string {
 	if e.detail {
 		return "full document · up/down scroll · F finding · esc back"
 	}
-	return fmt.Sprintf("%d lines · enter document · q query · c column · / filter · F finding · r reload",
-		len(e.view))
+	tailKey := "w tail"
+	if e.tailing {
+		tailKey = "w stop tail"
+	}
+	return fmt.Sprintf("%d lines · enter document · q query · c column · / filter · %s · F finding · r reload",
+		len(e.view), tailKey)
 }
 
 // esLogsTimeText renders a log timestamp for the time column.
@@ -875,6 +1093,7 @@ func (e *ESLogs) Hints() []tui.KeyHint {
 		{Key: "q", Text: "query"},
 		{Key: "c", Text: "column"},
 		{Key: "/", Text: "filter"},
+		{Key: "w", Text: "tail"},
 		{Key: "F", Text: "finding"},
 		{Key: "esc", Text: "back"},
 	}

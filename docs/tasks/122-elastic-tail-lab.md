@@ -3,7 +3,7 @@
 - **Milestone:** M11
 - **Depends on:** 120, 121
 - **Parallel group:** — (serial; M11 exit)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `w` follows logs by polling `search_after`; dashboards and logs work in the lab behind the SSO proxy.

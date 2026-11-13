@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/backend"
+	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/linux"
 	"jumper/internal/errs"
 	"jumper/internal/probe"
@@ -239,6 +240,7 @@ func TestHostKeysOpenQueries(t *testing.T) {
 		"j": linux.KindJournal,
 		"p": linux.KindProcess,
 		"s": linux.KindSocket,
+		"l": elastic.KindLog,
 	}
 	for key, kind := range want {
 		cmd := sendHost(t, h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
@@ -270,7 +272,7 @@ func TestHostKeysOpenQueries(t *testing.T) {
 	}
 
 	hints := h.Hints()
-	for _, key := range []string{"u", "j", "p", "s", "r", "esc"} {
+	for _, key := range []string{"u", "j", "p", "s", "l", "r", "esc"} {
 		found := false
 		for _, hint := range hints {
 			if hint.Key == key {

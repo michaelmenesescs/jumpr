@@ -10,12 +10,16 @@ Agentless, client-side infrastructure debugging TUI (Go).
 - Requirements interview: [docs/INTERVIEW.md](docs/INTERVIEW.md)
 - Agent rules: [AGENTS.md](AGENTS.md)
 
-## Lab observability stack (M8)
+## Lab observability stack (M8, M11)
 
 The M8 tests (`internal/backend/prom/lab_test.go`, run by `make lab-test`) use
-the lab's Prometheus and Alertmanager behind a mock SSO cookie proxy. The stack
-is configured in `lab/jumper/config.yaml` (`prometheus:`, `alertmanager:`) and
-`lab/jumper/connections.yaml` (the `lab-sso` connection profile).
+the lab's Prometheus and Alertmanager behind a mock SSO cookie proxy; the M11
+tests (`internal/backend/grafana/lab_test.go`,
+`internal/backend/elastic/lab_test.go`) use the same proxy for Grafana's
+dashboards and for central logs. The stack is configured in
+`lab/jumper/config.yaml` (`prometheus:`, `alertmanager:`, `grafana:`,
+`elasticsearch:`) and `lab/jumper/connections.yaml` (the `lab-sso` connection
+profile).
 
 ```sh
 go build -o lab/.keys/auth-helper ./examples/auth-helper-cookie
@@ -33,7 +37,26 @@ The proxy is a Go program owned by the lab track. The tests expect it to:
   the auth-helper refresh test gets a new value;
 - fire an alert whose alertname (or another label/annotation) names `haproxy`
   for `web-01`/`web-02` within a few minutes of
-  `go run ./cmd/sitrep-lab fault haproxy-443`.
+  `go run ./cmd/sitrep-lab fault haproxy-443`;
+- serve Grafana's `/api/search`, `/api/dashboards/uid/<uid>` and
+  `/api/ds/query`, with at least one dashboard whose timeseries panel reaches
+  the lab's Prometheus (so a panel over the last fifteen minutes has samples);
+- serve the `elasticsearch:` log sources of `lab/jumper/config.yaml`
+  (`logs-nginx-*`, `logs-system-*`, ECS field names) and ship the web hosts'
+  nginx logs into them, so the `haproxy-443` fault produces a line for
+  `web-01` inside the fault window.
+
+### Central logs and the live tail (M11)
+
+`:logs` searches a configured Elasticsearch source for the investigation's
+hosts and window; `w` follows it. A tail polls the same search every 2 s (5 s
+after three empty polls), continues with `search_after` from its last hit —
+with the configured tiebreaker sort field, so lines that share a timestamp are
+neither skipped nor repeated — keeps the newest 20,000 lines, stops when the
+screen closes, and shows its lag (`now − the newest event it has seen`) in the
+banner. From a host overview `l` opens that host's logs; from a unit detail `l`
+opens them filtered on the source's `unit_field` (a source without one ignores
+the filter).
 
 When the stack, the proxy or the helper is absent, those tests skip with
 `lab observability stack not running`.

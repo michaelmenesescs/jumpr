@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/backend"
+	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/linux"
 	"jumper/internal/backend/prom"
 	"jumper/internal/errs"
@@ -400,7 +401,7 @@ func (h *Host) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 	return h, nil
 }
 
-// handleKey routes one key press. The four hrefs open a query for this host;
+// handleKey routes one key press. The five pivots open a query for this host;
 // r reloads both parts and esc goes back.
 func (h *Host) handleKey(m tea.KeyMsg) tea.Cmd {
 	key := m.String()
@@ -413,6 +414,11 @@ func (h *Host) handleKey(m tea.KeyMsg) tea.Cmd {
 		return tui.OpenQuery(h.queryFor(linux.KindProcess))
 	case key == "s":
 		return tui.OpenQuery(h.queryFor(linux.KindSocket))
+	case key == "l":
+		// Central logs for this host (task 122). The elastic backend refuses
+		// the query when no log source is configured, which is what the view
+		// shows instead of an empty table.
+		return tui.OpenQuery(h.queryFor(elastic.KindLog))
 	case h.keys.Refresh.Matches(key):
 		return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics())
 	case h.keys.Back.Matches(key):
@@ -829,6 +835,7 @@ func (h *Host) Hints() []tui.KeyHint {
 		{Key: "j", Text: "journal"},
 		{Key: "p", Text: "processes"},
 		{Key: "s", Text: "sockets"},
+		{Key: "l", Text: "logs"},
 		{Key: firstKey(h.keys.Refresh), Text: "refresh"},
 		{Key: firstKey(h.keys.Back), Text: "back"},
 	}

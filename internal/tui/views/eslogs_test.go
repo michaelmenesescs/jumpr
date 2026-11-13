@@ -43,10 +43,15 @@ type fakeESLogs struct {
 	fields   []elastic.Field
 	err      error
 	fieldErr error
+	// tailResults is the whole scripted tail: every result is buffered on the
+	// channel the fake returns, and the channel is then closed.
+	tailResults []elastic.TailResult
+	tailErr     error
 
 	mu      sync.Mutex
 	queries []elastic.LogQuery
 	fieldQs []string
+	tailQs  []elastic.TailOptions
 }
 
 func (f *fakeESLogs) LogSources() []elastic.SourceRef {
@@ -76,6 +81,35 @@ func (f *fakeESLogs) FieldCaps(ctx context.Context, cluster, source string) ([]e
 	f.fieldQs = append(f.fieldQs, cluster+"/"+source)
 	f.mu.Unlock()
 	return f.fields, f.fieldErr
+}
+
+// Tail returns the scripted tail and closes it, so one Update drains it all.
+func (f *fakeESLogs) Tail(ctx context.Context, o elastic.TailOptions) (<-chan elastic.TailResult, error) {
+	f.mu.Lock()
+	f.tailQs = append(f.tailQs, o)
+	results := append([]elastic.TailResult{}, f.tailResults...)
+	err := f.tailErr
+	f.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	ch := make(chan elastic.TailResult, len(results))
+	for _, r := range results {
+		ch <- r
+	}
+	close(ch)
+	return ch, nil
+}
+
+// lastTail is the options of the last Tail call.
+func (f *fakeESLogs) lastTail(t *testing.T) elastic.TailOptions {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.tailQs) == 0 {
+		t.Fatal("no Tail call was made")
+	}
+	return f.tailQs[len(f.tailQs)-1]
 }
 
 func (f *fakeESLogs) lastQuery(t *testing.T) elastic.LogQuery {
@@ -145,6 +179,12 @@ func runESTree(t *testing.T, e *ESLogs, cmd tea.Cmd) *ESLogs {
 
 // pressES sends one key.
 func pressES(t *testing.T, e *ESLogs, msg tea.KeyMsg) (*ESLogs, tea.Cmd) {
+	t.Helper()
+	return updateES(t, e, msg)
+}
+
+// updateES sends any message and returns the screen Update produced.
+func updateES(t *testing.T, e *ESLogs, msg tea.Msg) (*ESLogs, tea.Cmd) {
 	t.Helper()
 	view, cmd := e.Update(msg)
 	next, ok := view.(*ESLogs)
@@ -518,5 +558,152 @@ func TestESLogsCopyLines(t *testing.T) {
 	}
 	if strings.Contains(joined, "\x1b[") {
 		t.Error("copy lines carry ANSI escapes")
+	}
+}
+
+// TestESLogsTailFollows checks `w` follows the source: the poll's rows are
+// appended, the lag is shown and a closed tail stops following.
+func TestESLogsTailFollows(t *testing.T) {
+	base := fixedNow.Add(-time.Minute)
+	f := &fakeESLogs{sources: []elastic.SourceRef{
+		{Cluster: "eu", Source: elastic.LogSource{Name: "app", Index: "logs-app-*"}},
+	}}
+	f.tailResults = []elastic.TailResult{
+		{Rows: []elastic.LogRow{esRow(base, "error", "web-01", "tail line one")}, Lag: 12 * time.Second},
+		{Rows: []elastic.LogRow{esRow(base.Add(time.Second), "info", "web-01", "tail line two")}, Lag: 11 * time.Second},
+	}
+	e := applyESLoads(t, NewESLogs(testEnv(), f, resource.Query{
+		Kind:   elastic.KindLog,
+		Hosts:  []resource.HostID{"web-01.example.internal"},
+		Window: resource.TimeWindow{From: fixedNow.Add(-time.Hour), ToNow: true, Label: "-1h"},
+	}))
+
+	e, cmd := pressES(t, e, runeKey("w"))
+	if cmd == nil {
+		t.Fatal("w returned no command")
+	}
+	start := cmd()
+	startMsg, ok := start.(esLogsTailStartMsg)
+	if !ok {
+		t.Fatalf("w produced %T, want esLogsTailStartMsg", start)
+	}
+	e, cmd = updateES(t, e, startMsg)
+	if !e.tailing {
+		t.Fatal("the screen is not tailing after w")
+	}
+	if cmd == nil {
+		t.Fatal("the started tail did not ask for its first poll")
+	}
+	batch := cmd()
+	batchMsg, ok := batch.(esLogsTailMsg)
+	if !ok {
+		t.Fatalf("tail produced %T, want esLogsTailMsg", batch)
+	}
+	e, cmd = updateES(t, e, batchMsg)
+
+	if len(e.rows) != 2 {
+		t.Fatalf("rows = %d, want the 2 tailed lines", len(e.rows))
+	}
+	if got, want := e.view[len(e.view)-1].Message, "tail line two"; got != want {
+		t.Errorf("last row = %q, want %q (the tail follows the bottom)", got, want)
+	}
+	if e.lag != 11*time.Second {
+		t.Errorf("lag = %v, want the newest poll's 11s", e.lag)
+	}
+	if !strings.Contains(e.Render(120, 10), "tail") {
+		t.Error("the banner does not say the screen is tailing")
+	}
+	// The scripted channel was closed, so following stops by itself.
+	if e.tailing {
+		t.Error("a closed tail is still reported as tailing")
+	}
+	if cmd != nil {
+		t.Error("a closed tail asked for another poll")
+	}
+	if o := f.lastTail(t); o.Query.Window.ToNow != true || len(o.Query.Hosts) != len(e.hosts) {
+		t.Errorf("tail options = %+v, want the screen's window and hosts", o.Query)
+	}
+}
+
+// TestESLogsTailTogglesOff checks a second `w` stops following and that Close
+// cancels it too.
+func TestESLogsTailTogglesOff(t *testing.T) {
+	e, f := esLogsFixture(t)
+	f.tailResults = []elastic.TailResult{{Lag: 3 * time.Second}}
+
+	e, cmd := pressES(t, e, runeKey("w"))
+	e, _ = updateES(t, e, cmd())
+	if !e.tailing {
+		t.Fatal("the screen did not start tailing")
+	}
+	e, _ = pressES(t, e, runeKey("w"))
+	if e.tailing {
+		t.Error("a second w did not stop the tail")
+	}
+	if err := e.Close(); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}
+
+// TestESLogsTailError checks a tail that cannot start reports the error and
+// leaves the screen alone.
+func TestESLogsTailError(t *testing.T) {
+	e, f := esLogsFixture(t)
+	f.tailErr = errs.New(errs.Config, "elastic.tail", "no such source")
+
+	e, cmd := pressES(t, e, runeKey("w"))
+	msg := cmd()
+	startMsg, ok := msg.(esLogsTailStartMsg)
+	if !ok {
+		t.Fatalf("w produced %T, want esLogsTailStartMsg", msg)
+	}
+	if startMsg.err == nil {
+		t.Fatal("the failed Tail produced no error")
+	}
+	e, _ = updateES(t, e, startMsg)
+	if e.tailing {
+		t.Error("a failed tail is still reported as tailing")
+	}
+}
+
+// TestESLogsTailKeepsNewestLines checks the row cap: the tail keeps the newest
+// esLogsTailMaxRows lines instead of growing without bound.
+func TestESLogsTailKeepsNewestLines(t *testing.T) {
+	e, _ := esLogsFixture(t)
+	start := fixedNow.Add(-time.Hour)
+	rows := make([]elastic.LogRow, esLogsTailMaxRows+50)
+	for i := range rows {
+		rows[i] = esRow(start.Add(time.Duration(i)*time.Millisecond), "info", "web-01", "line")
+		rows[i].ID = time.Duration(i).String()
+	}
+	e.tailing = true
+	e.tailSeq++
+	e, _ = updateES(t, e, esLogsTailMsg{seq: e.tailSeq, result: elastic.TailResult{Rows: rows}})
+	if got := len(e.rows); got != esLogsTailMaxRows {
+		t.Fatalf("rows = %d, want the cap of %d", got, esLogsTailMaxRows)
+	}
+	if !e.capped {
+		t.Error("the screen does not record that it hit the line cap")
+	}
+	if got, want := e.rows[len(e.rows)-1].ID, (time.Duration(len(rows) - 1)).String(); got != want {
+		t.Errorf("newest kept row = %q, want %q", got, want)
+	}
+}
+
+// TestESLogsUnitArg checks a unit detail's `l` query reaches the search and the
+// banner.
+func TestESLogsUnitArg(t *testing.T) {
+	_, f := esLogsFixture(t)
+	e := NewESLogs(testEnv(), f, resource.Query{
+		Kind:  elastic.KindLog,
+		Hosts: []resource.HostID{"web-01.example.internal"},
+		Args:  map[string]string{elastic.ArgUnit: "nginx.service"},
+	})
+	e = applyESLoads(t, e)
+	if got := f.lastQuery(t).Unit; got != "nginx.service" {
+		t.Errorf("search unit = %q, want nginx.service", got)
+	}
+	if !strings.Contains(e.Render(120, 10), "unit=nginx.service") {
+		t.Error("the banner does not name the unit")
 	}
 }

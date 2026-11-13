@@ -52,9 +52,10 @@ type ElasticsearchConfig struct {
 }
 
 // LogSourceConfig is one saved log source: an index pattern and the fields that
-// carry time, host, message and level. An empty `time_field` means @timestamp,
-// the Elastic Common Schema default; an empty host, message or level field means
-// that filter or column is unavailable.
+// carry time, host, message, level and (when the source has one) the systemd
+// unit. An empty `time_field` means @timestamp, the Elastic Common Schema
+// default; an empty host, message, level or unit field means that filter or
+// column is unavailable.
 type LogSourceConfig struct {
 	Name         string `yaml:"name"`
 	Index        string `yaml:"index"`
@@ -62,6 +63,7 @@ type LogSourceConfig struct {
 	HostField    string `yaml:"host_field"`
 	MessageField string `yaml:"message_field"`
 	LevelField   string `yaml:"level_field"`
+	UnitField    string `yaml:"unit_field"`
 }
 
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.

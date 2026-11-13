@@ -202,6 +202,7 @@ func ElasticBackend(cfg config.Config, profiles map[string]*httpx.Profile, deps 
 				HostField:    src.HostField,
 				MessageField: src.MessageField,
 				LevelField:   src.LevelField,
+				UnitField:    src.UnitField,
 			})
 		}
 		clusters = append(clusters, elastic.Cluster{Name: name, Client: client, Sources: sources})

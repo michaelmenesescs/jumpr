@@ -10,6 +10,7 @@ import (
 
 	"jumper/internal/action"
 	"jumper/internal/backend"
+	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/linux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
@@ -421,6 +422,49 @@ func TestUnitActionsKey(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("actions menu does not contain %q:\n%s", want, body)
 		}
+	}
+}
+
+// TestUnitLogsKey checks `l` on a unit detail pivots to the central logs filtered
+// by this unit (task 122): the query names the log kind, this host, the session
+// window, and the unit through the source's unit field.
+func TestUnitLogsKey(t *testing.T) {
+	window := resource.TimeWindow{From: fixedNow.Add(-time.Hour), ToNow: true, Label: "-1h"}
+	env := testEnv()
+	env.Session = &tui.SessionState{Name: "lab", Window: window}
+	u := NewUnit(env, newUnitFake(), "web-01", "nginx.service")
+	drainUnit(t, u, u.Init())
+
+	cmd := sendUnitKey(t, u, "l")
+	if cmd == nil {
+		t.Fatal("l returned no command")
+	}
+	msg, ok := cmd().(tui.OpenQueryMsg)
+	if !ok {
+		t.Fatalf("l returned %T, want tui.OpenQueryMsg", cmd())
+	}
+	q := msg.Query
+	if q.Kind != elastic.KindLog {
+		t.Errorf("query kind = %q, want %q", q.Kind, elastic.KindLog)
+	}
+	if len(q.Hosts) != 1 || q.Hosts[0] != resource.HostID("web-01") {
+		t.Errorf("query hosts = %v, want the unit's host", q.Hosts)
+	}
+	if got := q.Args[elastic.ArgUnit]; got != "nginx.service" {
+		t.Errorf("query unit = %q, want nginx.service", got)
+	}
+	if q.Window != window {
+		t.Errorf("query window = %v, want the session window %v", q.Window, window)
+	}
+
+	found := false
+	for _, h := range u.Hints() {
+		if h.Key == "l" && h.Text == "logs" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("hints do not offer l logs: %v", u.Hints())
 	}
 }
 

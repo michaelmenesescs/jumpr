@@ -50,3 +50,33 @@ alertmanager:
   - name: lab
     url: https://am.lab.example.internal
     connection: lab-sso
+
+# The same stack also serves dashboards and central logs: the M11 tests are
+# internal/backend/grafana/lab_test.go and internal/backend/elastic/lab_test.go.
+grafana:
+  - name: lab
+    url: https://grafana.lab.example.internal
+    connection: lab-sso
+
+elasticsearch:
+  - name: lab
+    url: https://es.lab.example.internal
+    connection: lab-sso
+    sources:
+      # The field names are the Elastic Common Schema ones, which is what a
+      # Filebeat/journald shipper writes by default. `unit_field` is what a unit
+      # detail's `l` filters on; drop it for a source that logs no unit.
+      - name: nginx
+        index: logs-nginx-*
+        time_field: "@timestamp"
+        host_field: host.name
+        message_field: message
+        level_field: log.level
+        unit_field: systemd.unit
+      - name: system
+        index: logs-system-*
+        time_field: "@timestamp"
+        host_field: host.name
+        message_field: message
+        level_field: log.level
+        unit_field: systemd.unit
