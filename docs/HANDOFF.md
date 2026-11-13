@@ -324,3 +324,19 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   accepted because the dialog frame cannot be opened otherwise and `msgs.go` is otherwise untouched.
   Worktree dirs are outside the repo (`~/workspace/wt`), so `git status` stays clean.
 
+- 2026-11-12 — Coordinator notes on the parallel run (deviations the agents reported, all accepted):
+  - **016** `NewRoot` grew a fourth parameter (`defaultFactory Factory`) so the root can be tested without a real
+    backend; the task text showed three. `NewRoot` is not defined in BUILD-PLAN, so no frozen contract moved. Two
+    callers updated (`internal/app/app.go`, `internal/tui/root_test.go`). In M0 every non-`--demo` run returns the
+    documented "no backends configured; try --demo" error.
+  - **021** the acceptance command `-run Model` did not match the test names the task listed; kept the listed names as
+    suffixes (`TestModel*`) so the command exercises them.
+  - **029** (a) host keys: `knownhosts.Normalize` strips `:22`, but both `HostKeyCallback` and `HostKeyAlgorithms` need
+    `host:port`, so the callback gets the joined form and the normalized form is used only for the line written to
+    `known_hosts`. (b) The per-file decrypted-signer cache lives in the `Auth` value, not package state (AGENTS rule 13
+    forbids the latter); it lasts as long as the `AuthMethods`/cleanup pair. (c) Missing/unreadable/passphrase-cancelled
+    keys are skipped silently; a prompter error is returned; a wrong passphrase is asked 3 times.
+  - **015** added 3 lines to `internal/tui/msgs.go` (`OpenDialogMsg`) beyond its file list — required to open a dialog.
+  - `cmd/sitrep-lab/` and `lab/` still use the old `sitrep` name and are untouched by design (lab track).
+  Tasks whose agents chose to keep the task's listed test names, or that reported "no other deviation", are not listed.
+
