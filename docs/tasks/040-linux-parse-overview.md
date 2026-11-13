@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 005
 - **Parallel group:** M2-D (with 039, 041, 042, 043, 049)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Pure parsers for the host overview probe sections.

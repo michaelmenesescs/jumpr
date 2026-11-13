@@ -1,0 +1,8 @@
+== cpu
+some avg10=1.23 avg60=0.80 avg300=0.40 total=123456
+== memory
+some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+== io
+some avg10=3.20 avg60=1.10 avg300=0.50 total=987654
+full avg10=2.90 avg60=0.90 avg300=0.40 total=876543
