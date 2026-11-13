@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"jumper/internal/action"
+	"jumper/internal/backend"
 	"jumper/internal/errs"
 	"jumper/internal/resource"
 	"jumper/internal/shq"
@@ -42,6 +43,14 @@ const (
 	SpecSyncAll = "salt.saltutil.sync_all"
 	// SpecJobKill kills a running job on the minions it still runs on.
 	SpecJobKill = "salt.job.kill"
+	// SpecKeyAccept accepts a pending minion key (SPEC §8.6 "Key management").
+	SpecKeyAccept = "salt.key.accept"
+	// SpecKeyReject rejects a pending minion key. Destructive: the minion
+	// cannot authenticate until an operator accepts its key.
+	SpecKeyReject = "salt.key.reject"
+	// SpecKeyDelete deletes a key the master holds. Destructive: the minion is
+	// unlinked from the master until its key is accepted again.
+	SpecKeyDelete = "salt.key.delete"
 )
 
 // Parameter names of the Salt specs.
@@ -87,6 +96,31 @@ const (
 
 // slsRe matches a state name: dotted paths and a comma-separated list of them.
 var slsRe = regexp.MustCompile(`^[A-Za-z0-9_.:/-]+(,[A-Za-z0-9_.:/-]+)*$`)
+
+// Key management. A key action runs one salt-key call on the master, always
+// with -y (without it salt-key prompts and the call would hang until its
+// timeout) and always with an exact, validated key id: a key id is never a
+// glob, so `-a '*'` cannot be produced from user input.
+const (
+	// keyAcceptFlag accepts a key, keyRejectFlag rejects one, keyDeleteFlag
+	// deletes one.
+	keyAcceptFlag = "-a"
+	keyRejectFlag = "-r"
+	keyDeleteFlag = "-d"
+
+	// keyVerifyHint is what an accept preview tells the operator to check on
+	// the minion itself.
+	keyVerifyHint = "verify this fingerprint on the minion: salt-call --local key.finger"
+
+	// confirmTypedLabel and confirmTypedValue are the target label bus.Propose
+	// honours by forcing the typed-count confirmation.
+	confirmTypedLabel = "_confirm"
+	confirmTypedValue = "typed"
+)
+
+// keyIDRe matches a minion ID salt-key may be given: letters, digits, dot,
+// underscore and hyphen. Globs, spaces, commas and empty ids are refused.
+var keyIDRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 // StateCounts is the per-minion tally of one dry run.
 type StateCounts struct {
@@ -389,6 +423,60 @@ func jobKillSpec() action.Spec {
 	return action.Spec{ID: SpecJobKill, Title: "kill job", Risk: action.RiskDestructive}
 }
 
+// Key specs. Accepting a key is not destructive; rejecting or deleting one
+// takes a minion off the master.
+func keyAcceptSpec() action.Spec {
+	return action.Spec{ID: SpecKeyAccept, Title: "accept key", Risk: action.RiskNormal}
+}
+
+func keyRejectSpec() action.Spec {
+	return action.Spec{ID: SpecKeyReject, Title: "reject key", Risk: action.RiskDestructive}
+}
+
+func keyDeleteSpec() action.Spec {
+	return action.Spec{ID: SpecKeyDelete, Title: "delete key", Risk: action.RiskDestructive}
+}
+
+// keySpecs is every key spec, in menu order.
+func keySpecs() []action.Spec {
+	return []action.Spec{keyAcceptSpec(), keyRejectSpec(), keyDeleteSpec()}
+}
+
+// keySpecsFor is what can be done to a key in the given state: a pending key is
+// accepted or rejected, a key the master already decided on is deleted. A state
+// this backend does not know offers nothing.
+func keySpecsFor(state string) []action.Spec {
+	switch strings.ToLower(strings.TrimSpace(state)) {
+	case KeyPending:
+		return []action.Spec{keyAcceptSpec(), keyRejectSpec()}
+	case KeyAccepted, KeyRejected, KeyDenied:
+		return []action.Spec{keyDeleteSpec()}
+	}
+	return nil
+}
+
+// isKeySpec reports whether specID is a key action.
+func isKeySpec(specID string) bool {
+	switch specID {
+	case SpecKeyAccept, SpecKeyReject, SpecKeyDelete:
+		return true
+	}
+	return false
+}
+
+// keyFlag is the salt-key flag, the verb and its past tense of a key spec.
+func keyFlag(specID string) (flag, verb, past string, ok bool) {
+	switch specID {
+	case SpecKeyAccept:
+		return keyAcceptFlag, "accept", "accepted", true
+	case SpecKeyReject:
+		return keyRejectFlag, "reject", "rejected", true
+	case SpecKeyDelete:
+		return keyDeleteFlag, "delete", "deleted", true
+	}
+	return "", "", "", false
+}
+
 // minionSpecs is what can be done to a selection of minions, in menu order.
 func minionSpecs() []action.Spec {
 	return []action.Spec{stateApplySpec(), serviceRestartSpec(), cmdRunSpec(), refreshPillarSpec(), syncAllSpec()}
@@ -396,7 +484,8 @@ func minionSpecs() []action.Spec {
 
 // actionSpecByID looks a spec up by its exact ID.
 func actionSpecByID(id string) (action.Spec, bool) {
-	for _, s := range append(minionSpecs(), moduleRunSpec(), jobKillSpec()) {
+	specs := append(append(minionSpecs(), moduleRunSpec(), jobKillSpec()), keySpecs()...)
+	for _, s := range specs {
 		if s.ID == id {
 			return s, true
 		}
@@ -442,8 +531,41 @@ func (b *Backend) Actions(selection []resource.Resource) []action.Spec {
 			}
 		}
 		return []action.Spec{jobKillSpec()}
+	case KindKey:
+		return keyActions(selection)
 	}
 	return nil
+}
+
+// keyActions offers the specs every selected key row has in common. A selection
+// that mixes a pending key with a key the master already holds offers nothing,
+// because no single salt-key call covers both.
+func keyActions(selection []resource.Resource) []action.Spec {
+	var common []action.Spec
+	for i, r := range selection {
+		offered := keySpecsFor(r.Str("state"))
+		if i == 0 {
+			common = offered
+			continue
+		}
+		common = commonSpecs(common, offered)
+	}
+	return common
+}
+
+// commonSpecs keeps the specs of a that b offers too, preserving a's order.
+func commonSpecs(a, b []action.Spec) []action.Spec {
+	offered := make(map[string]bool, len(b))
+	for _, s := range b {
+		offered[s.ID] = true
+	}
+	var out []action.Spec
+	for _, s := range a {
+		if offered[s.ID] {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // isHostKind reports whether kind is the host overview kind. The Salt backend
@@ -510,6 +632,13 @@ func (b *Backend) Plan(ctx context.Context, req action.Request) (action.Plan, er
 		}
 		plan.Preview = preview
 	}
+	if isKeySpec(spec.ID) {
+		preview, err := b.keyPreview(ctx, spec.ID, minions)
+		if err != nil {
+			return action.Plan{}, err
+		}
+		plan.Preview = preview
+	}
 	return plan, nil
 }
 
@@ -526,6 +655,9 @@ func (b *Backend) via() string {
 func (b *Backend) planSteps(ctx context.Context, spec action.Spec, req action.Request) ([]action.Step, string, []string, error) {
 	if spec.ID == SpecJobKill {
 		return b.killJobSteps(ctx, req)
+	}
+	if isKeySpec(spec.ID) {
+		return b.keySteps(ctx, spec, req)
 	}
 	call, state, timeout, err := b.callFor(spec, req.Params)
 	if err != nil {
@@ -801,6 +933,208 @@ func jobMinions(info JobInfo) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// keySteps plans one salt-key step per key. A key action runs on the master, so
+// each step's target is the master host with the key as its Ref; nothing goes
+// through the job engine, and the target count is the number of keys.
+func (b *Backend) keySteps(_ context.Context, spec action.Spec, req action.Request) ([]action.Step, string, []string, error) {
+	if b.master == "" {
+		return nil, "", nil, errs.New(errs.Config, "salt.Plan", "salt backend not configured: no master")
+	}
+	flag, verb, past, ok := keyFlag(spec.ID)
+	if !ok {
+		return nil, "", nil, errs.New(errs.Config, "salt.Plan", fmt.Sprintf("spec %q is not a key action", spec.ID))
+	}
+	ids := make([]string, 0, len(req.Targets))
+	steps := make([]action.Step, 0, len(req.Targets))
+	seen := make(map[string]bool, len(req.Targets))
+	for _, t := range req.Targets {
+		id, err := keyID(t)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		target := action.Target{
+			Host: b.master,
+			Ref:  resource.Ref{Backend: backendName, Kind: KindKey, Name: id},
+		}
+		// Deleting a key unlinks a minion, which a count of one does not show:
+		// the label makes bus.Propose demand the typed count.
+		if spec.ID == SpecKeyDelete {
+			target.Labels = map[string]string{confirmTypedLabel: confirmTypedValue}
+		}
+		key := id
+		display := shq.Join(toolKey, flag, key, "-y")
+		stepTarget := target
+		steps = append(steps, action.Step{
+			Target:  stepTarget,
+			Display: display,
+			Run: func(ctx context.Context) action.StepResult {
+				return b.runKeyStep(ctx, key, flag, past, stepTarget)
+			},
+		})
+		ids = append(ids, key)
+	}
+	title := fmt.Sprintf("%s %s", verb, keyCount(len(ids)))
+	return steps, title, ids, nil
+}
+
+// keyID is the minion ID a key target names. Only a salt-key row (or a target
+// with no kind at all) may name one, and the id must be an exact ID, never a
+// glob.
+func keyID(t action.Target) (string, error) {
+	if kind := strings.TrimSpace(string(t.Ref.Kind)); kind != "" {
+		if known, ok := normalizeKind(t.Ref.Kind); !ok || known != KindKey {
+			return "", errs.New(errs.Config, "salt.Plan", "target is not a salt key")
+		}
+	}
+	id := strings.TrimSpace(t.Ref.Name)
+	if id == "" {
+		return "", errs.New(errs.Config, "salt.Plan", "target is not a salt key")
+	}
+	if !keyIDRe.MatchString(id) {
+		return "", errs.New(errs.Config, "salt.Plan", fmt.Sprintf("invalid key id %q", id))
+	}
+	return id, nil
+}
+
+// runKeyStep runs one salt-key action on the master. -y is always passed:
+// without it salt-key prompts and the call would hang until its timeout. The
+// key list and everything derived from it is dropped afterwards, so the next
+// read sees the new state.
+func (b *Backend) runKeyStep(ctx context.Context, id, flag, past string, target action.Target) action.StepResult {
+	res := action.StepResult{Target: target}
+	start := time.Now()
+	cctx, cancel := context.WithTimeout(ctx, stepTimeout)
+	defer cancel()
+
+	out, err := b.runner.Run(cctx, Call{Tool: toolKey, Flags: []string{flag, id, "-y"}})
+	res.Duration = time.Since(start)
+	b.keysChanged()
+	if err != nil {
+		res.RC = 1
+		res.Err = err
+		res.Output = firstLine(err.Error())
+		return res
+	}
+	res.Output = strings.TrimRight(string(out), "\n")
+	if strings.TrimSpace(res.Output) == "" {
+		res.Output = fmt.Sprintf("key %s %s", id, past)
+	}
+	return res
+}
+
+// keysChanged drops the accepted-key set and the minion health snapshot: a
+// salt-key call just changed them. The key list itself is not cached, so the
+// next List runs salt-key -L and shows the new state.
+func (b *Backend) keysChanged() {
+	b.mu.Lock()
+	b.accepted = nil
+	b.acceptedAt = time.Time{}
+	b.acceptedOK = false
+	b.health = backend.Health{}
+	b.healthAt = time.Time{}
+	b.healthOK = false
+	b.mu.Unlock()
+}
+
+// keyPreview is what the plan dialog shows before a key action: every key with
+// the fingerprint the master reports, the accept hint to compare it on the
+// minion, and, for a delete, each minion's last seen state plus a warning when
+// it is up right now.
+func (b *Backend) keyPreview(ctx context.Context, specID string, ids []string) (string, error) {
+	var up map[string]bool
+	if specID == SpecKeyDelete {
+		st, err := b.manageStatus(ctx)
+		if err != nil {
+			return "", err
+		}
+		up = make(map[string]bool, len(st.Up))
+		for _, id := range st.Up {
+			up[id] = true
+		}
+	}
+	var text strings.Builder
+	for i, id := range ids {
+		if i > 0 {
+			text.WriteString("\n")
+		}
+		fp, err := b.keyFingerprint(ctx, id)
+		if err != nil {
+			return "", err
+		}
+		text.WriteString(keyPreviewLine(id, fp))
+		if specID == SpecKeyDelete {
+			text.WriteString("\n" + keySeenLine(id, up))
+		}
+	}
+	if specID == SpecKeyAccept {
+		text.WriteString("\n" + keyVerifyHint)
+	}
+	if specID == SpecKeyDelete {
+		for _, id := range ids {
+			if up[id] {
+				text.WriteString(fmt.Sprintf("\nwarning: %s is currently up; deleting its key unlinks it "+
+					"from the master until its key is accepted again", id))
+			}
+		}
+	}
+	return text.String(), nil
+}
+
+// keyPreviewLine names one key with the fingerprint salt-key -f reports.
+func keyPreviewLine(id, fp string) string {
+	if strings.TrimSpace(fp) == "" {
+		return id + "  fingerprint unknown"
+	}
+	return id + "  fingerprint " + fp
+}
+
+// keySeenLine is the last seen state of a minion, as salt-run manage.status
+// reports it.
+func keySeenLine(id string, up map[string]bool) string {
+	switch {
+	case up == nil:
+		return "last seen: unknown"
+	case up[id]:
+		return "last seen: up"
+	default:
+		return "last seen: down"
+	}
+}
+
+// keyFingerprint reads one key's fingerprint with salt-key -f <id>.
+func (b *Backend) keyFingerprint(ctx context.Context, id string) (string, error) {
+	out, err := b.runner.Run(ctx, Call{Tool: toolKey, Flags: []string{"-f", id}})
+	if err != nil {
+		return "", err
+	}
+	fps, err := ParseFingerprints(out)
+	if err != nil {
+		return "", err
+	}
+	return fps[id], nil
+}
+
+// manageStatus runs salt-run manage.status: which minions answer right now.
+func (b *Backend) manageStatus(ctx context.Context) (ManageStatus, error) {
+	out, err := b.runner.Run(ctx, Call{Tool: toolRun, Fun: "manage.status"})
+	if err != nil {
+		return ManageStatus{}, err
+	}
+	return ParseManageStatus(out)
+}
+
+// keyCount renders "1 key" / "12 keys".
+func keyCount(n int) string {
+	if n == 1 {
+		return "1 key"
+	}
+	return fmt.Sprintf("%d keys", n)
 }
 
 // runStep starts one job for one minion and waits for its result. One job per

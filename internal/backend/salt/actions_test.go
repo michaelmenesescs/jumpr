@@ -9,6 +9,7 @@ import (
 	"jumper/internal/action"
 	"jumper/internal/errs"
 	"jumper/internal/resource"
+	"jumper/internal/transport"
 	"jumper/internal/transport/transporttest"
 )
 
@@ -432,5 +433,292 @@ func TestPlannerRefusesBadRequests(t *testing.T) {
 	}
 	if subs := m.submitCount(); subs != 0 {
 		t.Errorf("submitted %d jobs, want 0", subs)
+	}
+}
+
+// ---- key management (task 095) ----
+
+const (
+	// keyListJSON is salt-key -L with one accepted, two pending and one rejected key.
+	keyListJSON = `{"minions": ["web-01"], "minions_pre": ["new-01", "new-02"],
+		"minions_rejected": ["old-01"], "minions_denied": []}`
+	// keyFPJSON is salt-key -f/F: the master's own key plus every minion's.
+	keyFPJSON = `{"minions": {"web-01": "aa:bb:cc"}, "minions_pre": {"new-01": "44:55:66", "new-02": "77:88:99"},
+		"minions_rejected": {"old-01": "de:ad:00"}, "local": {"master.pub": "99:88:77"}}`
+	// keyUpJSON is salt-run manage.status: web-01 answers, old-01 does not.
+	keyUpJSON = `{"up": ["web-01"], "down": ["old-01"]}`
+)
+
+// keyRes is a salt-key selection row in the given state.
+func keyRes(id, state string) resource.Resource {
+	return resource.Resource{
+		Ref:    resource.Ref{Backend: backendName, Kind: KindKey, Name: id},
+		Fields: map[string]any{"id": id, "state": state},
+	}
+}
+
+// keyTarget is the request target a salt-key row produces.
+func keyTarget(id string) action.Target {
+	return action.Target{Ref: keyRes(id, KeyPending).Ref}
+}
+
+// newKeyBackend wires a Backend to a fake master for the key actions.
+func newKeyBackend(f *transporttest.Fake) *Backend {
+	return New(Options{Runner: NewRunner(f, master, RunnerOptions{}), Master: master})
+}
+
+// keyMaster is the fake master that answers the key reads.
+func keyMaster() *transporttest.Fake {
+	return transporttest.New().
+		On("-f ", transporttest.Reply{Stdout: keyFPJSON}).
+		On("-L", transporttest.Reply{Stdout: keyListJSON}).
+		On("manage.status", transporttest.Reply{Stdout: keyUpJSON})
+}
+
+// TestKeyActionsForStates: a pending key is accepted or rejected, a key the
+// master already decided on is deleted, and a mixed selection offers nothing.
+func TestKeyActionsForStates(t *testing.T) {
+	b := New(Options{})
+	cases := []struct {
+		state string
+		want  []string
+	}{
+		{KeyPending, []string{SpecKeyAccept, SpecKeyReject}},
+		{KeyAccepted, []string{SpecKeyDelete}},
+		{KeyRejected, []string{SpecKeyDelete}},
+		{KeyDenied, []string{SpecKeyDelete}},
+		{"", nil},
+	}
+	for _, tc := range cases {
+		name := tc.state
+		if name == "" {
+			name = "unknown state"
+		}
+		t.Run(name, func(t *testing.T) {
+			got := specIDs(b.Actions([]resource.Resource{keyRes("new-01", tc.state)}))
+			if len(got) != len(tc.want) {
+				t.Fatalf("Actions = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("Actions = %v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+
+	mixed := b.Actions([]resource.Resource{keyRes("new-01", KeyPending), keyRes("web-01", KeyAccepted)})
+	if len(mixed) != 0 {
+		t.Errorf("a mixed selection offers %v, want nothing", specIDs(mixed))
+	}
+	pending := b.Actions([]resource.Resource{keyRes("new-01", KeyPending), keyRes("new-02", KeyPending)})
+	if got := specIDs(pending); len(got) != 2 || got[0] != SpecKeyAccept || got[1] != SpecKeyReject {
+		t.Errorf("two pending keys offer %v, want accept and reject", got)
+	}
+	// Key rows keep their state: the risk of the offer comes from the spec.
+	for _, s := range keySpecs() {
+		switch s.ID {
+		case SpecKeyReject, SpecKeyDelete:
+			if s.Risk != action.RiskDestructive {
+				t.Errorf("%s risk = %v, want destructive", s.ID, s.Risk)
+			}
+		case SpecKeyAccept:
+			if s.Risk == action.RiskDestructive {
+				t.Errorf("accept is marked destructive")
+			}
+		}
+	}
+}
+
+// TestKeyPlanSteps: one salt-key step per key, on the master, with the exact
+// display line, the fingerprint preview and the delete label that forces the
+// typed count.
+func TestKeyPlanSteps(t *testing.T) {
+	b := newKeyBackend(keyMaster())
+	ctx := context.Background()
+
+	accept := action.Request{
+		SpecID:  SpecKeyAccept,
+		Targets: []action.Target{keyTarget("new-01"), keyTarget("new-02")},
+	}
+	plan, err := b.Plan(ctx, accept)
+	if err != nil {
+		t.Fatalf("Plan accept: %v", err)
+	}
+	if len(plan.Steps) != 2 {
+		t.Fatalf("steps = %d, want 2", len(plan.Steps))
+	}
+	for i, want := range []string{"salt-key -a new-01 -y", "salt-key -a new-02 -y"} {
+		if got := plan.Steps[i].Display; got != want {
+			t.Errorf("step %d Display = %q, want %q", i, got, want)
+		}
+	}
+	for i, id := range []string{"new-01", "new-02"} {
+		st := plan.Steps[i].Target
+		if st.Host != resource.HostID(master) {
+			t.Errorf("step %d host = %q, want the master %q", i, st.Host, master)
+		}
+		if st.Ref.Kind != KindKey || st.Ref.Name != id || st.Ref.Backend != backendName {
+			t.Errorf("step %d Ref = %s, want the salt key %s", i, st.Ref, id)
+		}
+		if _, ok := st.Labels[confirmTypedLabel]; ok {
+			t.Errorf("step %d carries the typed-count label on an accept", i)
+		}
+	}
+	if !strings.Contains(plan.Title, "accept") || !strings.Contains(plan.Title, "2 keys") {
+		t.Errorf("title = %q, want an accept of 2 keys", plan.Title)
+	}
+	if plan.Spec.Risk == action.RiskDestructive {
+		t.Errorf("accept risk = %v, want non-destructive", plan.Spec.Risk)
+	}
+	if want := "salt:" + master; plan.Via != want {
+		t.Errorf("Via = %q, want %q", plan.Via, want)
+	}
+	for _, want := range []string{"new-01  fingerprint 44:55:66", "new-02  fingerprint 77:88:99", keyVerifyHint} {
+		if !strings.Contains(plan.Preview, want) {
+			t.Errorf("accept preview %q is missing %q", plan.Preview, want)
+		}
+	}
+
+	reject := accept
+	reject.SpecID = SpecKeyReject
+	plan, err = b.Plan(ctx, reject)
+	if err != nil {
+		t.Fatalf("Plan reject: %v", err)
+	}
+	if got := plan.Steps[0].Display; got != "salt-key -r new-01 -y" {
+		t.Errorf("reject Display = %q", got)
+	}
+	if plan.Spec.Risk != action.RiskDestructive {
+		t.Errorf("reject risk = %v, want destructive", plan.Spec.Risk)
+	}
+	if strings.Contains(plan.Preview, keyVerifyHint) {
+		t.Errorf("reject preview carries the accept hint: %q", plan.Preview)
+	}
+
+	del := action.Request{
+		SpecID:  SpecKeyDelete,
+		Targets: []action.Target{keyTarget("web-01"), keyTarget("old-01")},
+	}
+	plan, err = b.Plan(ctx, del)
+	if err != nil {
+		t.Fatalf("Plan delete: %v", err)
+	}
+	for i, want := range []string{"salt-key -d web-01 -y", "salt-key -d old-01 -y"} {
+		if got := plan.Steps[i].Display; got != want {
+			t.Errorf("delete step %d Display = %q, want %q", i, got, want)
+		}
+		if got := plan.Steps[i].Target.Labels[confirmTypedLabel]; got != confirmTypedValue {
+			t.Errorf("delete step %d %s label = %q, want %q", i, confirmTypedLabel, got, confirmTypedValue)
+		}
+	}
+	if !strings.Contains(plan.Title, "delete") || !strings.Contains(plan.Title, "2 keys") {
+		t.Errorf("title = %q, want a delete of 2 keys", plan.Title)
+	}
+	for _, want := range []string{"web-01  fingerprint aa:bb:cc", "last seen: up", "old-01  fingerprint de:ad:00",
+		"last seen: down", "warning: web-01 is currently up"} {
+		if !strings.Contains(plan.Preview, want) {
+			t.Errorf("delete preview %q is missing %q", plan.Preview, want)
+		}
+	}
+	if n := strings.Count(plan.Preview, "warning:"); n != 1 {
+		t.Errorf("delete preview has %d warnings, want 1 (only web-01 is up):\n%s", n, plan.Preview)
+	}
+}
+
+// TestKeyPlanRefusesGlobsAndBadIDs: only an exact, validated key id reaches a
+// salt-key line, so `-a '*'` cannot be planned; nothing is submitted.
+func TestKeyPlanRefusesGlobsAndBadIDs(t *testing.T) {
+	f := keyMaster()
+	b := newKeyBackend(f)
+	cases := []struct {
+		name   string
+		target action.Target
+	}{
+		{"glob", keyTarget("*")},
+		{"glob prefix", keyTarget("web-*")},
+		{"class", keyTarget("web[0-9]")},
+		{"comma list", keyTarget("web-01,web-02")},
+		{"space", keyTarget("web 01")},
+		{"empty", keyTarget("")},
+		{"minion row", action.Target{Ref: minionRes("web-01").Ref}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := action.Request{SpecID: SpecKeyAccept, Targets: []action.Target{tc.target}}
+			if plan, err := b.Plan(context.Background(), req); !errs.Is(err, errs.Config) {
+				t.Fatalf("Plan = %+v, %v; want a config error", plan, err)
+			}
+		})
+	}
+	if calls := f.Calls(); len(calls) != 0 {
+		t.Errorf("%d commands were run for rejected plans, want 0", len(calls))
+	}
+}
+
+// TestKeyActionRunsAndForgetsAcceptedKeys: a key step passes -y, reports what
+// salt-key printed, and drops the accepted-key cache so the next read sees the
+// new key.
+func TestKeyActionRunsAndForgetsKeys(t *testing.T) {
+	var (
+		lists  int
+		accept string
+	)
+	f := transporttest.New().OnFunc(func(_ resource.HostID, cmd transport.Command) (transporttest.Reply, bool) {
+		switch {
+		case strings.Contains(cmd.Script, "salt-key") && strings.Contains(cmd.Script, "-a "):
+			accept = cmd.Script
+			return transporttest.Reply{Stdout: `{"minions": ["new-01"]}` + "\n"}, true
+		case strings.Contains(cmd.Script, "salt-key") && strings.Contains(cmd.Script, "-L"):
+			lists++
+			if lists == 1 {
+				return transporttest.Reply{Stdout: `{"minions": ["web-01"]}`}, true
+			}
+			return transporttest.Reply{Stdout: `{"minions": ["web-01", "new-01"]}`}, true
+		case strings.Contains(cmd.Script, "-f "):
+			return transporttest.Reply{Stdout: keyFPJSON}, true
+		}
+		return transporttest.Reply{}, false
+	})
+	b := newKeyBackend(f)
+	ctx := context.Background()
+
+	accepted, err := b.acceptedKeys(ctx)
+	if err != nil {
+		t.Fatalf("acceptedKeys: %v", err)
+	}
+	if !accepted["web-01"] || accepted["new-01"] {
+		t.Fatalf("accepted = %v, want only web-01 before the accept", accepted)
+	}
+
+	plan, err := b.Plan(ctx, action.Request{SpecID: SpecKeyAccept, Targets: []action.Target{keyTarget("new-01")}})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	res := plan.Steps[0].Run(ctx)
+	if res.RC != 0 {
+		t.Fatalf("step RC = %d (%v), want 0", res.RC, res.Err)
+	}
+	if !strings.Contains(res.Output, "new-01") {
+		t.Errorf("output = %q, want what salt-key printed", res.Output)
+	}
+	if res.Target.Host != resource.HostID(master) || res.Target.Ref.Name != "new-01" {
+		t.Errorf("result target = %+v, want the master and the key", res.Target)
+	}
+	for _, want := range []string{"salt-key", "-a new-01", "-y"} {
+		if !strings.Contains(accept, want) {
+			t.Errorf("salt-key line %q is missing %q", accept, want)
+		}
+	}
+
+	accepted, err = b.acceptedKeys(ctx)
+	if err != nil {
+		t.Fatalf("acceptedKeys after the accept: %v", err)
+	}
+	if !accepted["new-01"] {
+		t.Errorf("accepted = %v; the accepted-key cache was not invalidated", accepted)
+	}
+	if lists != 2 {
+		t.Errorf("salt-key -L ran %d times, want 2 (one before, one after)", lists)
 	}
 }

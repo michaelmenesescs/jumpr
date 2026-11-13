@@ -184,6 +184,9 @@ func (b *bus) Propose(ctx context.Context, req action.Request) (Proposal, error)
 		Rollout: PlanRollout(len(targets), b.rollout),
 	}
 	p.Confirm = ConfirmFor(len(targets), b.anyProtected(targets), plan.Spec.Risk, b.rollout)
+	if wantsTypedConfirm(plan, targets) {
+		p.Confirm = ConfirmTypedCount
+	}
 	p.Denied = b.policy.Check(plan, b.isReadOnly())
 	if p.Denied != nil {
 		b.recordDenied(p)
@@ -254,6 +257,31 @@ func (b *bus) plannerFor(specID string) (action.Planner, bool) {
 func (b *bus) anyProtected(targets []action.Target) bool {
 	for _, t := range targets {
 		if b.policy.Protected(t) {
+			return true
+		}
+	}
+	return false
+}
+
+// The planner-provided label that forces the typed-count confirmation. It is
+// how a planner marks a write whose blast radius the target count does not
+// show, such as deleting a Salt key: the plan's targets carry it and Propose
+// honours it whatever the count and the risk.
+const (
+	confirmLabel = "_confirm"
+	confirmTyped = "typed"
+)
+
+// wantsTypedConfirm reports whether the plan asked for the typed count through
+// the _confirm=typed label, on a request target or on a planned step's target.
+func wantsTypedConfirm(plan action.Plan, targets []action.Target) bool {
+	for _, s := range plan.Steps {
+		if s.Target.Labels[confirmLabel] == confirmTyped {
+			return true
+		}
+	}
+	for _, t := range targets {
+		if t.Labels[confirmLabel] == confirmTyped {
 			return true
 		}
 	}

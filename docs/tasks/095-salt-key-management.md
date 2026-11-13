@@ -3,7 +3,7 @@
 - **Milestone:** M7
 - **Depends on:** 076
 - **Parallel group:** M7-B (with 097)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Accept, reject and delete minion keys through the bus (SPEC §8.6 "Key management").

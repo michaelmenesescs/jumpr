@@ -728,3 +728,72 @@ func TestBusRegisterValidation(t *testing.T) {
 		t.Errorf("empty name error = %v, want kind config", err)
 	}
 }
+
+// stepLabelPlanner is a planner that marks only its planned steps, to cover a
+// planner that decides the confirm level while it plans.
+type stepLabelPlanner struct{ labels map[string]string }
+
+func (p stepLabelPlanner) Actions([]resource.Resource) []action.Spec {
+	return []action.Spec{{ID: "salt.key.delete", Title: "delete key"}}
+}
+
+func (p stepLabelPlanner) Plan(_ context.Context, req action.Request) (action.Plan, error) {
+	plan := action.Plan{Spec: action.Spec{ID: "salt.key.delete", Title: "delete key"}, Request: req, Title: "delete key"}
+	for _, t := range req.Targets {
+		labels := make(map[string]string, len(t.Labels)+len(p.labels))
+		for k, v := range t.Labels {
+			labels[k] = v
+		}
+		for k, v := range p.labels {
+			labels[k] = v
+		}
+		t.Labels = labels
+		plan.Steps = append(plan.Steps, action.Step{Target: t, Display: "salt-key -d " + t.Ref.Name + " -y"})
+	}
+	return plan, nil
+}
+
+// TestProposeTypedLabelForcesTypedCount: a target labelled _confirm=typed needs
+// the typed count whatever the target count and the risk, on the request and on
+// a planned step, and the confirmation is then checked as a typed count.
+func TestProposeTypedLabelForcesTypedCount(t *testing.T) {
+	ctx := context.Background()
+	b := newTestBus(t, Options{})
+	register(t, b, "salt", bustest.New(bustest.Options{SpecID: "salt.key.delete"}))
+
+	plain := []action.Target{{Host: "salt.example.internal", Ref: resource.Ref{Kind: "salt-key", Name: "new-01"}}}
+	p, err := b.Propose(ctx, request("salt.key.delete", plain))
+	if err != nil {
+		t.Fatalf("Propose without the label: %v", err)
+	}
+	if p.Confirm != ConfirmYesNo {
+		t.Errorf("confirm = %v for one unlabelled target, want %v", p.Confirm, ConfirmYesNo)
+	}
+
+	labelled := []action.Target{{Host: "salt.example.internal", Ref: resource.Ref{Kind: "salt-key", Name: "new-01"},
+		Labels: map[string]string{confirmLabel: confirmTyped}}}
+	p, err = b.Propose(ctx, request("salt.key.delete", labelled))
+	if err != nil {
+		t.Fatalf("Propose with the label: %v", err)
+	}
+	if p.Confirm != ConfirmTypedCount {
+		t.Fatalf("confirm = %v for a labelled target, want %v", p.Confirm, ConfirmTypedCount)
+	}
+	if err := CheckConfirmation(p, Confirmation{ProposalID: p.ID, Typed: "1"}); err != nil {
+		t.Errorf("typed count 1 rejected: %v", err)
+	}
+	if err := CheckConfirmation(p, Confirmation{ProposalID: p.ID}); !errs.Is(err, errs.Policy) {
+		t.Errorf("missing typed count error = %v, want kind policy", err)
+	}
+
+	// The same label on a planned step alone is enough.
+	b2 := newTestBus(t, Options{})
+	register(t, b2, "salt", stepLabelPlanner{labels: map[string]string{confirmLabel: confirmTyped}})
+	p, err = b2.Propose(ctx, request("salt.key.delete", plain))
+	if err != nil {
+		t.Fatalf("Propose with a step label: %v", err)
+	}
+	if p.Confirm != ConfirmTypedCount {
+		t.Errorf("confirm = %v for a labelled step, want %v", p.Confirm, ConfirmTypedCount)
+	}
+}
