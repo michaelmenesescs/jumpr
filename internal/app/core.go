@@ -3,13 +3,17 @@ package app
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
+	"jumper/internal/backend/chef"
 	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/grafana"
 	"jumper/internal/backend/prom"
 	"jumper/internal/clip"
 	"jumper/internal/config"
 	"jumper/internal/errs"
+	"jumper/internal/redact"
+	"jumper/internal/resource"
 	"jumper/internal/transport"
 	"jumper/internal/transport/httpx"
 	"jumper/internal/transport/ssh"
@@ -263,6 +267,39 @@ func Alertmanager(cfg config.Config, profiles map[string]*httpx.Profile, deps ht
 		Creator: creator,
 	})
 	return amBackend, planner, nil
+}
+
+// ChefBackend builds the Chef backend from cfg's `chef:` section (SPEC §8.7).
+//
+// Everything it reads is one `knife … -F json` line run on the configured
+// workstation through ex: the Chef server is never contacted directly and
+// nothing is installed on a node. It returns nil when no workstation is
+// configured, so callers can skip registration.
+//
+// The wiring lives here rather than in app.go because app.buildRegistry is
+// still the M0 version; the task that owns app.go calls this function to add
+// the backend to the registry.
+func ChefBackend(cfg config.Config, ex transport.Executor, red *redact.Redactor, log *slog.Logger) (*chef.Backend, error) {
+	workstation := strings.TrimSpace(cfg.Chef.Workstation)
+	if workstation == "" {
+		return nil, nil
+	}
+	if ex == nil {
+		return nil, errs.New(errs.Config, "app.ChefBackend", "chef.workstation is set but there is no ssh transport")
+	}
+	host := resource.HostID(workstation)
+	runner := chef.NewRunner(ex, host, chef.RunnerOptions{
+		Knife:   cfg.Chef.Knife,
+		Sudo:    cfg.Chef.Sudo,
+		Timeout: cfg.Chef.Timeout.Duration(),
+		Log:     log,
+	})
+	return chef.New(chef.Options{
+		Runner:      runner,
+		Workstation: host,
+		Redactor:    red,
+		Log:         log,
+	}), nil
 }
 
 // profileFor returns the connection profile an entry names, or a plain profile

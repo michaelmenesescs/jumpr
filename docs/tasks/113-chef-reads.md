@@ -3,7 +3,7 @@
 - **Milestone:** M10
 - **Depends on:** 065
 - **Parallel group:** M10-A (with 115)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC §8.7 reads, via `knife … -F json` on the workstation over SSH.

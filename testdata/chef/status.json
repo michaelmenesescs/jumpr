@@ -1,0 +1,41 @@
+[
+  {
+    "name": "web-01",
+    "chef_environment": "production",
+    "platform": "ubuntu",
+    "platform_version": "22.04",
+    "run_list": ["role[base]", "role[web]"],
+    "fqdn": "web-01.lab.example.internal",
+    "ip": "10.0.0.11",
+    "ohai_time": 1794570900.0
+  },
+  {
+    "name": "web-02",
+    "chef_environment": "production",
+    "platform": "ubuntu",
+    "platform_version": "22.04",
+    "run_list": ["role[base]", "role[web]"],
+    "fqdn": "web-02.lab.example.internal",
+    "ip": "10.0.0.12",
+    "ohai_time": 1794560400.25
+  },
+  {
+    "name": "web-03",
+    "chef_environment": "staging",
+    "platform": "ubuntu",
+    "platform_version": "24.04",
+    "run_list": ["role[base]", "role[web]"],
+    "fqdn": "web-03.lab.example.internal",
+    "ip": "10.0.0.13"
+  },
+  {
+    "name": "db-01",
+    "chef_environment": "production",
+    "platform": "ubuntu",
+    "platform_version": "22.04",
+    "run_list": ["role[base]", "role[db]"],
+    "fqdn": "db-01.lab.example.internal",
+    "ip": "10.0.0.14",
+    "ohai_time": 1794463200.0
+  }
+]

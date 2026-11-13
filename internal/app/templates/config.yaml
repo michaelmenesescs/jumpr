@@ -63,6 +63,12 @@ salt:
   suggest_over: 200              # suggest the Salt transport above this many targets
   allow_salt_ssh: false
 
+chef:
+  workstation: ""                # inventory ID or ssh alias of the knife workstation; empty = Chef unconfigured
+  knife: knife                   # the knife command, or its full path
+  sudo: false                    # run knife under sudo -n
+  timeout: 30s                   # one knife call
+
 interact:
   timeout: 2m                    # how long a prompt (host key, passphrase) waits while detached
 

@@ -14,6 +14,7 @@
 //	@@ fault <name> [--undo] inject (or revert) a fault scenario
 //	@@ capture linux        record the Linux probes from the lab into testdata/
 //	@@ capture salt         record the Salt CLI output from the lab into testdata/
+//	@@ capture chef         record the knife output from the lab into testdata/
 //	@@ sanitize <file...>   sanitize captured files in place
 package main
 
@@ -584,15 +585,17 @@ func fault(args []string) error {
 // (task 067).
 func capture(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: @@ capture linux|salt [--config-dir dir] [--out dir]")
+		return errors.New("usage: @@ capture linux|salt|chef [--config-dir dir] [--out dir]")
 	}
 	switch args[0] {
 	case "linux":
 		return captureLinux(args[1:])
 	case "salt":
 		return captureSalt(args[1:])
+	case "chef":
+		return captureChef(args[1:])
 	}
-	return fmt.Errorf("unknown capture target %q (use linux or salt)", args[0])
+	return fmt.Errorf("unknown capture target %q (use linux, salt or chef)", args[0])
 }
 
 // captureLinux records the Linux probes.
@@ -633,6 +636,29 @@ func captureSalt(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	return devtools.CaptureSalt(ctx, devtools.SaltOptions{
+		Exec:      exec,
+		OutDir:    *outDir,
+		LocalUser: os.Getenv("USER"),
+	}, os.Stdout)
+}
+
+// captureChef records knife's real output from the lab's Chef workstation
+// (task 113).
+func captureChef(args []string) error {
+	fs := flag.NewFlagSet("capture chef", flag.ContinueOnError)
+	configDir := fs.String("config-dir", filepath.Join("lab", "jumper"), "directory holding the lab's config.yaml")
+	outDir := fs.String("out", filepath.Join("testdata", "chef"), "testdata directory to write under")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	exec, closeExec, err := labTransport(*configDir)
+	if err != nil {
+		return err
+	}
+	defer closeExec()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return devtools.CaptureChef(ctx, devtools.ChefOptions{
 		Exec:      exec,
 		OutDir:    *outDir,
 		LocalUser: os.Getenv("USER"),

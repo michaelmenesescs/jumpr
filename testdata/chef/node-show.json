@@ -1,0 +1,34 @@
+{
+  "name": "web-01",
+  "chef_environment": "production",
+  "chef_type": "node",
+  "run_list": ["role[base]", "role[web]", "recipe[nginx::default]"],
+  "normal": {
+    "tags": ["web", "frontend"],
+    "jumper": {
+      "owner": "platform"
+    }
+  },
+  "override": {},
+  "default": {
+    "nginx": {
+      "worker_processes": 4
+    }
+  },
+  "automatic": {
+    "fqdn": "web-01.lab.example.internal",
+    "platform": "ubuntu",
+    "platform_version": "22.04",
+    "ohai_time": 1794570900.5,
+    "kernel": {
+      "name": "Linux",
+      "release": "5.15.0-105-generic"
+    },
+    "memory": {
+      "total": "8123456kB"
+    },
+    "mysql": {
+      "password": "hunter2-not-real"
+    }
+  }
+}

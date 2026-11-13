@@ -79,6 +79,7 @@ type Config struct {
 	Alertmanager  []AlertmanagerConfig  `yaml:"alertmanager"`
 	Grafana       []GrafanaConfig       `yaml:"grafana"`
 	Elasticsearch []ElasticsearchConfig `yaml:"elasticsearch"`
+	Chef          ChefConfig            `yaml:"chef"`
 	Interact      InteractConfig        `yaml:"interact"`
 }
 
@@ -169,6 +170,16 @@ type SaltConfig struct {
 	AllowSaltSSH bool     `yaml:"allow_salt_ssh"`
 }
 
+// ChefConfig configures the Chef workstation jumper reads knife through
+// (SPEC §8.7). `workstation` is the inventory host or ssh alias the knife
+// commands run on; empty means Chef is unconfigured.
+type ChefConfig struct {
+	Workstation string   `yaml:"workstation"`
+	Knife       string   `yaml:"knife"`
+	Sudo        bool     `yaml:"sudo"`
+	Timeout     Duration `yaml:"timeout"`
+}
+
 // InteractConfig bounds how long a prompt waits for an answer.
 type InteractConfig struct {
 	Timeout Duration `yaml:"timeout"`
@@ -222,6 +233,12 @@ func Default() Config {
 			ListChunk:    200,
 			SuggestOver:  200,
 			AllowSaltSSH: false,
+		},
+		Chef: ChefConfig{
+			Workstation: "",
+			Knife:       "knife",
+			Sudo:        false,
+			Timeout:     Duration(30 * time.Second),
 		},
 		Interact: InteractConfig{
 			Timeout: Duration(2 * time.Minute),
@@ -295,6 +312,7 @@ func (c *Config) Validate() error {
 		{"ssh.keepalive", c.SSH.Keepalive},
 		{"salt.timeout", c.Salt.Timeout},
 		{"salt.poll_interval", c.Salt.PollInterval},
+		{"chef.timeout", c.Chef.Timeout},
 		{"interact.timeout", c.Interact.Timeout},
 	} {
 		if f.v <= 0 {
@@ -315,6 +333,16 @@ func (c *Config) Validate() error {
 		if _, err := regexp.Compile(rw.From); err != nil {
 			return invalidf("inventory.identity.rewrites[%d].from: %v", i, err)
 		}
+	}
+
+	if strings.TrimSpace(c.Chef.Knife) == "" {
+		return invalidf("chef.knife: the knife command must not be empty")
+	}
+	if strings.ContainsAny(c.Chef.Knife, " 	\n") {
+		return invalidf("chef.knife: %q must be one command name or path", c.Chef.Knife)
+	}
+	if ws := strings.TrimSpace(c.Chef.Workstation); strings.ContainsAny(ws, " 	\n") {
+		return invalidf("chef.workstation: %q must be one host name", ws)
 	}
 
 	names := make(map[string]bool, len(c.Prometheus))

@@ -213,7 +213,7 @@ only by tasks 001, 098, 105 and 115.
 
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
-| [113](113-chef-reads.md) | Chef backend: knife runner, nodes, status, inventory | 065 | M10-A | todo |
+| [113](113-chef-reads.md) | Chef backend: knife runner, nodes, status, inventory | 065 | M10-A | done |
 | [114](114-chef-drift-actions.md) | Chef drift signals and `chef-client` through the bus | 113, 061 | — | todo |
 | [115](115-plugin-loader.md) | YAML plugin schema, loader, validation | 065 | M10-A | todo |
 | [116](116-plugin-parsers.md) | Plugin output parsers | 115 | — | todo |

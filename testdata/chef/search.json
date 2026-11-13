@@ -1,0 +1,9 @@
+{
+  "total": 3,
+  "start": 0,
+  "rows": [
+    { "web-01": "ubuntu" },
+    { "web-02": "ubuntu" },
+    { "db-01": "ubuntu" }
+  ]
+}

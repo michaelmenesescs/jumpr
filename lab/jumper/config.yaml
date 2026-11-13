@@ -35,6 +35,14 @@ inventory:
 salt:
   master: salt.lab.example.internal
 
+# Chef reads run knife on the lab's Chef workstation over SSH (SPEC §8.7); the
+# workstation runs chef-zero with knife configured for user `sre`.
+chef:
+  workstation: chef.lab.example.internal
+  knife: knife
+  sudo: false
+  timeout: 30s
+
 knowledge:
   root: lab/.knowledge
 
