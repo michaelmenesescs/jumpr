@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 033
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `transport.ShellOpener` over the pool: a PTY session whose bytes can be wired to a terminal pane.

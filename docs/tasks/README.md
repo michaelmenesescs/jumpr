@@ -94,7 +94,7 @@ only by tasks 001, 098, 105 and 115.
 | [031](031-ssh-dial.md) | SSH dialer: direct and through a ProxyJump chain | 029, 030 | — | done |
 | [032](032-ssh-pool.md) | SSH connection pool with bastion multiplexing and limits | 031 | — | done |
 | [033](033-ssh-exec-stream.md) | SSH Executor and Streamer | 027, 032 | — | done |
-| [034](034-ssh-shell.md) | SSH ShellOpener (interactive PTY sessions) | 033 | — | todo |
+| [034](034-ssh-shell.md) | SSH ShellOpener (interactive PTY sessions) | 033 | — | done |
 | [035](035-doctor-ssh-lab.md) | `jumper doctor ssh` and the first lab test | 033 | — | todo |
 | [036](036-fanout-runner.md) | Fan-out runner | 026 | M2-B | done |
 | [037](037-group-diff.md) | Grouping identical outputs, summary headline, unified diff | 005 | M2-A | done |
