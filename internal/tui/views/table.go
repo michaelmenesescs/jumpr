@@ -216,6 +216,8 @@ func (t *Table) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 		return t, t.applyBatch(m)
 	case tui.MarkedTargetsRequestMsg:
 		return t, t.markedTargetsCmd()
+	case tui.RefreshRequestMsg:
+		return t, t.restart()
 	case tea.KeyMsg:
 		return t.handleKey(m)
 	}
@@ -334,6 +336,8 @@ func (t *Table) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 		return t, tui.Flash(tui.FlashError, "%v", t.errs[0].err)
 	case t.keys.Finding.Matches(key):
 		return t, t.finding()
+	case t.keys.Actions.Matches(key):
+		return t, t.actionsCmd()
 	}
 
 	if link, ok := t.linkForKey(key); ok {
@@ -493,6 +497,41 @@ func (t *Table) markedTargetsCmd() tea.Cmd {
 	}
 	set := targets.FromHosts(fmt.Sprintf("%d marked", len(hosts)), hosts)
 	return func() tea.Msg { return tui.TargetsChangedMsg{Set: set} }
+}
+
+// actionsCmd asks the root for the actions menu over the marked rows, or over
+// the row under the cursor when nothing is marked (task 061).
+func (t *Table) actionsCmd() tea.Cmd {
+	sel := t.selection()
+	if len(sel) == 0 {
+		return tui.Flash(tui.FlashInfo, "no row selected")
+	}
+	kind := t.spec.Name
+	return func() tea.Msg {
+		return tui.ActionsRequestMsg{Kind: kind, Selection: sel}
+	}
+}
+
+// selection is what the actions menu acts on: every marked row, in list order,
+// else the row under the cursor.
+func (t *Table) selection() []resource.Resource {
+	if len(t.marks) == 0 {
+		if t.cursor < 0 || t.cursor >= len(t.view) {
+			return nil
+		}
+		return []resource.Resource{t.view[t.cursor]}
+	}
+	out := make([]resource.Resource, 0, len(t.marks))
+	seen := make(map[resource.HostID]bool, len(t.marks))
+	for _, row := range t.rows {
+		host := hostOf(row)
+		if host == "" || !t.marks[host] || seen[host] {
+			continue
+		}
+		seen[host] = true
+		out = append(out, row)
+	}
+	return out
 }
 
 // markGlyph is the one-cell mark in the row gutter: "▸" for the unicode and

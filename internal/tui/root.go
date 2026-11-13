@@ -119,6 +119,17 @@ type Root struct {
 	// connectTerm is set while :ssh adds a pane, so the pane factory knows a
 	// term pane it is building is a fresh connection, not a restored one.
 	connectTerm bool
+
+	// runs are the rollouts this session started, in start order; the run
+	// dialog of one is r.dialog while it is on screen (task 061).
+	runs   []*runDialog
+	runSeq int
+	// pendingRun is the run a list dialog asked to reopen: the dialog's own
+	// CloseDialogMsg follows the pick, so the root consumes it there.
+	pendingRun int
+	// planCancel cancels the planning round-trip of the actions menu; esc
+	// cancels it while the planning spinner is up.
+	planCancel context.CancelFunc
 }
 
 var _ tea.Model = (*Root)(nil)
@@ -156,6 +167,8 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 	// `:inv`, `:note` and `:timeline` drive the session's investigation, which
 	// only the root mutates.
 	_ = RegisterInvestigationCommands(cmds)
+	// `:runs` lists the rollouts in flight, which only the root holds.
+	_ = RegisterActionsCommands(cmds)
 	m := mux.NewModel(mux.NewSession(name), r.paneContent, prefixKey, stylesFor(env))
 	m.SetRootPredicate(IsRootMsg)
 	r.mux = m
@@ -476,8 +489,20 @@ func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
 	}
 	if r.dialog != nil {
 		// A modal is dismissed with esc whatever it shows; closing it here
-		// rather than through CloseDialog keeps the dismissal immediate.
+		// rather than through CloseDialog keeps the dismissal immediate. A
+		// dialog that owns esc (the planning spinner, the run dialog) is
+		// asked first.
 		if k.String() == "esc" {
+			r.pendingRun = 0
+			if r.planCancel != nil {
+				r.planCancel()
+				r.planCancel = nil
+			}
+			if ed, ok := r.dialog.(escDialog); ok {
+				d, cmd := ed.Esc()
+				r.dialog = d
+				return cmd
+			}
 			r.dialog = nil
 			return nil
 		}
@@ -699,7 +724,8 @@ func (r *Root) scoped(q resource.Query) resource.Query {
 func rootBound(msg tea.Msg) bool {
 	switch msg.(type) {
 	case TargetsChangedMsg, InvestigationChangedMsg, InvestigationAppendedMsg,
-		TimelineRequestedMsg, InvestigationResolveRequestMsg:
+		TimelineRequestedMsg, InvestigationResolveRequestMsg, ActionsRequestMsg,
+		RunListRequestedMsg:
 		return true
 	}
 	return false
@@ -822,10 +848,43 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 			r.prompt = r.nextPrompt()
 			return nil
 		}
+		if r.pendingRun != 0 {
+			id := r.pendingRun
+			r.pendingRun = 0
+			return r.showRun(id)
+		}
 		r.dialog = nil
 		return nil
 	case PromptMsg:
 		return r.showPrompt(m)
+	case ActionsRequestMsg:
+		return r.openActions(m)
+	case actionSpecChosenMsg:
+		return r.chooseSpec(m)
+	case actionParamsMsg:
+		r.dialog = nil
+		return r.startPlanning(m.Spec, m.Params, m.Selection)
+	case ProposalMsg:
+		return r.openProposal(m)
+	case planConfirmedMsg:
+		return r.confirmPlan(m)
+	case runBeginMsg:
+		return r.routeRun(m.ID, m)
+	case runEventsForMsg:
+		return r.routeRun(m.ID, m.Msg)
+	case RunEventsMsg:
+		if d := r.activeRunDialog(); d != nil {
+			return r.routeRun(d.id, m)
+		}
+		return nil
+	case hideRunMsg:
+		return r.hideRun(m.ID)
+	case runOpenMsg:
+		return r.showRun(m.ID)
+	case runResultsRequestMsg:
+		return r.openRunResults(m.ID)
+	case RunListRequestedMsg:
+		return r.openRunList()
 	case OpenDialogMsg:
 		r.dialog = m.Dialog
 		return nil
@@ -1439,6 +1498,11 @@ func (r *Root) statusData() StatusData {
 		if inv := r.env.Session.Investigation; inv != nil {
 			d.Investigation = inv.ID
 		}
+	}
+	// A rollout that was hidden with `h` keeps going; the status line says so
+	// in the context slot (task 061).
+	if badge := r.rolloutBadge(); badge != "" {
+		d.Context = badge
 	}
 	if r.mux.PrefixArmed() {
 		if t := themeOf(r.env); t != nil {

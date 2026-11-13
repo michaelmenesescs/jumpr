@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 057, 059
 - **Parallel group:** M3-C (with 060)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The dialogs from the mockup, driven by the bus.

@@ -126,7 +126,7 @@ only by tasks 001, 098, 105 and 115.
 | [058](058-investigation-files.md) | Investigation and audit Markdown files | 054 | M3-B | done |
 | [059](059-investigation-log-ui.md) | Investigation lifecycle, recorder, commands, timeline | 058, 046, 055 | — | done |
 | [060](060-knowledge-index-panel.md) | Knowledge index and side panel | 059 | M3-C | done |
-| [061](061-action-dialogs.md) | Action UI: menu, plan, confirmation, denial, rollout progress | 057, 059 | M3-C | todo |
+| [061](061-action-dialogs.md) | Action UI: menu, plan, confirmation, denial, rollout progress | 057, 059 | M3-C | done |
 | [062](062-linux-actions.md) | Linux planner: systemctl verbs and kill | 055, 044 | M3-D | done |
 | [063](063-run-command.md) | `:run`: ad-hoc command through the bus | 057, 048 | M3-D | done |
 | [064](064-synchronized-input.md) | Synchronized input (broadcast line, raw sync) and shell guard rails | 061, 050 | — | todo |

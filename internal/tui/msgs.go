@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/backend"
+	"jumper/internal/bus"
 	"jumper/internal/fanout"
 	"jumper/internal/interact"
 	"jumper/internal/investigation"
@@ -110,6 +111,26 @@ type PromptMsg struct {
 	Prompt interact.Prompt // package internal/interact
 	Reply  chan<- interact.Answer
 }
+
+// Action flow (dialogs)
+
+// ProposalMsg is the result of one bus.Propose round-trip: the planned,
+// policy-checked proposal, or the error that planning returned.
+type ProposalMsg struct {
+	Proposal bus.Proposal
+	Err      error
+}
+
+// RunEventsMsg is one batch of a rollout's events. The channel is closed after
+// the final event, which arrives together with Closed.
+type RunEventsMsg struct {
+	Events []bus.Event
+	Closed bool
+}
+
+// RefreshRequestMsg asks a view to reload its data. The root sends it to the
+// focused view after a rollout finishes, so the rows on screen catch up.
+type RefreshRequestMsg struct{}
 
 // Constructors returning tea.Cmd.
 

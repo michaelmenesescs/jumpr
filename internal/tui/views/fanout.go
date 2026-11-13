@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"jumper/internal/action"
 	"jumper/internal/errs"
 	"jumper/internal/fanout"
 	"jumper/internal/group"
@@ -68,6 +69,9 @@ type Fanout struct {
 	// marks are the groups marked with space, keyed by group key so a re-run
 	// keeps them.
 	marks map[string]bool
+	// static is true for a fan-out built from results that already happened
+	// (a finished rollout): there is no command to re-run.
+	static bool
 
 	w, h int
 }
@@ -97,7 +101,12 @@ func NewFanout(env *tui.Env, title string, cmd transport.Command, hosts []resour
 }
 
 // Init starts the run.
-func (f *Fanout) Init() tea.Cmd { return f.restart() }
+func (f *Fanout) Init() tea.Cmd {
+	if f.static {
+		return nil
+	}
+	return f.restart()
+}
 
 // SetContext makes every run derive from ctx: the view pane calls it before
 // Init, and closing the pane cancels the fan-out.
@@ -180,6 +189,11 @@ func (f *Fanout) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 		return f, f.applyBatch(m)
 	case tui.MarkedTargetsRequestMsg:
 		return f, f.markedTargetsCmd()
+	case tui.RefreshRequestMsg:
+		if f.static {
+			return f, tui.Flash(tui.FlashInfo, "these results are fixed")
+		}
+		return f, f.restart()
 	case tea.KeyMsg:
 		return f.handleKey(m)
 	}
@@ -240,9 +254,14 @@ func (f *Fanout) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 	case f.keys.Open.Matches(key):
 		return f, f.openMembers()
 	case f.keys.Refresh.Matches(key):
+		if f.static {
+			return f, tui.Flash(tui.FlashInfo, "these results are fixed")
+		}
 		return f, f.restart()
 	case f.keys.Diff.Matches(key):
 		return f, f.diffCmd()
+	case f.keys.Actions.Matches(key):
+		return f, f.actionsCmd()
 	}
 
 	switch key {
@@ -404,6 +423,52 @@ func (f *Fanout) markedTargetsCmd() tea.Cmd {
 	}
 	set := targets.FromHosts(fmt.Sprintf("%d marked", len(hosts)), hosts)
 	return func() tea.Msg { return tui.TargetsChangedMsg{Set: set} }
+}
+
+// actionsCmd asks the root for the actions menu over the hosts of the group
+// under the cursor (task 061).
+func (f *Fanout) actionsCmd() tea.Cmd {
+	g, ok := f.selectedGroup()
+	if !ok || len(g.Hosts) == 0 {
+		return tui.Flash(tui.FlashInfo, "no group selected")
+	}
+	sel := make([]resource.Resource, 0, len(g.Hosts))
+	for _, h := range g.Hosts {
+		sel = append(sel, resource.Resource{
+			Ref:    resource.Ref{Host: h},
+			Fields: map[string]any{"host": string(h)},
+		})
+	}
+	return func() tea.Msg {
+		return tui.ActionsRequestMsg{Kind: "host", Selection: sel}
+	}
+}
+
+// NewFanoutFromResults builds the grouped view of a rollout that already
+// finished: one row per group of identical output and one per error kind, with
+// no command behind it (the `o` key of the run dialog).
+func NewFanoutFromResults(env *tui.Env, title string, results []action.StepResult) *Fanout {
+	f := NewFanout(env, title, transport.Command{}, nil, nil)
+	f.static = true
+	f.done = true
+	f.started = f.now()
+	f.grouper = group.NewGrouper(len(results), nil)
+	for _, res := range results {
+		if res.Err != nil {
+			f.grouper.AddError(res.Target.Host, res.Err)
+			continue
+		}
+		f.grouper.Add(res.Target.Host, res.Output, res.RC)
+	}
+	f.sum = f.grouper.Summary()
+	hosts := make([]resource.HostID, 0, len(results))
+	for _, res := range results {
+		if res.Target.Host != "" {
+			hosts = append(hosts, res.Target.Host)
+		}
+	}
+	f.hosts = hosts
+	return f
 }
 
 // Summary returns the current grouping.
