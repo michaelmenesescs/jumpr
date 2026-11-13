@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 044, 084
 - **Parallel group:** — (serial; M6 exit)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `Enter` on a process: status, limits, cgroup, open-file count, environment keys, listening sockets — one batch.
