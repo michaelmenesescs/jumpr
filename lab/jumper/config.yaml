@@ -33,3 +33,16 @@ salt:
 
 knowledge:
   root: lab/.knowledge
+
+# The lab's observability stack (SPEC §22) sits behind the mock SSO proxy of
+# `connections.yaml`; both entries use the `lab-sso` profile, so the auth helper
+# is what makes them reachable. The M8 tests are internal/backend/prom/lab_test.go.
+prometheus:
+  - name: lab
+    url: https://prom.lab.example.internal
+    connection: lab-sso
+
+alertmanager:
+  - name: lab
+    url: https://am.lab.example.internal
+    connection: lab-sso

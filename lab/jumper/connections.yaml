@@ -1,0 +1,30 @@
+# Connection profiles for the local test lab (SPEC §7.2, §22).
+#
+# The lab's observability stack (Prometheus, Alertmanager, Grafana,
+# Elasticsearch) sits behind a Go mock SSO proxy that only answers requests
+# carrying its session cookie. `lab-sso` is the profile every M8 lab test and
+# `jumper doctor conn` use. The auth helper is the example helper from task 099:
+#
+#   go build -o lab/.keys/auth-helper ./examples/auth-helper-cookie
+#   export JUMPER_AUTH_COOKIE=<the cookie the mock proxy hands out>
+#
+# The helper reads JUMPER_AUTH_COOKIE (or the macOS Keychain) and prints the
+# helper JSON of SPEC §7.2, which is exactly the extension point a real SSO
+# setup uses: nothing about the profile is lab-specific except the address.
+#
+# The lab proxy serves a self-signed certificate, so verification is off here.
+# This file is lab-only; never copy it into a real config directory. Nothing in
+# it is a secret: the cookie lives in the environment (or the Keychain).
+connections:
+  lab-sso:
+    tls:
+      insecure_skip_verify: true
+    auth:
+      type: helper
+      helper:
+        command: ["lab/.keys/auth-helper", "-name", "_oauth2_proxy", "-domain", ".lab.example.internal"]
+        cache_ttl: 50m
+        # 401/403 and a 302 to the login page are the stale-session signals;
+        # the client re-runs the helper once and retries (SPEC §7.2).
+        refresh_on: [401, 403, "302-to-login"]
+    timeout: 15s
