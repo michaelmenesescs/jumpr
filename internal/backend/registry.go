@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"sitrep/internal/errs"
-	"sitrep/internal/resource"
+	"jumper/internal/errs"
+	"jumper/internal/resource"
 )
 
 // kindEntry is what a kind name or alias resolves to.

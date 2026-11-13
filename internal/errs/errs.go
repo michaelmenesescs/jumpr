@@ -1,4 +1,4 @@
-// Package errs defines the error taxonomy used across sitrep.
+// Package errs defines the error taxonomy used across jumper.
 //
 // Error is the only error type that crosses package boundaries. Every
 // cross-package failure carries a Kind so the UI can label it and callers can

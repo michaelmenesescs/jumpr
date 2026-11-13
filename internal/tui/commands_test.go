@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/backend"
-	"sitrep/internal/backend/fake"
+	"jumper/internal/backend"
+	"jumper/internal/backend/fake"
 )
 
 // newTestEnv builds an Env backed by the fake backend with a fixed clock.

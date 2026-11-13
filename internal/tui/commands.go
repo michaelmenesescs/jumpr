@@ -8,8 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/errs"
-	"sitrep/internal/resource"
+	"jumper/internal/errs"
+	"jumper/internal/resource"
 )
 
 // Command is a `:` command (BUILD-PLAN §4.8).
@@ -144,7 +144,7 @@ func splitFirstWord(line string) (word, rest string) {
 	return line, ""
 }
 
-// RegisterBuiltins registers the commands sitrep itself provides: quit, help,
+// RegisterBuiltins registers the commands jumper itself provides: quit, help,
 // kinds and time. `window` is deliberately absent — the multiplexer owns that
 // name (task 022).
 func RegisterBuiltins(c *Commands) {
@@ -157,7 +157,7 @@ func RegisterBuiltins(c *Commands) {
 		Name:    "q",
 		Aliases: []string{"quit"},
 		Usage:   ":q",
-		Help:    "quit sitrep",
+		Help:    "quit jumper",
 		Run: func(*Env, string) tea.Cmd {
 			return tea.Quit
 		},

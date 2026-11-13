@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
 // TimeWindow is the investigation time range every view respects.

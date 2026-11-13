@@ -14,7 +14,7 @@ registered; db-01's last run fails on purpose.
 
 ## Files
 - create `internal/backend/chef/runner.go`, `backend.go`, `kinds.go`, `parse.go`, `source.go`, `_test.go` files
-- extend `cmd/sitrep-dev` capture with `capture chef` → `testdata/chef/*.json`
+- extend `cmd/@@` capture with `capture chef` → `testdata/chef/*.json`
 - modify `internal/config/` (`chef: {workstation, knife: "knife", sudo: false, timeout}`), `internal/app/core.go`
 
 ## Requirements
@@ -34,7 +34,7 @@ registered; db-01's last run fails on purpose.
 ## Acceptance
 ```
 go test -race ./internal/backend/chef/ -v
-go run ./cmd/sitrep-dev capture chef --config-dir lab/sitrep      # lab up
+go run ./cmd/@@ capture chef --config-dir lab/jumper      # lab up
 ```
 
 ## Pitfalls

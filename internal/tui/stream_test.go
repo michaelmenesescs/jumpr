@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"sitrep/internal/backend"
+	"jumper/internal/backend"
 )
 
 func TestNextBatchSingleItem(t *testing.T) {

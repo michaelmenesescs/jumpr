@@ -12,7 +12,7 @@ SPEC §8.1.1: dependency tree for a unit; `:timers` per host.
 - create `internal/backend/linux/parse_deps_timers.go`, `internal/backend/linux/parse_deps_timers_test.go`
 - create `internal/tui/views/unit_deps.go`
 - modify `internal/backend/linux/kinds.go`, `internal/backend/linux/backend.go`, `internal/tui/views/unit.go`
-- add `testdata/linux/timers/…`, `testdata/linux/deps/…` (inline samples; captures via `sitrep-dev capture linux`
+- add `testdata/linux/timers/…`, `testdata/linux/deps/…` (inline samples; captures via `@@ capture linux`
   after adding the commands to `RawCommands`)
 
 ## Requirements

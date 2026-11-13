@@ -10,10 +10,10 @@ _Last updated: 2026-11-12 (task 014 done; M0 in progress)_
 - [x] End-to-end build plan → `docs/BUILD-PLAN.md` (decisions, milestones, package layout, **frozen Go
       contracts**, messages, session-server protocol, errors, concurrency, tests, dependencies, risks)
 - [x] Task breakdown → `docs/tasks/` (one file per task; index and workflow in `docs/tasks/README.md`)
-- [x] Lab controller `cmd/sitrep-lab` and `lab/` (separate track; see `lab/README.md`)
+- [x] Lab controller `cmd/@@` and `lab/` (separate track; see `lab/README.md`)
 - [x] **Task 001 done:** `go.mod`/`go.sum` with every M0–M7 dependency pinned (BUILD-PLAN §10), `Makefile`
-      (`build test lint lab-test check tidy`), `cmd/sitrep/main.go` (version only), `internal/deps/deps.go`
-      (blank imports under `//go:build deps`). `make check` green; `./sitrep version` → `sitrep dev`.
+      (`build test lint lab-test check tidy`), `cmd/jumper/main.go` (version only), `internal/deps/deps.go`
+      (blank imports under `//go:build deps`). `make check` green; `./jumper version` → `jumper dev`.
 
 - [x] **Task 002 done:** `internal/errs` exactly as BUILD-PLAN §4.1 — `Kind` constants, `Error`
       (`Kind/Op/Host/Msg/Err`), `New`, `Wrap`, `WithHost` (copy), `KindOf` (`errors.As` → ctx deadline/cancel →
@@ -162,7 +162,7 @@ See SPEC §20 "Open". The ones that affect upcoming work:
 
 ## Requests to the lab track
 
-The lab (`cmd/sitrep-lab`, `lab/`) is built separately. Things the tasks would like it to provide; until then the
+The lab (`cmd/@@`, `lab/`) is built separately. Things the tasks would like it to provide; until then the
 lab tests create these situations themselves with `labtest.Break` (lab-only SSH commands with cleanup):
 
 - fault `minion-down <host>` (stop salt-minion), `salt-drift <host>` (edit a managed file), `pending-key` (an
@@ -171,7 +171,7 @@ lab tests create these situations themselves with `labtest.Break` (lab-only SSH 
 - bastion sshd with `MaxSessions 10` and default `MaxStartups` (to exercise pool limits, task 035)
 - observability stack + mock SSO cookie proxy (Go) for M8: Prometheus, Alertmanager, Grafana, Elasticsearch, with
   an alert that fires when `haproxy-443` is injected
-- a `lab/sitrep/` directory is owned by the implementation tasks (sitrep's config for the lab), not by the lab
+- a `lab/jumper/` directory is owned by the implementation tasks (jumper's config for the lab), not by the lab
   track
 
 ## Ground rules (from the user)
@@ -185,8 +185,8 @@ lab tests create these situations themselves with `labtest.Break` (lab-only SSH 
 
 ## Repo
 
-- Local: `~/workspace/sitrep` (git, branch `main`). **No remote yet.** Ask before creating one (work project; it
-  may need to live on a work Git host instead of personal GitHub).
+- Local: `~/workspace/sitrep` (git, branch `main`; directory keeps its old name, the module/binary/paths are `jumper`).
+  **No remote yet.** Personal use now, so a private personal GitHub repo is the sane default when you want one.
 - Toolchain: go 1.27.2 darwin/arm64.
 
 ## Session log
@@ -196,8 +196,8 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
 - 2026-11-12 — Scoping: spec v0.2, build plan, tasks 001–127 written. Dependency set verified to compile
   together with `CGO_ENABLED=0` (Bubble Tea v1.3.10 + `charmbracelet/x/vt` v0.1.0 and the rest of BUILD-PLAN §10).
 - 2026-11-12 — Task 001: repo bootstrap. All 17 pinned M0–M7 modules in `go.mod` (held by the blank imports in
-  `internal/deps`), `Makefile`, `cmd/sitrep` (version printing), `.gitignore` additions. `make check` green;
-  `go mod tidy` idempotent; `GOARCH=amd64` cross-build OK; `cmd/sitrep-lab` still builds. Choice: `lint` is two
+  `internal/deps`), `Makefile`, `cmd/jumper` (version printing), `.gitignore` additions. `make check` green;
+  `go mod tidy` idempotent; `GOARCH=amd64` cross-build OK; `cmd/@@` still builds. Choice: `lint` is two
   recipe lines, `test -z "$(gofmt -l .)"` then `go vet ./...`, so unformatted files fail it (task Pitfalls).
 - 2026-11-12 — Task 002: `internal/errs`. Choice: `Is(nil, "")` is `true`, because task requirement 6 defines
   `Is` as literally `KindOf(err) == kind` and `KindOf(nil)` is `""`; the first test draft assumed otherwise and was
@@ -305,3 +305,11 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   candidates off the line; (6) `Exec` trims a leading `:` and returns nil for an empty line, and an unknown word
   with a nil/absent registry flashes `unknown command` rather than panicking. `make check` green; `internal/tui`
   tests 1.47 s under `-race`, acceptance suite passes.
+
+- 2026-11-12 — Task 000 (rename): `sitrep` → `jumper` across module path, binary (`cmd/jumper`), imports, config/cache/
+  crash paths (`~/.config/jumper`, `~/.cache/jumper`), env prefix (`JUMPER_`), Makefile, docs and all task files.
+  Deliberately **not** renamed: the `sitrep-lab` / `sitrep-dev` binaries (lab track owns `cmd/sitrep-lab/` and `lab/`),
+  and the repo directory, which stays `~/workspace/sitrep`. `go build ./...`, `go vet ./...`, `go test ./...` green.
+  Also removed six orphaned, untracked task-015 WIP files (`internal/tui/{statusline,hints,dialog,dialog_help}.go` + two
+  test files) left by an earlier aborted session: they failed their own tests and were not referenced by committed code.
+  Task 015 is re-implemented from its task file.

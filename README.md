@@ -1,4 +1,4 @@
-# sitrep
+# jumper
 
 Agentless, client-side infrastructure debugging TUI (Go).
 

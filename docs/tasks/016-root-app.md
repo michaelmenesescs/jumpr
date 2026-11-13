@@ -1,4 +1,4 @@
-# Task 016 — Root model, `app.Run`, `sitrep --demo`
+# Task 016 — Root model, `app.Run`, `jumper --demo`
 
 - **Milestone:** M0
 - **Depends on:** 003, 007, 012, 013, 014, 015
@@ -6,7 +6,7 @@
 - **Status:** todo
 
 ## Goal
-A running program: `sitrep --demo` shows the fake world in one full-screen view stack with status line, command
+A running program: `jumper --demo` shows the fake world in one full-screen view stack with status line, command
 bar, hints, flash and help. This is the M0 exit.
 
 ## Context
@@ -15,7 +15,7 @@ BUILD-PLAN §2 (M0 demo), §5, §6.1 (detach-safety rules — they start here), 
 ## Files
 - create `internal/tui/root.go` (the `tea.Model`), `internal/tui/root_test.go`
 - create `internal/app/app.go` (`Options`, `Run`), `internal/app/log.go`, `internal/app/crash.go`
-- modify `cmd/sitrep/main.go`
+- modify `cmd/jumper/main.go`
 
 ## Requirements
 1. `tui.NewRoot(env *Env, cmds *Commands, start resource.Query) *Root` implementing `tea.Model`.
@@ -39,11 +39,11 @@ BUILD-PLAN §2 (M0 demo), §5, §6.1 (detach-safety rules — they start here), 
      nothing is configured, return `errs.Config` "no backends configured; try --demo"), builds `Env`, `Commands`,
      `Root`, then `tea.NewProgram(root, tea.WithInput(o.In), tea.WithOutput(o.Out), tea.WithAltScreen(),
      tea.WithContext(ctx))` and runs it.
-   - `log.go`: `slog` JSON handler to `<cache>/sitrep.log` at Debug level when `o.Debug`, else a discard handler.
+   - `log.go`: `slog` JSON handler to `<cache>/jumper.log` at Debug level when `o.Debug`, else a discard handler.
    - `crash.go`: `Run` defers a recover that writes `<cache>/crash/<UTC timestamp>.txt` (panic value + stack) and
      returns `errs.Internal`. Bubble Tea restores the terminal itself on panic inside the program.
 3. `main.go`: parse flags with `flag` (`--demo`, `--config-dir`, `--debug`, `--version`); subcommand `version`;
-   call `app.Run` with `os.Stdin`, `os.Stdout`, `os.UserHomeDir()`; on error print `sitrep: <error>` to stderr and
+   call `app.Run` with `os.Stdin`, `os.Stdout`, `os.UserHomeDir()`; on error print `jumper: <error>` to stderr and
    exit 1. `main.go` is the only file that touches `os.Stdin/Stdout/Exit`.
 4. `root_test.go` uses `teatest.NewTestModel(t, root, teatest.WithInitialTermSize(120, 36))` with the fake
    backend and `theme.SetProfile("none")`.
@@ -63,7 +63,7 @@ go test -race ./internal/tui/ -run Root -v
 # TestRootUnknownCommandFlashes
 # TestRootQuit: ":q", enter → program finishes (tm.WaitFinished with a 2s timeout)
 make check
-./sitrep --demo         # manual: BUILD-PLAN §2 M0 demo script works
+./jumper --demo         # manual: BUILD-PLAN §2 M0 demo script works
 ```
 
 ## Pitfalls

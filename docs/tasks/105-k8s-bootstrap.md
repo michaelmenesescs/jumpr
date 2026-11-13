@@ -15,7 +15,7 @@ A `k8s` backend that connects with the standard kubeconfig rules and can switch 
 - modify `internal/config/` (`kubernetes: {kubeconfig: "", contexts_protected: []}`), `internal/app/core.go`
 
 ## Requirements
-1. `go get k8s.io/client-go@v0.37.2 k8s.io/api@v0.37.2 k8s.io/apimachinery@v0.37.2`. Record `ls -l sitrep` size
+1. `go get k8s.io/client-go@v0.37.2 k8s.io/api@v0.37.2 k8s.io/apimachinery@v0.37.2`. Record `ls -l jumper` size
    before and after in `docs/HANDOFF.md`; fail the task (stop and report) if the binary exceeds 80 MB.
 2. Loading: `clientcmd.NewNonInteractiveDeferredLoadingClientConfig` with explicit path (config) or
    `$KUBECONFIG` (value passed in from `app`, never read here) / `~/.kube/config`; exec credential plugins work
@@ -24,7 +24,7 @@ A `k8s` backend that connects with the standard kubeconfig rules and can switch 
    the client. `:ns <name>|all` sets the session namespace. Status line shows `ctx:<name>`. Contexts listed in
    `contexts_protected` set the session read-only on switch (SPEC §16).
 4. `Health`: `GET /version` with a 5 s timeout; OK shows the server version; auth errors → Down with kind `auth`.
-5. Exec-plugin prompts (e.g. SSO login in a browser) are outside sitrep's control: if the plugin needs a TTY it
+5. Exec-plugin prompts (e.g. SSO login in a browser) are outside jumper's control: if the plugin needs a TTY it
    fails; surface its stderr in `:health`.
 
 ## Acceptance

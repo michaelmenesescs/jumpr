@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
 func TestParsePrefix(t *testing.T) {

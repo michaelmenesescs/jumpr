@@ -6,7 +6,7 @@
 - **Status:** done
 
 ## Goal
-A Go module that builds a `sitrep` binary printing its version, a Makefile with the standard targets, and every
+A Go module that builds a `jumper` binary printing its version, a Makefile with the standard targets, and every
 third-party dependency for M0–M7 pinned in `go.mod` so no later task needs `go get`.
 
 ## Context
@@ -15,13 +15,13 @@ BUILD-PLAN §1 (D1, D2, D11, D13), §9 (standard commands), §10 (dependency tab
 ## Files
 - modify `go.mod`; create `go.sum`
 - create `Makefile`
-- create `cmd/sitrep/main.go`
+- create `cmd/jumper/main.go`
 - create `internal/deps/deps.go`
 - modify `.gitignore`
 
 ## Requirements
-1. `go.mod` already exists (module `sitrep`, created by the lab track together with `cmd/sitrep-lab`). Keep the
-   module path and the `go` line as they are. Do not touch `cmd/sitrep-lab/` or `lab/`.
+1. `go.mod` already exists (module `jumper`, created by the lab track together with `cmd/@@`). Keep the
+   module path and the `go` line as they are. Do not touch `cmd/@@/` or `lab/`.
 2. Run exactly (versions are pinned on purpose):
    ```
    go get github.com/charmbracelet/bubbletea@v1.3.10 github.com/charmbracelet/lipgloss@v1.1.0 \
@@ -40,31 +40,31 @@ BUILD-PLAN §1 (D1, D2, D11, D13), §9 (standard commands), §10 (dependency tab
    `github.com/mattn/go-runewidth`, `github.com/pmezard/go-difflib/difflib`, `github.com/skeema/knownhosts`,
    `golang.org/x/crypto/ssh`, `golang.org/x/crypto/ssh/agent`, `golang.org/x/sync/errgroup`,
    `golang.org/x/sys/unix`, `golang.org/x/term`, `gopkg.in/yaml.v3`.
-4. `cmd/sitrep/main.go`: `var version = "dev"` (set with `-ldflags "-X main.version=…"`). `sitrep version` and
-   `sitrep --version` print `sitrep <version>` and exit 0. Any other invocation prints
-   `sitrep: not implemented yet` to stderr and exits 2 (task 016 replaces this).
+4. `cmd/jumper/main.go`: `var version = "dev"` (set with `-ldflags "-X main.version=…"`). `jumper version` and
+   `jumper --version` print `jumper <version>` and exit 0. Any other invocation prints
+   `jumper: not implemented yet` to stderr and exits 2 (task 016 replaces this).
 5. `Makefile` targets (each recipe is a single `go`/`gofmt` invocation; no shell scripts):
-   - `build`: `CGO_ENABLED=0 go build -ldflags "-X main.version=$(VERSION)" -o sitrep ./cmd/sitrep` with
+   - `build`: `CGO_ENABLED=0 go build -ldflags "-X main.version=$(VERSION)" -o jumper ./cmd/jumper` with
      `VERSION ?= dev`
    - `test`: `go test -race ./...`
    - `lint`: fail if `gofmt -l .` prints anything, then `go vet ./...`
    - `lab-test`: `go test -tags lab -run 'TestLab' -count=1 ./...`
    - `check`: `lint test build`
    - `tidy`: `go mod tidy`
-6. `.gitignore`: keep existing lines (the lab entries are already there); add `/sitrep-lab`, `/sitrep-dev`,
+6. `.gitignore`: keep existing lines (the lab entries are already there); add `/@@`, `/@@`,
    `/lab/.knowledge/`, `*.test`, `coverage.out`.
 
 ## Out of scope
-Any TUI code. CI configuration. `cmd/sitrep-lab` (owned by the lab track; do not create or edit it).
+Any TUI code. CI configuration. `cmd/@@` (owned by the lab track; do not create or edit it).
 
 ## Acceptance
 ```
 make check                      # exits 0
-./sitrep version                # prints: sitrep dev
+./jumper version                # prints: jumper dev
 go mod tidy && git diff --exit-code go.mod go.sum   # tidy removes nothing
-CGO_ENABLED=0 GOARCH=amd64 go build -o /dev/null ./cmd/sitrep
+CGO_ENABLED=0 GOARCH=amd64 go build -o /dev/null ./cmd/jumper
 go vet -tags deps ./internal/deps/
-go build ./cmd/sitrep-lab        # the lab tool still builds
+go build ./cmd/@@        # the lab tool still builds
 ```
 
 ## Pitfalls

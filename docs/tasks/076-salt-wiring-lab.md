@@ -57,7 +57,7 @@ State tree, pillar, mine, key management, events (M7). Detach (M5).
 ```
 make check
 make lab-test
-./sitrep --config-dir lab/sitrep       # manual: BUILD-PLAN §2 M4 demo script
+./jumper --config-dir lab/jumper       # manual: BUILD-PLAN §2 M4 demo script
 go test -race ./internal/tui/ -run 'Salt' -v
 # TestSaltNativeTargetSetsTargets (fake runner preview → targets count + flash), TestSaltTargetExplain,
 # TestRunViaSalt (plan dialog shows "via salt:" and the root warning), TestSuggestSaltHint

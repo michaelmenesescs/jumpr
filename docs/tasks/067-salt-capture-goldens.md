@@ -14,12 +14,12 @@ on every lab host with grains `role` and `dc`, nodegroups `webs` and `k8s`, stat
 `postgres`, a pillar containing a fake secret.
 
 ## Files
-- modify `cmd/sitrep-dev/main.go`, create `internal/devtools/capture_salt.go`
+- modify `cmd/@@/main.go`, create `internal/devtools/capture_salt.go`
 - add `testdata/salt/*.json|*.txt` (generated), create `testdata/salt/README.md` (one line per file: the exact
   command that produced it)
 
 ## Requirements
-1. `go run ./cmd/sitrep-dev capture salt [--config-dir lab/sitrep] [--out testdata/salt]` runs through
+1. `go run ./cmd/@@ capture salt [--config-dir lab/jumper] [--out testdata/salt]` runs through
    `salt.Runner` (so the files are exactly what the code will see) and writes:
    `version.txt`; `key-list.json` (`salt-key -L`); `key-finger.json` (`salt-key -F`); `manage-status.json`;
    `manage-versions.json`; `cache-grains.json` (`salt-run cache.grains tgt='*'`); `nodegroups.json`
@@ -38,7 +38,7 @@ on every lab host with grains `role` and `dc`, nodegroups `webs` and `k8s`, stat
    restarts afterwards).
 2. Every file goes through `devtools.Sanitize`; pillar output additionally through a value scrubber
    (`ScrubValues(json) json`) with a unit test.
-3. Faults are injected and undone through `go run ./cmd/sitrep-lab fault <name>` / `--undo` where one exists;
+3. Faults are injected and undone through `go run ./cmd/@@ fault <name>` / `--undo` where one exists;
    otherwise the capture tool makes the lab-only change itself over SSH (stop a minion, edit a managed file to
    create drift) and always restores it, also on failure.
 4. If a command fails or the output shape differs from what tasks 068–075 describe, **record it** in
@@ -51,7 +51,7 @@ Parsers. Changing the lab.
 ## Acceptance
 ```
 go test ./internal/devtools/ -run 'Scrub|Sanitize' -v
-go run ./cmd/sitrep-dev capture salt --config-dir lab/sitrep      # lab up: exit 0, files written
+go run ./cmd/@@ capture salt --config-dir lab/jumper      # lab up: exit 0, files written
 ls testdata/salt | wc -l                                          # >= 24
 grep -ril 'fake-secret\|BEGIN.*PRIVATE' testdata/salt ; test $? -eq 1
 ```

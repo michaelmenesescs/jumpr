@@ -1,4 +1,4 @@
-# sitrep — Build plan (end to end)
+# jumper — Build plan (end to end)
 
 > Companion to `docs/SPEC.md` v0.2. The spec says **what**; this file says **how and in what order**.
 > The task files in `docs/tasks/` are the unit of work. This file is the contract they share.
@@ -14,40 +14,40 @@
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | Module path is `sitrep` (`go mod init sitrep`). Imports look like `sitrep/internal/resource`. | No remote yet, and the final host is undecided. Renaming later is one `go mod edit -module` plus a mechanical import rewrite. |
+| D1 | Module path is `jumper` (`go mod init jumper`). Imports look like `jumper/internal/resource`. | No remote yet, and the final host is undecided. Renaming later is one `go mod edit -module` plus a mechanical import rewrite. |
 | D2 | `go 1.27` in `go.mod`. Build with `CGO_ENABLED=0`. Primary target `darwin/arm64`; `darwin/amd64` must compile. | Constraint from the spec. Toolchain on the build Mac is go 1.27.2. |
-| D3 | **Bubble Tea v1** (`github.com/charmbracelet/bubbletea` v1.3.x), Lip Gloss v1, Bubbles v1. Not the v2 line (`charm.land/...`). | v1 is frozen and stable, and it is the API a fast model knows best (`tea.KeyMsg`, `View() string`). v2 has a different import path and API; mixing them is the most likely way to break the build. Revisit after v1.0 of sitrep. |
+| D3 | **Bubble Tea v1** (`github.com/charmbracelet/bubbletea` v1.3.x), Lip Gloss v1, Bubbles v1. Not the v2 line (`charm.land/...`). | v1 is frozen and stable, and it is the API a fast model knows best (`tea.KeyMsg`, `View() string`). v2 has a different import path and API; mixing them is the most likely way to break the build. Revisit after v1.0 of jumper. |
 | D4 | **The session process owns everything and renders.** A session is one long-lived `tea.Program` whose input and output are plain `io.Reader`/`io.Writer`. Standalone mode wires them to the real terminal. Server mode wires them to a unix socket; the client is a dumb byte pump (the tmux design). | One code path for both modes. No state-sync protocol to design or get wrong. The client is about 200 lines. See §6. |
 | D5 | Detach/reattach ships in **M5**, after the tool is already useful. M0–M4 run standalone. From task 001 on, the code obeys the **detach-safety rules** (§6.1) so M5 is plumbing, not a rewrite. Task 025 proves it early by running the whole app over an in-memory pipe. | Keeps the early milestones shippable; removes the risk of painting into a corner. |
-| D6 | A pane hosts either a **view stack** (sitrep views) or a **terminal** (remote shell over SSH, later `kubectl exec`, local shell). Terminal panes run the byte stream through an in-process VT emulator (`github.com/charmbracelet/x/vt`) and draw its screen as text inside the pane rectangle. | This is how tmux works, and it is the only way to show a shell next to a table in one frame. The emulator is wrapped behind our own small interface (§4.9) so it can be swapped. |
+| D6 | A pane hosts either a **view stack** (jumper views) or a **terminal** (remote shell over SSH, later `kubectl exec`, local shell). Terminal panes run the byte stream through an in-process VT emulator (`github.com/charmbracelet/x/vt`) and draw its screen as text inside the pane rectangle. | This is how tmux works, and it is the only way to show a shell next to a table in one frame. The emulator is wrapped behind our own small interface (§4.9) so it can be swapped. |
 | D7 | Default prefix key is `C-a`. When the client starts inside tmux (`$TMUX` set), the default is `C-b` (`mux.prefix_in_tmux`). The status line always shows the active prefix. Every mux function is also a `:` command. | The user's tmux prefix is `C-a`, so `C-a` would be eaten by tmux when nested. Their tmux does not use `C-b`, so it passes through. Open question Q1. |
 | D8 | Remote reads use **text formats that exist on every supported distro** when JSON is not universal. `systemctl list-units` is parsed from `--plain --no-legend` (JSON needs systemd ≥ 246; RHEL 8 has 239, Ubuntu 20.04 has 245). `journalctl -o json`, `ip -j`, `lsblk -J`, `findmnt -J` are JSON everywhere we support. | One parser per probe, no version sniffing. Reliable before clever. |
 | D9 | **Salt comes right after the action bus (M4)**, and Salt commands run as **async jobs** (`salt --async` then poll `jobs.lookup_jid`). The job is the unit: the jobs browser, state runs and Salt-as-transport all sit on one job engine. | The Salt CLI's synchronous mode loses slow minions silently. Async + poll gives per-minion progress, clean timeouts, and the jobs browser for free. |
 | D10 | Types shared by many packages live in leaf packages with no internal imports: `errs`, `resource`, `action`, `transport`. Backends never import `tui`, `mux`, `bus` or each other. | Prevents import cycles, which a fast model tends to "fix" by moving code around. |
 | D11 | **All third-party dependencies for M0–M7 are added once, in task 001**, and held in `go.mod` by a blank-import file. Later tasks do not run `go get`. Tasks 098, 105, 115 add the few later ones. | Lets tasks run in parallel without `go.mod`/`go.sum` merge conflicts, and stops surprise dependencies. |
 | D12 | No Go `plugin` package, no cgo, no code generation, no `init()` registration magic. Wiring is explicit in `internal/app`. | Predictable for the implementer and the reviewer. |
-| D13 | **Every helper and dev tool is Go.** Lab controller `cmd/sitrep-lab` (`up|down|status|ssh-config|fault <name>|reset`, in-machine provisioning snippets embedded with `go:embed`), dev tool `cmd/sitrep-dev` (`capture`, `sanitize`, `release`), golden updates via `go test -update`, example auth helper in `examples/`. No bash or Python helper scripts; the Makefile only calls `go`. Shell that sitrep sends to remote nodes is the product, not a helper. | User requirement (2026-11-12). One language, one toolchain, testable tools. |
+| D13 | **Every helper and dev tool is Go.** Lab controller `cmd/@@` (`up|down|status|ssh-config|fault <name>|reset`, in-machine provisioning snippets embedded with `go:embed`), dev tool `cmd/@@` (`capture`, `sanitize`, `release`), golden updates via `go test -update`, example auth helper in `examples/`. No bash or Python helper scripts; the Makefile only calls `go`. Shell that jumper sends to remote nodes is the product, not a helper. | User requirement (2026-11-12). One language, one toolchain, testable tools. |
 
 ## 2. Milestones
 
 Each milestone ends with something you can use and a demo script. "Lab" means the OrbStack lab described in
-SPEC §22; all lab commands assume `go run ./cmd/sitrep-lab up` has run and `lab/ssh_config` exists (written by `sitrep-lab ssh-config`).
+SPEC §22; all lab commands assume `go run ./cmd/@@ up` has run and `lab/ssh_config` exists (written by `@@ ssh-config`).
 
 | M | Name | Tasks | You can now… | Demo (run from repo root) |
 |---|---|---|---|---|
-| M0 | Skeleton | 001–016 | Navigate fake data in a k9s-style shell: `:kind selector`, `/` filter, breadcrumbs, health dots, help. | `make build && ./sitrep --demo` → `:hosts role=web` → `/ewr-00` → `Enter` → `Esc` → `?` → `:q` |
-| M1 | Multiplexer (in-process) | 017–025 | Split panes, windows, prefix key, zoom, resize, copy mode; layout survives restart. | `./sitrep --demo` → `C-a %` → `:alerts` in the new pane → `C-a c` → `C-a 0` → `C-a z` → `C-a [` select, `y` → quit and restart: layout is back |
-| M2 | SSH + Linux core | 026–053 | Reach lab hosts through the bastion; hosts/units/journal/procs/sockets views; fleet probes grouped by identical output; an interactive SSH shell in a pane. | `./sitrep --config-dir lab/sitrep` → `:hosts` → `Enter` on `web-01` → `u` → `j` → `:probe failed-units` → `C-a %` → `:ssh web-02` |
-| M3 | Actions + investigations | 054–065 | Restart a unit with plan → confirm → canary → rolling; policy deny; everything recorded in Markdown; knowledge panel; `:run`; guarded synchronized input. | Run `go run ./cmd/sitrep-lab fault haproxy-443`, then follow SPEC W1 without metrics: `:hosts role=web` → `:inv open nginx 443` → `:probe failed-units` → open the differing host → `u` → `x` restart nginx (fails at the canary) → `s` sockets → `F` → `x` stop haproxy → restart nginx → `T`; then `go run ./cmd/sitrep-lab fault haproxy-443 --undo` |
+| M0 | Skeleton | 001–016 | Navigate fake data in a k9s-style shell: `:kind selector`, `/` filter, breadcrumbs, health dots, help. | `make build && ./jumper --demo` → `:hosts role=web` → `/ewr-00` → `Enter` → `Esc` → `?` → `:q` |
+| M1 | Multiplexer (in-process) | 017–025 | Split panes, windows, prefix key, zoom, resize, copy mode; layout survives restart. | `./jumper --demo` → `C-a %` → `:alerts` in the new pane → `C-a c` → `C-a 0` → `C-a z` → `C-a [` select, `y` → quit and restart: layout is back |
+| M2 | SSH + Linux core | 026–053 | Reach lab hosts through the bastion; hosts/units/journal/procs/sockets views; fleet probes grouped by identical output; an interactive SSH shell in a pane. | `./jumper --config-dir lab/jumper` → `:hosts` → `Enter` on `web-01` → `u` → `j` → `:probe failed-units` → `C-a %` → `:ssh web-02` |
+| M3 | Actions + investigations | 054–065 | Restart a unit with plan → confirm → canary → rolling; policy deny; everything recorded in Markdown; knowledge panel; `:run`; guarded synchronized input. | Run `go run ./cmd/@@ fault haproxy-443`, then follow SPEC W1 without metrics: `:hosts role=web` → `:inv open nginx 443` → `:probe failed-units` → open the differing host → `u` → `x` restart nginx (fails at the canary) → `s` sockets → `F` → `x` stop haproxy → restart nginx → `T`; then `go run ./cmd/@@ fault haproxy-443 --undo` |
 | M4 | Salt core | 066–076 | Minions and keys, grains inventory, selector ↔ Salt target, live and historical jobs grouped per minion, `state.apply test=True` grouped by identical diff, Salt as fan-out transport, Salt actions through the bus. **First fully usable release (v0.5).** | `:minions` → `:jobs` → `:hosts role=web` → `:salt state` (dry run, grouped) → `x` apply → `:run --via salt 'uptime'` |
-| M5 | Session server | 077–083 | Detach and reattach; sessions survive closing the terminal; works inside tmux. | `./sitrep` → open panes, start `journal` follow → `C-a d` → close terminal → new terminal → `./sitrep attach` → follow kept running. `./sitrep ls` |
+| M5 | Session server | 077–083 | Detach and reattach; sessions survive closing the terminal; works inside tmux. | `./jumper` → open panes, start `journal` follow → `C-a d` → close terminal → new terminal → `./jumper attach` → follow kept running. `./jumper ls` |
 | M6 | systemd + Linux depth | 084–091 | isd parity: unit status/show/cat, dependencies, timers, drop-in preview, unit-file diff across hosts; disks, network, cgroups, dmesg, files, packages, `/proc` drill-in. | `:units` on `web-01` → `Enter` nginx → tabs; `:hosts role=web` → `:unitdiff nginx.service` |
 | M7 | Salt depth | 092–097 | State tree browser, redacted pillar, mine, key management, live event stream, nodegroups, beacons/schedules, salt-ssh awareness, `salt-call` local mode. | `:states` → `:pillar web-01` → `:keys` accept a pending key → `:events` |
-| M8 | HTTP + Prometheus/Alertmanager | 098–104 | Connection profiles with proxy/TLS/auth helper; alerts → investigation; PromQL and sparklines; silences. SPEC W1 complete. | `sitrep doctor conn lab-sso https://prom.lab.example.internal` → `:alerts` → `Enter` |
+| M8 | HTTP + Prometheus/Alertmanager | 098–104 | Connection profiles with proxy/TLS/auth helper; alerts → investigation; PromQL and sparklines; silences. SPEC W1 complete. | `jumper doctor conn lab-sso https://prom.lab.example.internal` → `:alerts` → `Enter` |
 | M9 | Kubernetes | 105–112 | k9s parity for daily use; logs; exec into a pane; node ↔ host pivot. | `:pods` → crash-looping pod → `l` logs → `h` node as host → `u` kubelet |
 | M10 | Chef + YAML plugins | 113–118 | knife reads, drift, `chef-client --why-run` through the bus; declarative plugins; save `:run` as a plugin. | `:chef nodes` → `:plugins` → run `nginx-status` |
 | M11 | Grafana + Elasticsearch | 119–122 | Dashboards rendered in the TUI; ES log search and tail inside an investigation. | `:dash` → open → `:logs web-01` |
-| M12 | Hardening | 123–127 | 2,000-host scale test, `init`/`doctor`, system-ssh fallback, crash safety, release build, user docs. | `make scale-test`; `sitrep doctor` |
+| M12 | Hardening | 123–127 | 2,000-host scale test, `init`/`doctor`, system-ssh fallback, crash safety, release build, user docs. | `make scale-test`; `jumper doctor` |
 
 Order rationale: M1 before SSH because every later view is drawn inside a pane and it is cheap while the code is
 small. M3 before Salt because every Salt write must go through the bus. M5 after M4 because detach adds no new
@@ -56,9 +56,9 @@ capability to debug with, only persistence, and by then the model is proven by t
 ## 3. Package layout (exact)
 
 ```
-cmd/sitrep/                    main.go: subcommand dispatch only. No logic.
-cmd/sitrep-lab/                lab controller (Go; owned by the lab track, not by these tasks)
-cmd/sitrep-dev/                dev tool: capture, sanitize, release (Go; tasks 053, 067, 127)
+cmd/jumper/                    main.go: subcommand dispatch only. No logic.
+cmd/@@/                lab controller (Go; owned by the lab track, not by these tasks)
+cmd/@@/                dev tool: capture, sanitize, release (Go; tasks 053, 067, 127)
 examples/auth-helper-cookie/   example auth helper (Go; task 099)
 internal/app/                  composition root: config → transports → backends → bus → session. Run().
 internal/config/               paths, schema structs, load, defaults, validate
@@ -86,7 +86,7 @@ internal/bus/                  bus, policy, confirm level, rollout engine
 internal/redact/               secret redaction
 internal/safe/                  safe.Go: panic-recovering goroutine starter (task 126)
 internal/labtest/               helpers for //go:build lab tests (task 035)
-internal/devtools/              logic behind cmd/sitrep-dev (capture, sanitize, release)
+internal/devtools/              logic behind cmd/@@ (capture, sanitize, release)
 internal/bus/generic/           the `:run` planner (task 063)
 internal/investigation/        investigation file, audit file, timeline, recorder, knowledge index
 internal/plugin/               YAML plugins (M10)
@@ -102,7 +102,7 @@ internal/tui/theme/            colours and styles
 internal/tui/keymap/           key bindings and hints
 internal/tui/views/            concrete views (table, text, host, fanout, journal, …)
 internal/deps/                 deps.go: blank imports that pin dependencies (build tag `deps`)
-lab/                           generated lab files (ssh_config, kubeconfig) and the sitrep lab config; see SPEC §22
+lab/                           generated lab files (ssh_config, kubeconfig) and the jumper lab config; see SPEC §22
 testdata/                      golden inputs, sanitized
 docs/                          SPEC, BUILD-PLAN, HANDOFF, INTERVIEW, tasks/
 ```
@@ -1118,7 +1118,7 @@ The view's `Update` handles the batch message and returns another `NextBatch` co
 ## 6. Session server (M5) and the rules that keep M0–M4 compatible
 
 ```
- terminal ── sitrep (client) ══ unix socket ══ sitrep server (one per user)
+ terminal ── jumper (client) ══ unix socket ══ jumper server (one per user)
    raw mode, alt screen,          frames          ├─ session "main":  tea.Program ⇄ mux ⇄ panes
    pumps bytes, SIGWINCH                          ├─ session "db-incident": …
                                                   └─ shared: SSH pool, inventory, backends, bus, investigations
@@ -1126,10 +1126,10 @@ The view's `Update` handles the batch message and returns another `NextBatch` co
                                                               ▼ nodes: nothing installed, nothing listening
 ```
 
-- **One server per user**, started on demand by the client (`sitrep` re-executes itself as `sitrep server` with
-  `Setsid`, stdio to `~/.cache/sitrep/server.log`). Lock: `flock` on `~/.cache/sitrep/server.lock`.
-- **Socket:** `~/.cache/sitrep/sitrep.sock`, directory mode `0700`, socket mode `0600`. Override with
-  `$SITREP_SOCKET` or `-S <path>` (tests use a temp dir; macOS limits socket paths to 103 bytes — check and fail with
+- **One server per user**, started on demand by the client (`jumper` re-executes itself as `jumper server` with
+  `Setsid`, stdio to `~/.cache/jumper/server.log`). Lock: `flock` on `~/.cache/jumper/server.lock`.
+- **Socket:** `~/.cache/jumper/jumper.sock`, directory mode `0700`, socket mode `0600`. Override with
+  `$JUMPER_SOCKET` or `-S <path>` (tests use a temp dir; macOS limits socket paths to 103 bytes — check and fail with
   a `Config` error).
 - **Rendering happens in the server.** Each session runs one `tea.Program` for its whole life with
   `tea.WithInput(sessionIn)` and `tea.WithOutput(sessionOut)`. `sessionIn`/`sessionOut` are switchable pipes:
@@ -1147,14 +1147,14 @@ The view's `Update` handles the batch message and returns another `NextBatch` co
 - **Prompts while detached** (host key, key passphrase) wait up to `interact.timeout` (default 2 min) for a client,
   then fail with `errs.Interaction`.
 - **Persistence:** every session autosaves its layout (`mux.SessionFile`, task 024) to
-  `~/.cache/sitrep/sessions/<name>.json` on change (debounced 1 s). When the server starts it restores saved
+  `~/.cache/jumper/sessions/<name>.json` on change (debounced 1 s). When the server starts it restores saved
   sessions lazily on first attach. Terminal panes come back as "disconnected — press r to reconnect".
-- **Standalone mode** (`sitrep --standalone`, and the only mode before M5): same `app.Run`, wired to the real TTY.
+- **Standalone mode** (`jumper --standalone`, and the only mode before M5): same `app.Run`, wired to the real TTY.
   From M5 on the default is server mode; `--standalone` stays for debugging and for tests.
 
 ### 6.1 Detach-safety rules (apply from task 001)
 
-1. Only `cmd/sitrep` and `internal/app` may touch `os.Stdin`, `os.Stdout`, `os.Stderr`, `os.Exit`, `os.Getenv`.
+1. Only `cmd/jumper` and `internal/app` may touch `os.Stdin`, `os.Stdout`, `os.Stderr`, `os.Exit`, `os.Getenv`.
    Everything else gets readers, writers and values passed in.
 2. No `tea.ExecProcess`, no `tea.Suspend`. Anything interactive runs in a terminal pane.
 3. Never read the terminal size from the OS; use the last `tea.WindowSizeMsg`.
@@ -1211,7 +1211,7 @@ type SessionInfo struct { // RESULT of "ls"
 ```
 
 Version rule: if `Hello.Protocol != ProtocolVersion` the server replies `EXIT{reason:"error"}` with the message
-`server speaks protocol N; run "sitrep kill-server" and start again`.
+`server speaks protocol N; run "jumper kill-server" and start again`.
 
 ## 7. Error handling rules
 
@@ -1219,7 +1219,7 @@ Version rule: if `Hello.Protocol != ProtocolVersion` the server replies `EXIT{re
 - Every table cell that could not be filled shows the error **kind** (`timeout`, `sudo`, `not-available`), never a
   blank and never a stack trace. The detail goes in the flash line or the `e` (errors) dialog.
 - Never `panic` for input you did not control (remote output, config, user typing). `internal/app` recovers panics
-  at the top level, restores the terminal, and writes `~/.cache/sitrep/crash/<timestamp>.txt`.
+  at the top level, restores the terminal, and writes `~/.cache/jumper/crash/<timestamp>.txt`.
 - Remote stderr is data, not an error, unless the exit code or a known pattern says so:
 
 | Pattern | Kind |
@@ -1258,7 +1258,7 @@ Version rule: if `Hello.Protocol != ProtocolVersion` the server replies `EXIT{re
 | Layer | How | Needs lab |
 |---|---|---|
 | Pure logic (selector, layout tree, grouping, targeting compiler, prefix machine, protocol codec, policy, rollout math) | Table-driven unit tests; aim for every branch. | no |
-| Parsers | Golden tests: input file in `testdata/<backend>/<probe>/<distro>.txt`, expected rows asserted in Go. Each parser task ships at least one inline sample; `go run ./cmd/sitrep-dev capture` (tasks 053, 067) adds real captures from Rocky 9, Ubuntu 22.04 and 24.04. Truncated and garbage inputs must not panic (fuzz-style table). | capture only |
+| Parsers | Golden tests: input file in `testdata/<backend>/<probe>/<distro>.txt`, expected rows asserted in Go. Each parser task ships at least one inline sample; `go run ./cmd/@@ capture` (tasks 053, 067) adds real captures from Rocky 9, Ubuntu 22.04 and 24.04. Truncated and garbage inputs must not panic (fuzz-style table). | capture only |
 | SSH transport | In-process SSH server (`sshtest`, task 030) with a command table, a bastion mode, a channel limit and latency/failure injection. | no |
 | Backends | `transporttest.Fake` executor scripted with golden outputs. | no |
 | Bus | Fake planner with scripted step results; assert phases, thresholds, abort, recorder calls. | no |
@@ -1274,7 +1274,7 @@ nodes except through the bus, and each one undoes its fault injection in `t.Clea
 Standard commands (Makefile, task 001):
 
 ```
-make build      # CGO_ENABLED=0 go build -o sitrep ./cmd/sitrep
+make build      # CGO_ENABLED=0 go build -o jumper ./cmd/jumper
 make test       # go test -race ./...
 make lint       # gofmt -l (must print nothing) + go vet ./...
 make lab-test   # go test -tags lab -run 'TestLab' ./... -count=1   (requires lab/ssh_config)
@@ -1320,7 +1320,7 @@ testify (plain `testing`), no logging library.
 
 ## 11. Configuration schema (v0.2)
 
-`~/.config/sitrep/config.yaml` (override the directory with `--config-dir` or `$SITREP_CONFIG_DIR`). Every key is
+`~/.config/jumper/config.yaml` (override the directory with `--config-dir` or `$JUMPER_CONFIG_DIR`). Every key is
 optional; defaults shown.
 
 ```yaml
@@ -1347,12 +1347,12 @@ inventory:
   sources:
     - type: ssh_config
     # - type: static
-    #   path: ~/.config/sitrep/hosts.yaml
+    #   path: ~/.config/jumper/hosts.yaml
     # - type: salt
   identity:
     rewrites: []           # [{from: '^(.*):9100$', to: '$1'}]
 knowledge:
-  root: ~/sitrep
+  root: ~/jumper
 rollout:
   canary: 1
   batch_percent: 10

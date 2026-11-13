@@ -1,4 +1,4 @@
-// Package config holds sitrep's configuration schema, defaults, loader and
+// Package config holds jumper's configuration schema, defaults, loader and
 // validation. It never reads the environment or the real home directory: the
 // home directory is passed in by the caller (BUILD-PLAN §6.1).
 package config
@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"time"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.
@@ -134,7 +134,7 @@ func Default() Config {
 			Identity: IdentityConfig{},
 		},
 		Knowledge: KnowledgeConfig{
-			Root: "~/sitrep",
+			Root: "~/jumper",
 		},
 		Rollout: RolloutConfig{
 			Canary:                  1,

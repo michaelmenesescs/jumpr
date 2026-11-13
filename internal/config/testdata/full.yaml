@@ -21,14 +21,14 @@ inventory:
   sources:
     - type: ssh_config
     - type: static
-      path: ~/.config/sitrep/hosts.yaml
+      path: ~/.config/jumper/hosts.yaml
     - type: salt
   identity:
     rewrites:
       - from: '^(.*):9100$'
         to: '$1'
 knowledge:
-  root: ~/sitrep
+  root: ~/jumper
 rollout:
   canary: 2
   batch_percent: 20

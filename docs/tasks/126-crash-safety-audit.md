@@ -13,7 +13,7 @@ SPEC §15 "Crash safety" and "Logs", verified rather than assumed.
 - create `internal/app/audit_test.go`
 
 ## Requirements
-1. A panic in any goroutine sitrep starts (fan-out worker, poller, pane reader, bus step) is recovered at that
+1. A panic in any goroutine jumper starts (fan-out worker, poller, pane reader, bus step) is recovered at that
    goroutine's top, logged with a stack, converted to an `errs.Internal` result where one is expected, and
    surfaced as a flash; it never kills the session. Add a small `safe.Go(log, name, fn)` helper in a new leaf
    package `internal/safe` (create `internal/safe/safe.go` and its test) and use it for every `go` statement
@@ -23,8 +23,8 @@ SPEC §15 "Crash safety" and "Logs", verified rather than assumed.
    mode), crash report written, session layout was autosaved ≤ 1 s before.
 3. Debug log: every remote command logs host, a redacted command line, duration, rc and byte counts — never
    output, never stdin. A test runs a scenario with secrets in commands and outputs and greps the log file.
-4. Log rotation: `sitrep.log` and `server.log` rotate at 10 MiB, keep 3.
-5. `sitrep kill-server` and SIGTERM shut down within 3 s with shells closed and rollouts aborted between batches
+4. Log rotation: `jumper.log` and `server.log` rotate at 10 MiB, keep 3.
+5. `jumper kill-server` and SIGTERM shut down within 3 s with shells closed and rollouts aborted between batches
    (recorded as aborted).
 
 ## Acceptance

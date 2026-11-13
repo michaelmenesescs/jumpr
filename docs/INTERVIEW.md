@@ -40,8 +40,8 @@ Process requested: interview → brainstorm → spec → build.
 
 ## Decisions the assistant made (user did not object; revisit if wrong)
 
-- Working name `sitrep`.
-- Knowledge root default `~/sitrep/`.
+- Working name `jumper`.
+- Knowledge root default `~/jumper/`.
 - Elasticsearch is read-only in v1.
 - Generic auth = connection profiles + an "auth helper" exec protocol (JSON headers/cookies on stdout).
 - Blast-radius safety: canary + rolling batches; typed confirmation for more than 20 targets.

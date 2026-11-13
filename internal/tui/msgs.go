@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/backend"
-	"sitrep/internal/resource"
+	"jumper/internal/backend"
+	"jumper/internal/resource"
 )
 
 // Navigation (emitted by views and commands; handled by the focused view pane's stack)

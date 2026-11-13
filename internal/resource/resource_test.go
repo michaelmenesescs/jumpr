@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
 func TestRefStringAndParse(t *testing.T) {

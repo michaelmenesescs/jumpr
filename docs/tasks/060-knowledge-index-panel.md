@@ -38,12 +38,12 @@ SPEC §5 W6, §10 (knowledge resurfacing). Mockup knowledge panel (path, why it 
 5. Matching runs in a `tea.Cmd` whenever the top view's `Subject()` changes (compare with the previous subject;
    debounce 150 ms).
 6. `:kb new host|service|alert|runbook <name>` creates a note file from a template with frontmatter and opens it
-   in a text view (editing is done in the user's editor outside sitrep for now; flash the path).
+   in a text view (editing is done in the user's editor outside jumper for now; flash the path).
 7. On `:inv resolve`, offer (y/N dialog) to append the root-cause line to `knowledge/alerts/<alert>.md` or
    `knowledge/services/<unit>.md` when the investigation has one.
 
 ## Out of scope
-Full-text search UI. Embeddings. Editing inside sitrep.
+Full-text search UI. Embeddings. Editing inside jumper.
 
 ## Acceptance
 ```

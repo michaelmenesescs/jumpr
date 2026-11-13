@@ -6,7 +6,7 @@
 - **Status:** todo
 
 ## Goal
-SPEC §8.7 drift and actions: sitrep runs `chef-client` on targets via its own fan-out, not `knife ssh`.
+SPEC §8.7 drift and actions: jumper runs `chef-client` on targets via its own fan-out, not `knife ssh`.
 
 ## Files
 - create `internal/backend/chef/drift.go`, `actions.go`, `whyrun.go`, `_test.go` files, `lab_test.go` (lab tag)

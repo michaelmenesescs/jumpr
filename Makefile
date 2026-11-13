@@ -4,7 +4,7 @@ GO ?= go
 .PHONY: build test lint lab-test check tidy
 
 build:
-	CGO_ENABLED=0 $(GO) build -ldflags "-X main.version=$(VERSION)" -o sitrep ./cmd/sitrep
+	CGO_ENABLED=0 $(GO) build -ldflags "-X main.version=$(VERSION)" -o jumper ./cmd/jumper
 
 test:
 	$(GO) test -race ./...

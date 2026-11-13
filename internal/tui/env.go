@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"time"
 
-	"sitrep/internal/backend"
-	"sitrep/internal/resource"
-	"sitrep/internal/tui/keymap"
-	"sitrep/internal/tui/theme"
+	"jumper/internal/backend"
+	"jumper/internal/resource"
+	"jumper/internal/tui/keymap"
+	"jumper/internal/tui/theme"
 )
 
 // Env is the shared, read-mostly environment handed to every view and command.

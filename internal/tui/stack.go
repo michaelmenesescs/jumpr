@@ -3,7 +3,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/render"
+	"jumper/internal/render"
 )
 
 // Stack is the view history of one view pane. The root view is always at the

@@ -1,4 +1,4 @@
-# Task 070 — Targeting compiler: sitrep selectors ↔ Salt targets (pure)
+# Task 070 — Targeting compiler: jumper selectors ↔ Salt targets (pure)
 
 - **Milestone:** M4
 - **Depends on:** 004, 066
@@ -6,7 +6,7 @@
 - **Status:** todo
 
 ## Goal
-Turn a sitrep selector or host list into the best Salt target, and parse a native Salt target typed by the user.
+Turn a jumper selector or host list into the best Salt target, and parse a native Salt target typed by the user.
 
 ## Context
 SPEC §8.6 (targeting compiler row). BUILD-PLAN §11 (`salt.list_chunk`).

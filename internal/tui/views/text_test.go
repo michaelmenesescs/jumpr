@@ -8,9 +8,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"sitrep/internal/errs"
-	"sitrep/internal/render"
-	"sitrep/internal/tui"
+	"jumper/internal/errs"
+	"jumper/internal/render"
+	"jumper/internal/tui"
 )
 
 // newText builds a text view over the given lines with the test environment.

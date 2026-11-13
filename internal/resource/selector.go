@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
 // Op is a selector operator.

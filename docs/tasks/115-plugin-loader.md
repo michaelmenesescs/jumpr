@@ -6,14 +6,14 @@
 - **Status:** todo
 
 ## Goal
-Load `~/.config/sitrep/plugins/*.yaml` (SPEC §12) into validated definitions with helpful errors.
+Load `~/.config/jumper/plugins/*.yaml` (SPEC §12) into validated definitions with helpful errors.
 
 ## Files
 - modify `go.mod`/`go.sum`, `internal/deps/deps.go` (`go get github.com/itchyny/gojq@v0.12.20`)
 - create `internal/plugin/schema.go`, `load.go`, `_test.go` files, `internal/plugin/testdata/*.yaml`
 
 ## Requirements
-1. Structs for both examples in SPEC §12 (`apiVersion: sitrep/v1`, `kind: Plugin`, `name`, `description`,
+1. Structs for both examples in SPEC §12 (`apiVersion: jumper/v1`, `kind: Plugin`, `name`, `description`,
    `target: host|k8s|http|inventory`, `privileged`, `command`, `params`, `parse`, `view`, `links`, `actions`,
    `connection`, `request`, `emits_hosts`). Strict decoding.
 2. Validation with file, line and field in every message: name `^[a-z][a-z0-9-]*$` and unique; parse type known;

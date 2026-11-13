@@ -6,7 +6,7 @@
 - **Status:** todo
 
 ## Goal
-`./sitrep --config-dir lab/sitrep` works against the lab: the M2 demo script end to end.
+`./jumper --config-dir lab/jumper` works against the lab: the M2 demo script end to end.
 
 ## Context
 BUILD-PLAN §2 (M2 demo), §3 (`app` is the composition root), §8.
@@ -49,7 +49,7 @@ go test -race ./internal/app/ -run Build -v     # builds from a temp config with
                                                 # goroutines dialing
 make check
 make lab-test                                   # with the lab up
-./sitrep --config-dir lab/sitrep                # manual: BUILD-PLAN §2 M2 demo script
+./jumper --config-dir lab/jumper                # manual: BUILD-PLAN §2 M2 demo script
 ```
 
 ## Pitfalls

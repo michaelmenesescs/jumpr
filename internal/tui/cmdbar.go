@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/render"
+	"jumper/internal/render"
 )
 
 const (

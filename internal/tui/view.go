@@ -6,7 +6,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/resource"
+	"jumper/internal/resource"
 )
 
 // Subject is what a view is "about". It drives the knowledge panel and investigation entries.

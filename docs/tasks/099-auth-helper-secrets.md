@@ -25,8 +25,8 @@ The enterprise extension point of SPEC §7.2: run a user command that returns he
    return `errs.Auth` naming the profile.
 3. While detached, a helper that needs interaction simply runs (it can open a browser on the laptop); its
    timeout applies.
-4. Secrets: `{{ secret "name" }}` in profile strings resolves, in order: `Deps.Env["SITREP_SECRET_<NAME>"]`,
-   macOS Keychain (`/usr/bin/security find-generic-password -s sitrep -a <name> -w`), a configured command
+4. Secrets: `{{ secret "name" }}` in profile strings resolves, in order: `Deps.Env["JUMPER_SECRET_<NAME>"]`,
+   macOS Keychain (`/usr/bin/security find-generic-password -s jumper -a <name> -w`), a configured command
    (`secrets: {name: {command: [...]}}`). A literal credential in `connections.yaml` (`password:`/`token:` with a
    non-template value) produces a `:health` warning.
 5. The example helper is a real Go program with its own `main`, documented in three lines, and built by
@@ -42,5 +42,5 @@ go build ./examples/...
 ```
 
 ## Pitfalls
-- No shell: the helper argv is executed directly. `~` in argv[0] is expanded by sitrep.
+- No shell: the helper argv is executed directly. `~` in argv[0] is expanded by jumper.
 - The helper's stdout is a credential: do not log it, do not include it in errors.

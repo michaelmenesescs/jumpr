@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"sitrep/internal/backend"
-	"sitrep/internal/errs"
-	"sitrep/internal/resource"
+	"jumper/internal/backend"
+	"jumper/internal/errs"
+	"jumper/internal/resource"
 )
 
 // fixedNow keeps the world deterministic in tests.

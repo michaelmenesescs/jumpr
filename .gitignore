@@ -1,12 +1,12 @@
-/sitrep
+/jumper
 /dist/
 *.env
 .env*
 /lab/.keys/
 /lab/.logs/
 /lab/ssh_config
-/sitrep-lab
-/sitrep-dev
+/@@
+/@@
 /lab/.knowledge/
 *.test
 coverage.out

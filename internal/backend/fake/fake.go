@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"sitrep/internal/backend"
-	"sitrep/internal/errs"
-	"sitrep/internal/resource"
+	"jumper/internal/backend"
+	"jumper/internal/errs"
+	"jumper/internal/resource"
 )
 
 // batchSize is the maximum number of resources in one Result.

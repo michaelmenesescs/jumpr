@@ -10,7 +10,7 @@ Any API resource is browsable; the lab proves W3.
 
 ## Files
 - create `internal/backend/k8s/dynamic.go`, `dynamic_test.go`, `lab_test.go` (`//go:build lab`)
-- modify `internal/app/core.go`, `lab/sitrep/config.yaml` (`kubernetes.kubeconfig: lab/.keys/kubeconfig`),
+- modify `internal/app/core.go`, `lab/jumper/config.yaml` (`kubernetes.kubeconfig: lab/.keys/kubeconfig`),
   `docs/HANDOFF.md`, `README.md`
 
 ## Requirements
@@ -21,7 +21,7 @@ Any API resource is browsable; the lab proves W3.
 2. Edit (`e`): opens the YAML in a text editor pane only if local panes exist; otherwise v1 offers
    `k8s.apply-patch`: the user pastes or types a JSON merge patch in a text prompt; the plan shows a
    server-side dry-run diff; apply through the bus.
-3. Lab tests (kubeconfig context `sitrep-lab`): nodes Ready = 2; fault `oom-pod` → a pod reaches
+3. Lab tests (kubeconfig context `@@`): nodes Ready = 2; fault `oom-pod` → a pod reaches
    `CrashLoopBackOff`/`OOMKilled` status in the pods kind; previous logs non-empty; node of that pod resolves to
    an inventory host and its journal (kernel) contains an OOM line; rollout restart of a test deployment through
    the bus; exec `echo ok` in a pod shell; cordon/uncordon `k3s-2`.

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	"sitrep/internal/render"
-	"sitrep/internal/resource"
+	"jumper/internal/render"
+	"jumper/internal/resource"
 )
 
 // cellText renders one field of row as plain text, following the column's

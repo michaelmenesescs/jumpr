@@ -7,10 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"sitrep/internal/errs"
-	"sitrep/internal/render"
-	"sitrep/internal/tui"
-	"sitrep/internal/tui/keymap"
+	"jumper/internal/errs"
+	"jumper/internal/render"
+	"jumper/internal/tui"
+	"jumper/internal/tui/keymap"
 )
 
 const (

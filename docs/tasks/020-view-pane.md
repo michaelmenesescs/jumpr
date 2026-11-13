@@ -6,7 +6,7 @@
 - **Status:** todo
 
 ## Goal
-`mux.Content` implementation that hosts a `tui.Stack`: the kind of pane that shows sitrep views.
+`mux.Content` implementation that hosts a `tui.Stack`: the kind of pane that shows jumper views.
 
 ## Context
 BUILD-PLAN §4.8, §4.9, §8 (pane context).

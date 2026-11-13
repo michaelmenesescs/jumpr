@@ -1,4 +1,4 @@
-module sitrep
+module jumper
 
 go 1.27.2
 

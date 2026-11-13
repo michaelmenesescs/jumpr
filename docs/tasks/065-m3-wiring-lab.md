@@ -13,7 +13,7 @@ metrics).
 BUILD-PLAN §2 (M3 demo), §3 (`app` is the composition root). SPEC §5 W1, §11, §16.
 
 ## Files
-- modify `internal/app/build.go`, `cmd/sitrep/main.go` (`--readonly`)
+- modify `internal/app/build.go`, `cmd/jumper/main.go` (`--readonly`)
 - create `internal/app/lab_w1_test.go` (`//go:build lab`)
 - create `internal/tui/commands_policy.go` (`:policy`, `:readonly on|off`)
 - modify `docs/HANDOFF.md`
@@ -42,9 +42,9 @@ Metrics and alerts (M8). Salt (M4). New features of any kind: this task only ass
 ```
 make check
 make lab-test
-./sitrep --config-dir lab/sitrep      # manual: BUILD-PLAN §2 M3 demo script
+./jumper --config-dir lab/jumper      # manual: BUILD-PLAN §2 M3 demo script
 ```
 
 ## Pitfalls
 - The lab test asserts on files under a temp knowledge root, not `lab/.knowledge`.
-- If the fault name differs in `sitrep-lab`, use the real one (see task 035's note).
+- If the fault name differs in `@@`, use the real one (see task 035's note).

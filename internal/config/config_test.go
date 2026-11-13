@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
 const testHome = "/Users/tester"
@@ -82,7 +82,7 @@ func TestLoadFull(t *testing.T) {
 
 	wantSources := []InventorySource{
 		{Type: "ssh_config"},
-		{Type: "static", Path: testHome + "/.config/sitrep/hosts.yaml"},
+		{Type: "static", Path: testHome + "/.config/jumper/hosts.yaml"},
 		{Type: "salt"},
 	}
 	if !reflect.DeepEqual(cfg.Inventory.Sources, wantSources) {
@@ -93,7 +93,7 @@ func TestLoadFull(t *testing.T) {
 		t.Errorf("inventory.identity.rewrites = %+v, want %+v", cfg.Inventory.Identity.Rewrites, wantRewrites)
 	}
 
-	if got, want := cfg.Knowledge.Root, testHome+"/sitrep"; got != want {
+	if got, want := cfg.Knowledge.Root, testHome+"/jumper"; got != want {
 		t.Errorf("knowledge.root = %q, want %q", got, want)
 	}
 
@@ -224,7 +224,7 @@ func TestExpandHome(t *testing.T) {
 		want string
 	}{
 		{"~/.ssh/config", testHome + "/.ssh/config"},
-		{"~/sitrep", testHome + "/sitrep"},
+		{"~/jumper", testHome + "/jumper"},
 		{"~", testHome},
 		{"~user/x", "~user/x"},
 		{"/etc/ssh/ssh_config", "/etc/ssh/ssh_config"},
@@ -240,20 +240,20 @@ func TestExpandHome(t *testing.T) {
 func TestResolvePaths(t *testing.T) {
 	got := ResolvePaths(testHome, "")
 	want := Paths{
-		ConfigDir:     testHome + "/.config/sitrep",
-		CacheDir:      testHome + "/.cache/sitrep",
-		KnowledgeRoot: testHome + "/sitrep",
+		ConfigDir:     testHome + "/.config/jumper",
+		CacheDir:      testHome + "/.cache/jumper",
+		KnowledgeRoot: testHome + "/jumper",
 	}
 	if got != want {
 		t.Errorf("ResolvePaths = %+v, want %+v", got, want)
 	}
 
-	got = ResolvePaths(testHome, "~/alt/sitrep")
-	if want := testHome + "/alt/sitrep"; got.ConfigDir != want {
+	got = ResolvePaths(testHome, "~/alt/jumper")
+	if want := testHome + "/alt/jumper"; got.ConfigDir != want {
 		t.Errorf("override config dir = %q, want %q", got.ConfigDir, want)
 	}
-	got = ResolvePaths(testHome, "/etc/sitrep")
-	if want := "/etc/sitrep"; got.ConfigDir != want {
+	got = ResolvePaths(testHome, "/etc/jumper")
+	if want := "/etc/jumper"; got.ConfigDir != want {
 		t.Errorf("absolute override config dir = %q, want %q", got.ConfigDir, want)
 	}
 }

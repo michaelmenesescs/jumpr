@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"sitrep/internal/resource"
+	"jumper/internal/resource"
 )
 
 type HealthState int

@@ -11,14 +11,14 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"sitrep/internal/errs"
+	"jumper/internal/errs"
 )
 
-// Paths are the directories sitrep uses on the local machine.
+// Paths are the directories jumper uses on the local machine.
 type Paths struct {
-	ConfigDir     string // ~/.config/sitrep by default
-	CacheDir      string // ~/.cache/sitrep
-	KnowledgeRoot string // knowledge.root, default ~/sitrep
+	ConfigDir     string // ~/.config/jumper by default
+	CacheDir      string // ~/.cache/jumper
+	KnowledgeRoot string // knowledge.root, default ~/jumper
 }
 
 // ResolvePaths returns the local paths for the given home directory. An empty
@@ -27,12 +27,12 @@ type Paths struct {
 func ResolvePaths(home, configDirOverride string) Paths {
 	configDir := ExpandHome(configDirOverride, home)
 	if configDir == "" {
-		configDir = filepath.Join(home, ".config", "sitrep")
+		configDir = filepath.Join(home, ".config", "jumper")
 	}
 	return Paths{
 		ConfigDir:     configDir,
-		CacheDir:      filepath.Join(home, ".cache", "sitrep"),
-		KnowledgeRoot: filepath.Join(home, "sitrep"),
+		CacheDir:      filepath.Join(home, ".cache", "jumper"),
+		KnowledgeRoot: filepath.Join(home, "jumper"),
 	}
 }
 

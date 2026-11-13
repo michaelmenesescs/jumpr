@@ -36,7 +36,7 @@ file '/etc/motd.chef' do
 end
 C
 cat > /home/sre/chef-repo/cookbooks/lab/recipes/db.rb <<'C'
-# Deliberately broken: gives sitrep a "last chef run failed" signal on db-01.
+# Deliberately broken: gives jumper a "last chef run failed" signal on db-01.
 execute 'check-replica' do
   command 'pg_isready -h replica.lab.example.internal -t 2'
 end

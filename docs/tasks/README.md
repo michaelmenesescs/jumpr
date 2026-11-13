@@ -23,7 +23,7 @@ One file per implementation task, in order. This index is the single place where
    make check
    ```
    Lab commands (`make lab-test`, anything using `lab/`) only when the task lists them and the lab is up
-   (`go run ./cmd/sitrep-lab status`). If the lab is down, say so in `docs/HANDOFF.md`; do not fake results.
+   (`go run ./cmd/@@ status`). If the lab is down, say so in `docs/HANDOFF.md`; do not fake results.
 7. Re-read **Out of scope** and **Pitfalls**; confirm you did not do the former or fall into the latter.
 8. Set status to `done` (task file + this table). Update `docs/HANDOFF.md`: next task, a line in the session log,
    measured numbers if the task asked for them.
@@ -66,7 +66,7 @@ only by tasks 001, 098, 105 and 115.
 | [013](013-text-view.md) | Text view (scrollable text, key/value detail) | 008, 011 | M0-C | done |
 | [014](014-command-bar.md) | Command bar and command registry | 011 | M0-C | done |
 | [015](015-statusline-hints-dialogs.md) | Status line, hint bar, flash, dialog frame, help | 011 | M0-C | todo |
-| [016](016-root-app.md) | Root model, `app.Run`, `sitrep --demo` | 003, 007, 012, 013, 014, 015 | — | todo |
+| [016](016-root-app.md) | Root model, `app.Run`, `jumper --demo` | 003, 007, 012, 013, 014, 015 | — | todo |
 
 ### M1 — Multiplexer (in-process)
 
@@ -95,7 +95,7 @@ only by tasks 001, 098, 105 and 115.
 | [032](032-ssh-pool.md) | SSH connection pool with bastion multiplexing and limits | 031 | — | todo |
 | [033](033-ssh-exec-stream.md) | SSH Executor and Streamer | 027, 032 | — | todo |
 | [034](034-ssh-shell.md) | SSH ShellOpener (interactive PTY sessions) | 033 | — | todo |
-| [035](035-doctor-ssh-lab.md) | `sitrep doctor ssh` and the first lab test | 033 | — | todo |
+| [035](035-doctor-ssh-lab.md) | `jumper doctor ssh` and the first lab test | 033 | — | todo |
 | [036](036-fanout-runner.md) | Fan-out runner | 026 | M2-B | todo |
 | [037](037-group-diff.md) | Grouping identical outputs, summary headline, unified diff | 005 | M2-A | todo |
 | [038](038-probe-batch.md) | Probe batch compiler and section splitter | 026, 027 | M2-B | todo |
@@ -113,7 +113,7 @@ only by tasks 001, 098, 105 and 115.
 | [050](050-terminal-pane.md) | Terminal pane and `:ssh` | 034, 049, 022, 046 | — | todo |
 | [051](051-prompt-dialogs.md) | Interactive prompts in the TUI (host keys, passphrases) | 029, 022 | M2-F | todo |
 | [052](052-wire-real-backends.md) | Wire SSH, inventory and the Linux backend into the app (M2 exit) | 035, 044, 045, 047, 048, 050, 051 | — | todo |
-| [053](053-dev-capture-tool.md) | `sitrep-dev capture`: golden files from the lab (Go tool) | 035 | M2-F | todo |
+| [053](053-dev-capture-tool.md) | `@@ capture`: golden files from the lab (Go tool) | 035 | M2-F | todo |
 
 ### M3 — Actions + investigations
 
@@ -140,7 +140,7 @@ only by tasks 001, 098, 105 and 115.
 | [067](067-salt-capture-goldens.md) | Capture Salt golden files from the lab (Go tool) | 053, 066 | — | todo |
 | [068](068-salt-minions-keys.md) | Salt backend skeleton: minions, keys, health | 066, 039 | M4-B | todo |
 | [069](069-salt-grains-inventory.md) | Grains as an inventory source | 066, 039 | M4-B | todo |
-| [070](070-salt-targeting-compiler.md) | Targeting compiler: sitrep selectors ↔ Salt targets (pure) | 004, 066 | M4-A | todo |
+| [070](070-salt-targeting-compiler.md) | Targeting compiler: jumper selectors ↔ Salt targets (pure) | 004, 066 | M4-A | todo |
 | [071](071-salt-job-engine.md) | Salt job engine: async submit, poll, per-minion results | 066 | M4-B | todo |
 | [072](072-salt-jobs-browser.md) | Jobs browser: live and historical jobs, grouped job detail | 068, 071, 048 | M4-C | todo |
 | [073](073-salt-executor.md) | Salt as an execution transport | 071, 036 | M4-C | todo |
@@ -190,7 +190,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [098](098-http-connection-profiles.md) | HTTP connection profiles: proxy, TLS, static auth | 003, 054 | — | todo |
 | [099](099-auth-helper-secrets.md) | Auth helper protocol, secrets, example helper (Go) | 098 | M8-A | todo |
-| [100](100-doctor-conn.md) | `sitrep doctor conn` | 098 | M8-A | todo |
+| [100](100-doctor-conn.md) | `jumper doctor conn` | 098 | M8-A | todo |
 | [101](101-prometheus-client-views.md) | Prometheus backend: targets, rules, PromQL, sparklines, chart | 099 | — | todo |
 | [102](102-alertmanager.md) | Alertmanager: alerts view and silences | 101, 057 | — | todo |
 | [103](103-alert-to-investigation.md) | Alert → investigation → hosts (SPEC W1 complete) | 101, 102, 059 | — | todo |
@@ -234,7 +234,7 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [123](123-scale-test.md) | Scale test: 2,000 hosts | 076 | M12-A | todo |
-| [124](124-init-doctor.md) | `sitrep init` and full `sitrep doctor` | 076 | M12-A | todo |
+| [124](124-init-doctor.md) | `jumper init` and full `jumper doctor` | 076 | M12-A | todo |
 | [125](125-system-ssh-fallback.md) | system-ssh fallback transport | 052 | M12-A | todo |
 | [126](126-crash-safety-audit.md) | Crash safety, logging and leak audit | 083, 123 | — | todo |
 | [127](127-release-docs.md) | Keymap file, release build (Go tool), user documentation | 124, 126 | — | todo |

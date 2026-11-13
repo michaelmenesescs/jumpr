@@ -7,14 +7,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"sitrep/internal/backend"
-	"sitrep/internal/backend/fake"
-	"sitrep/internal/errs"
-	"sitrep/internal/render"
-	"sitrep/internal/resource"
-	"sitrep/internal/tui"
-	"sitrep/internal/tui/keymap"
-	"sitrep/internal/tui/theme"
+	"jumper/internal/backend"
+	"jumper/internal/backend/fake"
+	"jumper/internal/errs"
+	"jumper/internal/render"
+	"jumper/internal/resource"
+	"jumper/internal/tui"
+	"jumper/internal/tui/keymap"
+	"jumper/internal/tui/theme"
 )
 
 // fixedNow is the clock every table test runs against.

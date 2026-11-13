@@ -6,7 +6,7 @@
 - **Status:** todo
 
 ## Goal
-`sitrep --demo` with real panes and windows: the M1 demo script up to zoom.
+`jumper --demo` with real panes and windows: the M1 demo script up to zoom.
 
 ## Context
 SPEC §21.2. BUILD-PLAN §2 (M1 demo), §5.
@@ -51,7 +51,7 @@ go test -race ./internal/tui/... -run 'Root|Mux' -v
 # TestRootNewWindowTabs: ctrl+a c → status line contains "0:" and "1:"; ctrl+a 0 returns
 # TestRootZoom, TestRootKillPaneReturnsToOne, TestMuxCommandsRegistered (every command has Usage and Help),
 # TestPrefixInTmux (Options.Env TMUX set → ctrl+b is the prefix, ctrl+a is passed to the view)
-make check && ./sitrep --demo     # manual: M1 demo steps 1–5
+make check && ./jumper --demo     # manual: M1 demo steps 1–5
 ```
 
 ## Pitfalls
