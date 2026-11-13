@@ -102,7 +102,7 @@ only by tasks 001, 098, 105 and 115.
 | [039](039-inventory-core.md) | Inventory: hosts, sources, merge, identity, cache | 028 | M2-D | done |
 | [040](040-linux-parse-overview.md) | Linux parsers: host overview | 005 | M2-D | done |
 | [041](041-linux-parse-units.md) | Linux parsers: systemd units | 005 | M2-D | done |
-| [042](042-linux-parse-journal.md) | Linux parser: journal (JSON lines) | 005 | M2-D | todo |
+| [042](042-linux-parse-journal.md) | Linux parser: journal (JSON lines) | 005 | M2-D | done |
 | [043](043-linux-parse-ps-ss.md) | Linux parsers: processes and sockets | 005 | M2-D | todo |
 | [044](044-linux-backend.md) | Linux backend: host, unit, process, socket kinds | 036, 038, 039, 040, 041, 043 | — | todo |
 | [045](045-journal-kind-view.md) | Journal: windowed query, follow, view | 042, 044, 013 | M2-E | todo |

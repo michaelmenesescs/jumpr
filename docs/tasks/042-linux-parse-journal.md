@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 005
 - **Parallel group:** M2-D (with 039, 040, 041, 043, 049)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Parse `journalctl -o json` output line by line, tolerant of everything journald can emit.

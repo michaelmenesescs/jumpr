@@ -1,0 +1,8 @@
+{"__REALTIME_TIMESTAMP":"1794512467000000","PRIORITY":"3","SYSLOG_IDENTIFIER":"nginx","_PID":"2290","_SYSTEMD_UNIT":"nginx.service","__CURSOR":"s=1;i=1a2b","MESSAGE":"bind() to 0.0.0.0:443 failed (98: Address already in use)"}
+{"__REALTIME_TIMESTAMP":"1794512468000000","PRIORITY":"4","SYSLOG_IDENTIFIER":"nginx","_PID":"2290","_SYSTEMD_UNIT":"nginx.service","__CURSOR":"s=1;i=1a2c","MESSAGE":"nginx: [warn] conflicting server name \"example.internal\" on 0.0.0.0:80"}
+{"__REALTIME_TIMESTAMP":"1794512469000000","PRIORITY":"3","_COMM":"kernel","_TRANSPORT":"kernel","__CURSOR":"s=1;i=1a2d","MESSAGE":[110,103,105,110,120,58,32,102,97,105,108,101,100,32,116,111,32,114,101,97,100,58,32,255,10]}
+{"__REALTIME_TIMESTAMP":"1794512470000000","_COMM":"sshd","_PID":"1180","_SYSTEMD_UNIT":"sshd.service","__CURSOR":"s=1;i=1a2e","MESSAGE":null}
+{"__REALTIME_TIMESTAMP":"1794512471000000","PRIORITY":"2","SYSLOG_IDENTIFIER":"nginx","_PID":"2290","_SYSTEMD_UNIT":"nginx.service","__CURSOR":"s=1;i=1a2f","MESSAGE":"upstream timed out\nwhile reading response header from upstream\n"}
+{"__REALTIME_TIMESTAMP":"1794512472000000","PRIORITY":"6","SYSLOG_IDENTIFIER":"backup","UNIT":"backup.service","_PID":"3311","__CURSOR":"s=1;i=1a30","MESSAGE":["first line of a repeated field","second line ignored"]}
+{"__REALTIME_TIMESTAMP":"1794512473000000","PRIORITY":"7","PID":"4022","__CURSOR":"s=1;i=1a31","MESSAGE":"something with no identifier at all"}
+{"__REALTIME_TIMESTAMP":"1794512474000000","PRIORITY":"3","SYSLOG_IDENTIFIER":"nginx","MESS
