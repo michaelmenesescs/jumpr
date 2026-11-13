@@ -3,7 +3,7 @@
 - **Milestone:** M12
 - **Depends on:** 052
 - **Parallel group:** M12-A (with 123, 124)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Hosts the native client cannot handle (ProxyCommand, GSSAPI, exotic options) work through `/usr/bin/ssh`

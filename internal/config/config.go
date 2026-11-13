@@ -6,6 +6,7 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -71,6 +72,16 @@ type SSHConfig struct {
 	IdleTimeout        Duration `yaml:"idle_timeout"`
 	Keepalive          Duration `yaml:"keepalive"`
 	MaxOutput          int64    `yaml:"max_output"`
+	// Transports routes host patterns away from the native client, e.g.
+	// [{match: "*.legacy.example.internal", transport: system-ssh}].
+	Transports []SSHTransportRule `yaml:"transports"`
+}
+
+// SSHTransportRule sends the hosts matching Match to Transport. Match is a glob
+// over the host ID; Transport is "native" or "system-ssh" (SPEC §7.1).
+type SSHTransportRule struct {
+	Match     string `yaml:"match"`
+	Transport string `yaml:"transport"`
 }
 
 // InventoryConfig configures inventory sources and identity rewriting.
@@ -302,8 +313,31 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	for i, tr := range c.SSH.Transports {
+		match := strings.TrimSpace(tr.Match)
+		if match == "" {
+			return invalidf("ssh.transports[%d].match: a host pattern is required", i)
+		}
+		if _, err := path.Match(match, "host"); err != nil {
+			return invalidf("ssh.transports[%d].match: %v", i, err)
+		}
+		switch tr.Transport {
+		case transportNative, transportSystemSSH:
+		default:
+			return invalidf("ssh.transports[%d].transport: %q is not one of native, system-ssh", i, tr.Transport)
+		}
+	}
+
 	return nil
 }
+
+const (
+	// transportNative is the in-process SSH client.
+	transportNative = "native"
+	// transportSystemSSH runs /usr/bin/ssh for hosts the native client cannot
+	// handle (SPEC §7.1).
+	transportSystemSSH = "system-ssh"
+)
 
 func invalidf(format string, args ...any) *errs.Error {
 	return errs.New(errs.Config, "config.validate", fmt.Sprintf(format, args...))

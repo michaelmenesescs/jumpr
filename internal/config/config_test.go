@@ -115,6 +115,14 @@ func TestLoadFull(t *testing.T) {
 		t.Errorf("salt = %+v, want %+v", cfg.Salt, wantSalt)
 	}
 
+	wantTransports := []SSHTransportRule{
+		{Match: "*.legacy.example.internal", Transport: "system-ssh"},
+		{Match: "keep.example.internal", Transport: "native"},
+	}
+	if !reflect.DeepEqual(cfg.SSH.Transports, wantTransports) {
+		t.Errorf("ssh.transports = %+v, want %+v", cfg.SSH.Transports, wantTransports)
+	}
+
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Validate on full config: %v", err)
 	}
@@ -303,6 +311,15 @@ func TestValidate(t *testing.T) {
 		{"prometheus without a scheme", func(c *Config) {
 			c.Prometheus = []PrometheusConfig{{Name: "eu", URL: "prometheus.example.internal"}}
 		}, "prometheus[0].url"},
+		{"transport without match", func(c *Config) {
+			c.SSH.Transports = []SSHTransportRule{{Transport: "system-ssh"}}
+		}, "ssh.transports[0].match"},
+		{"bad transport glob", func(c *Config) {
+			c.SSH.Transports = []SSHTransportRule{{Match: "[", Transport: "system-ssh"}}
+		}, "ssh.transports[0].match"},
+		{"unknown transport", func(c *Config) {
+			c.SSH.Transports = []SSHTransportRule{{Match: "*.legacy.example.internal", Transport: "telnet"}}
+		}, "ssh.transports[0].transport"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := Default()

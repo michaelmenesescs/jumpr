@@ -122,7 +122,10 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 		}()
 	}
 
-	ex := &runtimeTransport{Transport: stack.Transport, pool: stack.Pool}
+	ex, err := buildExecSet(cfg, o, stack, b.Paths, log)
+	if err != nil {
+		return err
+	}
 
 	reg := backend.NewRegistry()
 	lb := linux.New(linux.Options{

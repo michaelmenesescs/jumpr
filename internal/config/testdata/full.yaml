@@ -16,6 +16,11 @@ ssh:
   idle_timeout: 10m
   keepalive: 15s
   max_output: 1048576
+  transports:
+    - match: '*.legacy.example.internal'
+      transport: system-ssh
+    - match: 'keep.example.internal'
+      transport: native
 inventory:
   cache_ttl: 5m
   sources:

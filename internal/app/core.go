@@ -7,7 +7,11 @@ import (
 	"jumper/internal/backend/prom"
 	"jumper/internal/config"
 	"jumper/internal/errs"
+	"jumper/internal/transport"
 	"jumper/internal/transport/httpx"
+	"jumper/internal/transport/ssh"
+	"jumper/internal/transport/sysssh"
+	"jumper/internal/tui"
 )
 
 // PrometheusBackend builds the Prometheus backend from cfg's `prometheus:`
@@ -144,4 +148,73 @@ func warnFunc(product string, log *slog.Logger, server string) func(string) {
 	return func(msg string) {
 		log.Warn(product, "server", server, "warning", msg)
 	}
+}
+
+// execSet is what the app runs remote work through: one executor and one
+// streamer for the backends, one shell opener for the panes, and the pool
+// holding for `:health`. The three faces are the same value on purpose, so a
+// routed host is routed for commands, streams and shells alike.
+type execSet struct {
+	transport.Executor
+	transport.Streamer
+	transport.ShellOpener
+
+	pool *ssh.Pool
+}
+
+// PoolStats reports what the connection pool currently holds.
+func (e *execSet) PoolStats() tui.PoolStats {
+	if e == nil || e.pool == nil {
+		return tui.PoolStats{}
+	}
+	st := e.pool.Stats()
+	return tui.PoolStats{Bastions: st.Bastions, Targets: st.Targets, Leases: st.Leases}
+}
+
+// buildExecSet chooses the transports cfg asks for: the native SSH transport
+// for every host, or — when ssh.transports routes patterns away — a
+// transport.Router that sends those hosts through the system ssh client
+// (SPEC §7.1). Nothing is dialled here.
+func buildExecSet(cfg config.Config, o Options, stack *sshStack, paths config.Paths, log *slog.Logger) (*execSet, error) {
+	if stack == nil || stack.Transport == nil {
+		return nil, errs.New(errs.Config, "ssh.build", "no ssh transport")
+	}
+	if len(cfg.SSH.Transports) == 0 {
+		return &execSet{
+			Executor:    &runtimeTransport{Transport: stack.Transport, pool: stack.Pool},
+			Streamer:    stack.Transport,
+			ShellOpener: stack.Transport,
+			pool:        stack.Pool,
+		}, nil
+	}
+
+	// The fallback runs the local ssh with the same ssh_config the native
+	// client reads (its first configured file: OpenSSH takes one -F) and the
+	// control sockets next to the rest of the cache.
+	files := cfg.SSH.ConfigFiles
+	cfgFile := ""
+	if len(files) > 0 {
+		cfgFile = config.ExpandHome(files[0], o.Home)
+	}
+	fallback := sysssh.New(sysssh.Options{
+		ConfigFile:     cfgFile,
+		CacheDir:       paths.CacheDir,
+		ConnectTimeout: cfg.SSH.ConnectTimeout.Duration(),
+		ExecTimeout:    cfg.SSH.ExecTimeout.Duration(),
+		MaxOutput:      int(cfg.SSH.MaxOutput),
+		Log:            log,
+	})
+
+	rules := make([]transport.RouteRule, 0, len(cfg.SSH.Transports))
+	for _, tr := range cfg.SSH.Transports {
+		rules = append(rules, transport.RouteRule{Match: tr.Match, Transport: tr.Transport})
+	}
+	router, err := transport.NewRouter(stack.Transport, fallback, rules)
+	if err != nil {
+		return nil, err
+	}
+	if log != nil {
+		log.Debug("ssh.transports configured", "rules", len(rules))
+	}
+	return &execSet{Executor: router, Streamer: router, ShellOpener: router, pool: stack.Pool}, nil
 }
