@@ -260,6 +260,55 @@ func KubernetesBackend(cfg config.Config, home, kubeconfigEnv string, log *slog.
 	})
 }
 
+// KubernetesDynamicBackend builds the Kubernetes backend that serves every
+// listable API resource of the cluster as a kind (task 112), not only the typed
+// kinds KubernetesBackend knows. It is the same client, the same contexts and
+// the same health probe; the difference is the discovery cache and the Table
+// API behind the generic kinds.
+//
+// One discovery pass runs here, bounded, so the discovered kinds exist before
+// the registry keys them: Registry.Register fixes the kind → backend map at
+// registration, and a kind discovered later would resolve to nothing. A cluster
+// that cannot be reached is not an error — the typed kinds still work and
+// Health reports the problem.
+//
+// The caller registers the backend and the planner KubernetesPatchPlanner
+// returns; the edit flow is k8s.apply-patch, because there are no local editor
+// panes in v1 (task 112 requirement 2).
+func KubernetesDynamicBackend(cfg config.Config, home, kubeconfigEnv string, log *slog.Logger) (*k8s.Dynamic, error) {
+	b, err := k8s.NewDynamic(k8s.Options{
+		Kubeconfig:    cfg.Kubernetes.Kubeconfig,
+		KubeconfigEnv: kubeconfigEnv,
+		Home:          home,
+		Protected:     cfg.Kubernetes.ContextsProtected,
+		Log:           log,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), discoveryBudget)
+	defer cancel()
+	if err := b.RefreshKinds(ctx); err != nil && log != nil {
+		log.Warn("kubernetes discovery", "error", err)
+	}
+	return b, nil
+}
+
+// discoveryBudget bounds the one discovery pass KubernetesDynamicBackend makes
+// before the registry is built: long enough for a slow API server, short enough
+// that a cluster that is down does not hold up the session.
+const discoveryBudget = 15 * time.Second
+
+// KubernetesPatchPlanner is the planner of the v1 edit flow: a JSON merge patch
+// previewed with a server-side dry run and applied through the bus. It is
+// registered under its own name and claims only k8s.apply-patch.
+func KubernetesPatchPlanner(b *k8s.Dynamic) action.Planner {
+	if b == nil {
+		return nil
+	}
+	return b.PatchPlanner()
+}
+
 // Alertmanager builds the Alertmanager backend and its silence planner from
 // cfg's `alertmanager:` section (SPEC §8.3), over one set of clients.
 //

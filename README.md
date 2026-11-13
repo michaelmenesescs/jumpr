@@ -61,6 +61,29 @@ the filter).
 When the stack, the proxy or the helper is absent, those tests skip with
 `lab observability stack not running`.
 
+## Generic Kubernetes resources (M9, task 112)
+
+Besides the typed kinds (pods, deployments, nodes, …), the `k8s` backend serves
+every listable API resource the cluster declares, CRDs included. Discovery runs
+once at startup and is cached for ten minutes; the kinds are named by their
+plural with the short and singular names as aliases, and a resource the typed
+kinds already serve is skipped. Columns come from the server's own Table
+response (`Accept: application/json;as=Table;v=v1;g=meta.k8s.io`), so a CRD's
+printer columns appear exactly as kubectl prints them, with numbers
+right-aligned; rows are listed with the same Table request, metadata only.
+`:kinds` shows each generic kind with its API group in the title. Describe and
+YAML reuse the M9 object reader (`d`, `y`).
+
+There are no local editor panes in v1, so `e` offers `k8s.apply-patch`: the
+operator pastes a JSON merge patch into the action dialog's text parameter, the
+plan shows the result of a server-side dry run as a unified diff, and the write
+happens only through the action bus.
+
+```sh
+go test ./internal/backend/k8s/ -run Dynamic -v     # discovery, Table rows, patch plan (no cluster)
+make lab-test                                        # the k3s tests: TestLabK8s…
+```
+
 ## What works today (v0.5, M0–M4)
 
 - **M0 — skeleton.** k9s-style shell over the fake 1,512-host fleet (`--demo`): `:kind selector` navigation,
@@ -109,7 +132,7 @@ make lab-test                            # lab-only suite; skips when the lab is
 go run ./cmd/@@ down                     # stop the lab
 ```
 
-`lab/jumper/config.yaml` points jumper at `lab/ssh_config` (written by the lab controller) and the lab's Salt
-master; the Salt source adds the grains labels (`role`, `dc`) the demo selectors use. Run jumper from the
-repository root so the relative paths resolve. Everything else — `go test ./...`, `make check` — runs without
-the lab, the network or an SSH agent.
+`lab/jumper/config.yaml` points jumper at `lab/ssh_config` (written by the lab controller), the lab's Salt
+master and the lab's k3s kubeconfig (`lab/.keys/kubeconfig`, context `@@`); the Salt source adds the grains
+labels (`role`, `dc`) the demo selectors use. Run jumper from the repository root so the relative paths
+resolve. Everything else — `go test ./...`, `make check` — runs without the lab, the network or an SSH agent.

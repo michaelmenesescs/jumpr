@@ -46,6 +46,12 @@ chef:
 knowledge:
   root: lab/.knowledge
 
+# The lab's two-node k3s cluster (SPEC §22). The lab controller writes this
+# kubeconfig; its context is `@@`. The M9 lab tests are
+# internal/backend/k8s/lab_test.go.
+kubernetes:
+  kubeconfig: lab/.keys/kubeconfig
+
 # The lab's observability stack (SPEC §22) sits behind the mock SSO proxy of
 # `connections.yaml`; both entries use the `lab-sso` profile, so the auth helper
 # is what makes them reachable. The M8 tests are internal/backend/prom/lab_test.go.

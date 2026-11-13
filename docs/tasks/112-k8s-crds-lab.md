@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 107, 108, 109, 110, 111
 - **Parallel group:** — (serial; M9 exit)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Any API resource is browsable; the lab proves W3.
