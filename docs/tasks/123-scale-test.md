@@ -3,7 +3,7 @@
 - **Milestone:** M12
 - **Depends on:** 076
 - **Parallel group:** M12-A (with 124, 125)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Enforce SPEC §15 targets with a fake transport.
