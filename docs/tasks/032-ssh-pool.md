@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 031
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `Pool.Client(ctx, host)` returns a ready, reused connection to any host, creating bastion connections as needed
