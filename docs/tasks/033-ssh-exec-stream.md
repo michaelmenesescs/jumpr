@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 027, 032
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `transport.Executor` and `transport.Streamer` over the pool.
