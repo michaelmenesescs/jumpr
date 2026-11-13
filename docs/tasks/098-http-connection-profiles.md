@@ -3,7 +3,7 @@
 - **Milestone:** M8
 - **Depends on:** 003, 054
 - **Parallel group:** — (serial; adds a dependency)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `internal/transport/httpx`: build an `*http.Client` from a named profile (SPEC §7.2).

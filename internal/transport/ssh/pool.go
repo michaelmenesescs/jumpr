@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
 	"time"
 
@@ -249,6 +250,48 @@ func (p *Pool) Client(ctx context.Context, host resource.HostID) (*Lease, error)
 		return nil, err
 	}
 	return &Lease{p: p, entry: e, client: client, via: via}, nil
+}
+
+// DialContext opens a TCP connection to addr through host's SSH connection,
+// with the ssh "direct-tcpip" channel: the transport behind `ssh-socks`
+// profiles. No local listener is created; the lease of the connection is
+// released when the returned conn is closed.
+func (p *Pool) DialContext(ctx context.Context, host resource.HostID, network, addr string) (net.Conn, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	switch network {
+	case "tcp", "tcp4", "tcp6":
+	default:
+		return nil, errs.New(errs.Config, "ssh.pool", "ssh dial supports tcp only").WithHost(string(host))
+	}
+	l, err := p.Client(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	c, err := l.Client().DialContext(ctx, "tcp", addr)
+	if err != nil {
+		l.Release()
+		if cerr := ctx.Err(); cerr != nil {
+			return nil, classifyPoolWait(cerr, string(host))
+		}
+		return nil, classifyDial(err, string(host))
+	}
+	return &leasedConn{Conn: c, lease: l}, nil
+}
+
+// leasedConn is a forwarded connection that frees its session slot on Close.
+type leasedConn struct {
+	net.Conn
+	lease *Lease
+	once  sync.Once
+}
+
+// Close closes the forwarded connection and releases the lease.
+func (c *leasedConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(func() { c.lease.Release() })
+	return err
 }
 
 // acquireSession takes one session slot for host, waiting (ctx-aware) for a
