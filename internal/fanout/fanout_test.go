@@ -3,6 +3,7 @@ package fanout
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -165,6 +166,83 @@ func TestDedup(t *testing.T) {
 	for _, h := range []resource.HostID{"a", "b", "c"} {
 		if !seen[h] {
 			t.Fatalf("host %s missing", h)
+		}
+	}
+}
+
+// batchOnly implements transport.Executor and transport.BatchExecutor; it
+// records which path fanout.Run takes.
+type batchOnly struct {
+	mu       sync.Mutex
+	execs    int
+	batches  int
+	gotHosts []resource.HostID
+	gotCmd   transport.Command
+}
+
+func (b *batchOnly) Name() string { return "batch" }
+
+func (b *batchOnly) Exec(_ context.Context, host resource.HostID, _ transport.Command) (transport.ExecResult, error) {
+	b.mu.Lock()
+	b.execs++
+	b.mu.Unlock()
+	return transport.ExecResult{Host: host, Via: "batch"}, nil
+}
+
+func (b *batchOnly) ExecBatch(ctx context.Context, hosts []resource.HostID, cmd transport.Command) <-chan transport.HostResult {
+	b.mu.Lock()
+	b.batches++
+	b.gotHosts = append([]resource.HostID(nil), hosts...)
+	b.gotCmd = cmd
+	b.mu.Unlock()
+	out := make(chan transport.HostResult, len(hosts))
+	go func() {
+		defer close(out)
+		for _, h := range hosts {
+			out <- transport.HostResult{Host: h, Result: transport.ExecResult{Host: h, Stdout: []byte("ok\n"), Via: "batch"}}
+		}
+	}()
+	return out
+}
+
+func (b *batchOnly) counts() (execs, batches int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.execs, b.batches
+}
+
+// TestFanoutUsesBatchExecutor: when the executor can run one command on many
+// hosts at once, Run delegates to it instead of fanning out per host.
+func TestFanoutUsesBatchExecutor(t *testing.T) {
+	ex := &batchOnly{}
+	in := append(hosts(5), hid(0), hid(4)) // duplicates must still run once
+
+	got := Collect(Run(context.Background(), ex, in, cmd(), Options{Concurrency: 2}))
+
+	execs, batches := ex.counts()
+	if execs != 0 {
+		t.Errorf("Exec called %d times, want 0", execs)
+	}
+	if batches != 1 {
+		t.Fatalf("ExecBatch called %d times, want 1", batches)
+	}
+	if len(ex.gotHosts) != 5 {
+		t.Errorf("ExecBatch got %d hosts, want the 5 de-duplicated hosts %v", len(ex.gotHosts), ex.gotHosts)
+	}
+	if ex.gotCmd.Script != "uptime" {
+		t.Errorf("ExecBatch got script %q, want uptime", ex.gotCmd.Script)
+	}
+	if len(got) != 5 {
+		t.Fatalf("got %d results, want 5", len(got))
+	}
+	seen := map[resource.HostID]bool{}
+	for _, r := range got {
+		if seen[r.Host] {
+			t.Fatalf("host %s reported twice", r.Host)
+		}
+		seen[r.Host] = true
+		if r.Err != nil {
+			t.Fatalf("host %s: unexpected error: %v", r.Host, r.Err)
 		}
 	}
 }

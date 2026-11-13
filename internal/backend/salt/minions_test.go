@@ -120,7 +120,7 @@ func newTestBackend(t *testing.T, clk *testClock) (*Backend, *transporttest.Fake
 }
 
 // collect drains one List into a single slice of rows.
-func collect(t *testing.T, b *Backend, q resource.Query) []resource.Resource {
+func collectRows(t *testing.T, b *Backend, q resource.Query) []resource.Resource {
 	t.Helper()
 	ch, err := b.List(context.Background(), q)
 	if err != nil {
@@ -303,7 +303,7 @@ func TestListMinionsMerged(t *testing.T) {
 	clk := newClock()
 	b, f := newTestBackend(t, clk)
 
-	rows := collect(t, b, resource.Query{Kind: KindMinion})
+	rows := collectRows(t, b, resource.Query{Kind: KindMinion})
 	if len(rows) != 4 {
 		t.Fatalf("rows = %v, want 4", names(rows))
 	}
@@ -409,7 +409,7 @@ func TestKeysPendingFirst(t *testing.T) {
 	clk := newClock()
 	b, _ := newTestBackend(t, clk)
 
-	rows := collect(t, b, resource.Query{Kind: KindKey})
+	rows := collectRows(t, b, resource.Query{Kind: KindKey})
 	if len(rows) != 4 {
 		t.Fatalf("rows = %v, want 4", names(rows))
 	}
@@ -489,7 +489,7 @@ func TestHostMinionIgnoresUnacceptedKeys(t *testing.T) {
 func TestLinksMinion(t *testing.T) {
 	clk := newClock()
 	b, _ := newTestBackend(t, clk)
-	rows := collect(t, b, resource.Query{Kind: KindMinion})
+	rows := collectRows(t, b, resource.Query{Kind: KindMinion})
 
 	links := b.Links(rowByName(t, rows, "web-01"))
 	var host, jobs *resource.Link

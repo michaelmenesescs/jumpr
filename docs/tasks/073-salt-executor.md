@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 071, 036
 - **Parallel group:** M4-C (with 072)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `transport.Executor` + `transport.BatchExecutor` implemented with `cmd.run_all` through the job engine, so
