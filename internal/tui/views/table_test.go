@@ -392,6 +392,7 @@ func TestTableRendersOnlyVisibleRows(t *testing.T) {
 		t.Fatalf("row 200 %q rendered outside the window", tbl.view[200].Str("host"))
 	}
 
+	skipIfBusy(t, "5 ms render")
 	start := time.Now()
 	const runs = 100
 	for i := 0; i < runs; i++ {
