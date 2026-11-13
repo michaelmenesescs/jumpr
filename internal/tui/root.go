@@ -14,6 +14,7 @@ import (
 	"jumper/internal/mux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
+	"jumper/internal/targets"
 	"jumper/internal/tui/theme"
 )
 
@@ -100,6 +101,9 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 		name = env.Session.Name
 	}
 	r.registerDefaults()
+	// The `:targets` command belongs to the root: it is the only model that
+	// owns SessionState.Targets. A registry that already has it is fine.
+	_ = RegisterTargetsCommands(cmds)
 	m := mux.NewModel(mux.NewSession(name), r.paneContent, prefixKey, stylesFor(env))
 	m.SetRootPredicate(IsRootMsg)
 	r.mux = m
@@ -370,6 +374,8 @@ func (r *Root) toFocused(msg tea.Msg) tea.Cmd {
 // openQuery hands a `:` query to the focused pane, which owns the stack the
 // views live on. It is the only place OpenQueryMsg is turned into a view push:
 // the root must not push as well, or one `:units` would open two views.
+// Opening a host list with a selector also makes that selector the session's
+// target set (BUILD-PLAN §4.7: the status line follows the hosts on screen).
 func (r *Root) openQuery(m OpenQueryMsg) tea.Cmd {
 	q := r.scoped(m.Query)
 	if q.Kind != "" {
@@ -379,12 +385,35 @@ func (r *Root) openQuery(m OpenQueryMsg) tea.Cmd {
 		// Never swallow a query because no pane is focused yet (startup).
 		return Flash(FlashWarn, "no pane to open %s in", q.Kind)
 	}
-	return r.toFocused(OpenQueryMsg{Query: q})
+	push := r.toFocused(OpenQueryMsg{Query: q})
+	if setCmd := r.targetsFromHostQuery(q); setCmd != nil {
+		return tea.Batch(setCmd, push)
+	}
+	return push
+}
+
+// targetsFromHostQuery resolves the selector of a host list into a target set.
+// It returns nil for other kinds and for a query without a selector: explicit
+// hosts and unfiltered lists leave the session targets alone.
+func (r *Root) targetsFromHostQuery(q resource.Query) tea.Cmd {
+	if q.Kind != "host" || q.Selector.IsZero() || r.env == nil || r.env.Inventory == nil {
+		return nil
+	}
+	env := r.env
+	sel := q.Selector
+	return func() tea.Msg {
+		set, err := targets.Resolve(env.Inventory, env.Sets, sel, nil)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: err.Error()}
+		}
+		return TargetsChangedMsg{Set: set}
+	}
 }
 
 // scoped gives a host-scoped query the host of the view it was opened from when
 // it names none, so `:units` on a host table means that host's units. Explicit
-// hosts win, and global kinds are returned unchanged.
+// hosts win, and global kinds are returned unchanged. With no host in the view
+// and no selector, the session target set is the scope.
 func (r *Root) scoped(q resource.Query) resource.Query {
 	if q.Kind == "" || len(q.Hosts) > 0 {
 		return q
@@ -400,8 +429,81 @@ func (r *Root) scoped(q resource.Query) resource.Query {
 	}
 	if len(hosts) > 0 {
 		q.Hosts = append([]resource.HostID(nil), hosts...)
+		return q
+	}
+	if q.Selector.IsZero() {
+		if ids := r.sessionTargets().Hosts; len(ids) > 0 {
+			q.Hosts = append([]resource.HostID(nil), ids...)
+		}
 	}
 	return q
+}
+
+// rootBound reports whether msg must be handled by the root even when it
+// arrives wrapped in a mux.PaneMsg. TargetsChangedMsg is emitted by the table
+// that owns the marks, but it changes session state, which only the root
+// mutates.
+func rootBound(msg tea.Msg) bool {
+	switch msg.(type) {
+	case TargetsChangedMsg:
+		return true
+	}
+	return false
+}
+
+// applyTargets stores set in the session and rebroadcasts it to every pane.
+func (r *Root) applyTargets(set targets.Set) {
+	if r.env != nil && r.env.Session != nil {
+		r.env.Session.Targets = set
+	}
+	r.routeMux(TargetsChangedMsg{Set: set})
+}
+
+// sessionTargets is the current target set; the zero set when there is no
+// session.
+func (r *Root) sessionTargets() targets.Set {
+	if r.env == nil || r.env.Session == nil {
+		return targets.Set{}
+	}
+	return r.env.Session.Targets
+}
+
+// targetsFlash is the one-line confirmation of a target change:
+// "targets: 24 hosts (role=web dc=ewr)".
+func targetsFlash(set targets.Set) string {
+	noun := "hosts"
+	if len(set.Hosts) == 1 {
+		noun = "host"
+	}
+	text := fmt.Sprintf("targets: %d %s", len(set.Hosts), noun)
+	if set.Label != "" {
+		text += " (" + set.Label + ")"
+	}
+	return text
+}
+
+// targetsView is the text view `:targets` opens: the label, the count and the
+// hosts themselves.
+func (r *Root) targetsView() View {
+	set := r.sessionTargets()
+	label := set.Label
+	if label == "" {
+		label = "(none)"
+	}
+	lines := []string{
+		"label: " + label,
+		fmt.Sprintf("hosts: %d", len(set.Hosts)),
+	}
+	if len(set.Hosts) == 0 {
+		lines = append(lines, "",
+			"no targets: use :targets <selector>, :targets marked or :targets load <name>")
+	} else {
+		lines = append(lines, "")
+		for _, h := range set.Hosts {
+			lines = append(lines, string(h))
+		}
+	}
+	return r.noticeView("targets", lines)
 }
 
 // kindSpec looks a kind up in the registry.
@@ -432,7 +534,7 @@ func (r *Root) focusedSubject() Subject {
 // Contents are values owned by the mux; ViewPane always returns itself, so the
 // stored value stays current.
 func (r *Root) handlePaneMsg(pm mux.PaneMsg) tea.Cmd {
-	if IsRootMsg(pm.Msg) {
+	if IsRootMsg(pm.Msg) || rootBound(pm.Msg) {
 		return r.handleMsg(pm.Msg)
 	}
 	c, ok := r.mux.Contents()[pm.Pane]
@@ -497,6 +599,16 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 	case HealthMsg:
 		r.health[m.Backend] = m.Health.State
 		return nil
+	case TargetsChangedMsg:
+		r.applyTargets(m.Set)
+		return Flash(FlashInfo, "%s", targetsFlash(m.Set))
+	case TargetsViewRequestedMsg:
+		return r.pushFocused(r.targetsView())
+	case MarkedTargetsRequestMsg:
+		if _, c := r.mux.Focused(); c == nil {
+			return Flash(FlashWarn, "no focused view to read marked rows from")
+		}
+		return r.toFocused(m)
 	case WindowChangedMsg:
 		if r.env != nil && r.env.Session != nil {
 			r.env.Session.Window = m.Window
@@ -918,6 +1030,7 @@ func (r *Root) statusData() StatusData {
 	}
 	if r.env != nil && r.env.Session != nil {
 		d.ReadOnly = r.env.Session.ReadOnly
+		d.Targets = len(r.env.Session.Targets.Hosts)
 		if !r.env.Session.Window.IsZero() {
 			d.Window = r.env.Session.Window.String()
 		}

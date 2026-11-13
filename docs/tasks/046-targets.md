@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 039, 022
 - **Parallel group:** M2-E (with 045)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The session always knows "which hosts am I operating on": set from a selector, from marked rows, or from a saved

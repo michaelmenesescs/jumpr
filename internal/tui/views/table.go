@@ -18,6 +18,7 @@ import (
 	"jumper/internal/fuzzy"
 	"jumper/internal/render"
 	"jumper/internal/resource"
+	"jumper/internal/targets"
 	"jumper/internal/tui"
 	"jumper/internal/tui/keymap"
 )
@@ -57,6 +58,10 @@ type Table struct {
 	// view state (kept in sync with rows and filter; Render never sorts)
 	view   []resource.Resource
 	cursor int
+
+	// marks are the hosts marked with space, * or cleared with U. Keyed by
+	// host identity, so a mark survives a re-sort or a filter change.
+	marks map[resource.HostID]bool
 
 	sortID   string
 	sortDesc bool
@@ -209,6 +214,8 @@ func (t *Table) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			return t, nil
 		}
 		return t, t.applyBatch(m)
+	case tui.MarkedTargetsRequestMsg:
+		return t, t.markedTargetsCmd()
 	case tea.KeyMsg:
 		return t.handleKey(m)
 	}
@@ -331,6 +338,15 @@ func (t *Table) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 		return t, tui.OpenQuery(link.To)
 	}
 	switch key {
+	case " ", "space":
+		t.toggleMark()
+		return t, nil
+	case "*":
+		t.markAll()
+		return t, nil
+	case "U":
+		t.clearMarks()
+		return t, nil
 	case "s":
 		t.nextSortColumn()
 		return t, nil
@@ -402,6 +418,88 @@ func (t *Table) linkForKey(key string) (resource.Link, bool) {
 		}
 	}
 	return resource.Link{}, false
+}
+
+// MarkedHosts returns the marked hosts, sorted and de-duplicated. Rows without
+// a host identity (global kinds such as alerts) cannot be marked.
+func (t *Table) MarkedHosts() []resource.HostID {
+	if len(t.marks) == 0 {
+		return nil
+	}
+	out := make([]resource.HostID, 0, len(t.marks))
+	for h, on := range t.marks {
+		if on && h != "" {
+			out = append(out, h)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// toggleMark marks or unmarks the row under the cursor.
+func (t *Table) toggleMark() {
+	if t.cursor < 0 || t.cursor >= len(t.view) {
+		return
+	}
+	host := hostOf(t.view[t.cursor])
+	if host == "" {
+		return
+	}
+	if t.marks == nil {
+		t.marks = make(map[resource.HostID]bool)
+	}
+	if t.marks[host] {
+		delete(t.marks, host)
+		return
+	}
+	t.marks[host] = true
+}
+
+// markAll marks every host of the rows the filter currently shows.
+func (t *Table) markAll() {
+	if t.marks == nil {
+		t.marks = make(map[resource.HostID]bool)
+	}
+	for _, r := range t.view {
+		if host := hostOf(r); host != "" {
+			t.marks[host] = true
+		}
+	}
+}
+
+// clearMarks drops every mark.
+func (t *Table) clearMarks() { t.marks = nil }
+
+// markedTargetsCmd answers a request for the marked rows: the marks become the
+// session target set, or the user is told there are none.
+func (t *Table) markedTargetsCmd() tea.Cmd {
+	hosts := t.MarkedHosts()
+	if len(hosts) == 0 {
+		return tui.Flash(tui.FlashInfo, "no marked rows")
+	}
+	set := targets.FromHosts(fmt.Sprintf("%d marked", len(hosts)), hosts)
+	return func() tea.Msg { return tui.TargetsChangedMsg{Set: set} }
+}
+
+// markGlyph is the one-cell mark in the row gutter: "▸" for the unicode and
+// nerd sets, ">" for the ascii set, whose frame holds no rune above 0x7f.
+func (t *Table) markGlyph() rune {
+	if t.glyphs.ASCII() {
+		return '>'
+	}
+	return '▸'
+}
+
+// markCell is the row gutter: the mark glyph for a marked host, a space
+// otherwise.
+func (t *Table) markCell(row resource.Resource) string {
+	if host := hostOf(row); host != "" && t.marks[host] {
+		return string(t.markGlyph())
+	}
+	return " "
 }
 
 // nextSortColumn advances to the next column and sorts ascending, keeping the
@@ -573,22 +671,23 @@ func (t *Table) columns(total int) ([]render.TableColumn, []int) {
 }
 
 // header returns the column layout for width w and caches the rendered header
-// line, so Render does no layout work when only the data changed.
+// line, so Render does no layout work when only the data changed. One cell is
+// reserved on the left for the mark gutter.
 func (t *Table) header(w int) ([]render.TableColumn, []int) {
 	if t.hdrCols != nil && t.hdrWidth == w {
 		return t.hdrCols, t.hdrWidths
 	}
-	cols, widths := t.columns(w)
+	cols, widths := t.columns(max(w-1, 0))
 	t.hdrCols = cols
 	t.hdrWidths = widths
 	t.hdrWidth = w
-	t.hdr = t.env.Theme.Header.Render(render.HeaderWith(t.glyphs, cols, widths))
+	t.hdr = t.env.Theme.Header.Render(" " + render.HeaderWith(t.glyphs, cols, widths))
 	return cols, widths
 }
 
 // rowLine renders one data row, styled by its status (and inverted when
-// selected).
-func (t *Table) rowLine(row resource.Resource, cols []render.TableColumn, widths []int, selected bool) string {
+// selected). gutter is the one-cell mark column in front of it.
+func (t *Table) rowLine(row resource.Resource, gutter string, cols []render.TableColumn, widths []int, selected bool) string {
 	theme := t.env.Theme
 	status := theme.StatusStyle(row.Status)
 	cells := make([]render.Cell, len(t.spec.Columns))
@@ -602,7 +701,7 @@ func (t *Table) rowLine(row resource.Resource, cols []render.TableColumn, widths
 		}
 		cells[i] = render.Cell{Text: text, Style: func(s string) string { return status.Render(s) }}
 	}
-	line := render.RowWith(t.glyphs, cells, widths, cols)
+	line := gutter + render.RowWith(t.glyphs, cells, widths, cols)
 	if selected {
 		line = theme.Selected.Render(line)
 	}
@@ -612,7 +711,7 @@ func (t *Table) rowLine(row resource.Resource, cols []render.TableColumn, widths
 // errorLine renders a failed host at the bottom of the table. The host sits in
 // the name column and the error kind starts at the first non-name column,
 // spilling into the blank remainder so a narrow column never cuts it. The row
-// is styled Crit.
+// is styled Crit, and sits behind the same one-cell mark gutter as the data.
 func (t *Table) errorLine(he hostErr, widths []int) string {
 	crit := t.env.Theme.Crit
 	if len(widths) == 0 {
@@ -625,7 +724,7 @@ func (t *Table) errorLine(he hostErr, widths []int) string {
 	} else {
 		line += " " + kind
 	}
-	return crit.Render(line)
+	return crit.Render(" " + line)
 }
 
 // banner is the one-line summary above the header. It is cached: Render runs
@@ -741,7 +840,7 @@ func (t *Table) Render(w, h int) string {
 					start = t.cursor - dataLines + 1
 				}
 				for i := start; i < start+dataLines && i < len(t.view); i++ {
-					lines = append(lines, t.rowLine(t.view[i], cols, widths, i == t.cursor))
+					lines = append(lines, t.rowLine(t.view[i], t.markCell(t.view[i]), cols, widths, i == t.cursor))
 				}
 			}
 			for i := 0; i < errShow && i < len(t.errs); i++ {

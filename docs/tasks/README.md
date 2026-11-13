@@ -106,7 +106,7 @@ only by tasks 001, 098, 105 and 115.
 | [043](043-linux-parse-ps-ss.md) | Linux parsers: processes and sockets | 005 | M2-D | done |
 | [044](044-linux-backend.md) | Linux backend: host, unit, process, socket kinds | 036, 038, 039, 040, 041, 043 | — | done |
 | [045](045-journal-kind-view.md) | Journal: windowed query, follow, view | 042, 044, 013 | M2-E | done |
-| [046](046-targets.md) | Target sets: current set, saved sets, selection | 039, 022 | M2-E | todo |
+| [046](046-targets.md) | Target sets: current set, saved sets, selection | 039, 022 | M2-E | done |
 | [047](047-host-overview-view.md) | Host overview view | 044, 045, 013 | — | done |
 | [048](048-probe-fanout-view.md) | Read-only probes and the grouped fan-out view | 036, 037, 046 | — | todo |
 | [049](049-vt-emulator-adapter.md) | Terminal emulator adapter (spike with a go/no-go list) | 008 | M2-D | done |

@@ -8,6 +8,7 @@ import (
 	"jumper/internal/backend"
 	"jumper/internal/interact"
 	"jumper/internal/resource"
+	"jumper/internal/targets"
 )
 
 // Navigation (emitted by views and commands; handled by the focused view pane's stack)
@@ -54,6 +55,10 @@ type CloseDialogMsg struct{}
 type RunCommandMsg struct{ Line string }
 
 // Session state changes (root updates Env.Session, then rebroadcasts to all panes)
+
+// TargetsChangedMsg reports a new target set for the session. The root stores
+// it in SessionState.Targets, flashes the new count and rebroadcasts it.
+type TargetsChangedMsg struct{ Set targets.Set }
 
 // WindowChangedMsg reports a new time window for the session.
 type WindowChangedMsg struct{ Window resource.TimeWindow }
