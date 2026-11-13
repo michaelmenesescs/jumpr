@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 026
 - **Parallel group:** M2-B (with 029, 036, 038)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A test-only SSH server that behaves enough like sshd to test dialing, bastions, limits, exec, streams and PTYs

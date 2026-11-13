@@ -90,7 +90,7 @@ only by tasks 001, 098, 105 and 115.
 | [027](027-shell-quoting-classify.md) | Shell quoting, sudo wrapping, remote error classification | 002 | M2-A | done |
 | [028](028-ssh-config.md) | Resolve hosts from ssh_config | 003 | M2-A | done |
 | [029](029-ssh-auth-hostkeys.md) | SSH authentication and host key verification | 028 | M2-B | done |
-| [030](030-ssh-test-server.md) | In-process SSH test server | 026 | M2-B | todo |
+| [030](030-ssh-test-server.md) | In-process SSH test server | 026 | M2-B | done |
 | [031](031-ssh-dial.md) | SSH dialer: direct and through a ProxyJump chain | 029, 030 | — | todo |
 | [032](032-ssh-pool.md) | SSH connection pool with bastion multiplexing and limits | 031 | — | todo |
 | [033](033-ssh-exec-stream.md) | SSH Executor and Streamer | 027, 032 | — | todo |
