@@ -21,10 +21,11 @@ import (
 // fields in the task that introduces them (BUILD-PLAN §4.8 "Growing structs").
 type Env struct {
 	Registry  *backend.Registry
-	Inventory inventory.Inventory // nil until the app wires the inventory in
-	Sets      *targets.Store      // saved target sets; nil = none configured
-	Session   *SessionState       // targets, window, investigation, readonly
-	Exec      transport.Executor  // remote reads for probes and fan-outs; nil = none
+	Inventory inventory.Inventory   // nil until the app wires the inventory in
+	Sets      *targets.Store        // saved target sets; nil = none configured
+	Session   *SessionState         // targets, window, investigation, readonly
+	Exec      transport.Executor    // remote reads for probes and fan-outs; nil = none
+	Shells    transport.ShellOpener // interactive SSH shells; nil in --demo
 	Theme     *theme.Theme
 	Glyphs    render.GlyphSet // active set, resolved once by internal/app
 	Keys      *keymap.Map

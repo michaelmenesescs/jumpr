@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,9 +13,11 @@ import (
 	"jumper/internal/backend"
 	"jumper/internal/clip"
 	"jumper/internal/mux"
+	"jumper/internal/mux/termpane"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
+	"jumper/internal/transport"
 	"jumper/internal/tui/theme"
 )
 
@@ -46,7 +49,7 @@ func sessionOp(op string) bool {
 	switch op {
 	case mux.OpSplitH, mux.OpSplitV, mux.OpKillPane, mux.OpZoom, mux.OpFocus, mux.OpResize,
 		mux.OpSwap, mux.OpLayoutNext, mux.OpNewWindow, mux.OpKillWindow, mux.OpSelectWindow,
-		mux.OpNextWindow, mux.OpPrevWindow, mux.OpRenameWindow, mux.OpRenameSession:
+		mux.OpNextWindow, mux.OpPrevWindow, mux.OpRenameWindow, mux.OpRenameSession, mux.OpSSH:
 		return true
 	}
 	return false
@@ -110,6 +113,10 @@ type Root struct {
 	sessionPath string
 	dirty       bool
 	warns       []string
+
+	// connectTerm is set while :ssh adds a pane, so the pane factory knows a
+	// term pane it is building is a fresh connection, not a restored one.
+	connectTerm bool
 }
 
 var _ tea.Model = (*Root)(nil)
@@ -156,6 +163,9 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 // resolve `:` queries through Env.Factories themselves, so the fallback has to
 // be visible in that map and not only in viewFor.
 func (r *Root) registerDefaults() {
+	// `:ssh` adds a pane, which only the root can do, so the command is
+	// registered here rather than by the app's static table.
+	_ = RegisterSSHCommands(r.cmds)
 	if r.env == nil || r.env.Registry == nil || r.factory == nil {
 		return
 	}
@@ -192,6 +202,12 @@ func stylesFor(env *Env) mux.Styles {
 // rebuilt from its saved `:` command lines; the first pane shows the start
 // query and later panes open the kind of the pane they were split from.
 func (r *Root) paneContent(id mux.PaneID, st mux.ContentState) (mux.Content, tea.Cmd) {
+	if st.Type == "term" {
+		// A term pane from a session file comes back closed ("restored"); one
+		// built for :ssh connects right away.
+		r.panes++
+		return r.termPane(id, st.Host, !r.connectTerm), nil
+	}
 	if p, ok := r.restoredPane(id, st); ok {
 		r.panes++
 		return p, nil
@@ -214,8 +230,28 @@ func (r *Root) paneContent(id mux.PaneID, st mux.ContentState) (mux.Content, tea
 		}
 		v = r.noticeView("error", []string{err.Error()})
 	}
-	_ = st // terminal panes come back in task 050
 	return NewViewPane(r.env, id, nil, v), nil
+}
+
+// termPane builds a terminal pane for host. restored is true for a pane that
+// came back from a session file: it starts closed and does not reconnect.
+func (r *Root) termPane(id mux.PaneID, host string, restored bool) mux.Content {
+	var opener transport.ShellOpener
+	now := time.Now
+	if r.env != nil {
+		opener = r.env.Shells
+		if r.env.Now != nil {
+			now = r.env.Now
+		}
+	}
+	p := termpane.New(id, context.Background(), opener, resource.HostID(host), termpane.Options{
+		Term: "xterm-256color",
+		Now:  now,
+	})
+	if restored {
+		p.MarkRestored()
+	}
+	return p
 }
 
 // restoredPane rebuilds a view pane from the `:` command lines saved in st: the
@@ -758,6 +794,8 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		return r.openQuery(m)
 	case mux.OpMsg:
 		return r.handleOp(m)
+	case sshCommandMsg:
+		return r.sshFromCommand()
 	case mux.PaneMsg:
 		return r.handlePaneMsg(m)
 	case forcedOpMsg:
@@ -875,7 +913,9 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 		return Flash(FlashInfo, "detach needs the session server (coming in M5); use :q to quit")
 	case mux.OpCopyMode:
 		return r.openCopyMode()
-	case mux.OpSync, mux.OpSSH, mux.OpSessionList:
+	case mux.OpSSH:
+		return r.sshOp(m.Arg)
+	case mux.OpSync, mux.OpSessionList:
 		return Flash(FlashInfo, "not available yet")
 	case mux.OpKillPane:
 		if r.focusedBusy() {

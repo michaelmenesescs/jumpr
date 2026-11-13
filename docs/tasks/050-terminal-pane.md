@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 034, 049, 022, 046
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 An interactive SSH shell inside a pane, next to views, with resize, scrollback, reconnect and safe teardown.
