@@ -75,7 +75,7 @@ only by tasks 001, 098, 105 and 115.
 | [017](017-mux-layout-tree.md) | Mux layout tree (pure) | 002 | M1-A | done |
 | [018](018-mux-prefix-machine.md) | Prefix key state machine and mux key table | 010 | M1-A | done |
 | [019](019-mux-session-state.md) | Windows and session state (pure) | 017 | — | done |
-| [020](020-view-pane.md) | View pane content | 016, 019 | M1-B | todo |
+| [020](020-view-pane.md) | View pane content | 016, 019 | M1-B | done |
 | [021](021-mux-model.md) | Mux model: panes on screen, routing, ops | 018, 019 | M1-B | done |
 | [022](022-root-with-mux.md) | Root integration: panes in the app, window tabs, mux commands | 020, 021 | — | todo |
 | [023](023-copy-mode-clipboard.md) | Copy mode and clipboard | 022 | — | todo |

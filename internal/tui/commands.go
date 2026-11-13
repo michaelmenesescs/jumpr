@@ -125,14 +125,57 @@ func (c *Commands) Exec(env *Env, line string) tea.Cmd {
 	}
 	if env != nil && env.Registry != nil {
 		if _, spec, ok := env.Registry.Lookup(word); ok {
-			sel, err := resource.ParseSelector(args)
+			selText, hosts, qargs, err := parseQueryArgs(args)
+			if err != nil {
+				return Flash(FlashError, "%v", err)
+			}
+			sel, err := resource.ParseSelector(selText)
 			if err != nil {
 				return Flash(FlashError, "bad selector: %v", err)
 			}
-			return OpenQuery(resource.Query{Kind: spec.Name, Selector: sel})
+			return OpenQuery(resource.Query{Kind: spec.Name, Selector: sel, Hosts: hosts, Args: qargs})
 		}
 	}
 	return Flash(FlashError, "unknown command: %s", word)
+}
+
+// parseQueryArgs splits a kind command's argument text into the selector text
+// and the --host a,b / --arg k=v flags. Everything that is not a flag is
+// selector text. A flag without a usable value is an errs.Config error.
+func parseQueryArgs(args string) (sel string, hosts []resource.HostID, qargs map[string]string, err error) {
+	toks := strings.Fields(args)
+	var selParts []string
+	for i := 0; i < len(toks); i++ {
+		switch toks[i] {
+		case "--host":
+			if i+1 >= len(toks) {
+				return "", nil, nil, errs.New(errs.Config, "tui.Commands.Exec", "--host needs a comma-separated host list")
+			}
+			i++
+			for _, h := range strings.Split(toks[i], ",") {
+				if h = strings.TrimSpace(h); h != "" {
+					hosts = append(hosts, resource.HostID(h))
+				}
+			}
+		case "--arg":
+			if i+1 >= len(toks) {
+				return "", nil, nil, errs.New(errs.Config, "tui.Commands.Exec", "--arg needs k=v")
+			}
+			i++
+			k, v, ok := strings.Cut(toks[i], "=")
+			if k = strings.TrimSpace(k); !ok || k == "" {
+				return "", nil, nil, errs.New(errs.Config, "tui.Commands.Exec",
+					fmt.Sprintf("--arg needs k=v, got %q", toks[i]))
+			}
+			if qargs == nil {
+				qargs = make(map[string]string)
+			}
+			qargs[k] = v
+		default:
+			selParts = append(selParts, toks[i])
+		}
+	}
+	return strings.Join(selParts, " "), hosts, qargs, nil
 }
 
 // splitFirstWord splits line at the first run of spaces, trimming the rest.

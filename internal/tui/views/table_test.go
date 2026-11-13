@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -373,5 +374,67 @@ func TestTableCellFormatting(t *testing.T) {
 	}
 	if got := statusText(resource.StatusNA); got != "n/a" {
 		t.Fatalf("NA status = %q", got)
+	}
+}
+
+// TestTableCommandLine checks the `:` line that rebuilds the table: the kind,
+// its selector, then the explicit hosts and the sorted args.
+func TestTableCommandLine(t *testing.T) {
+	b := fake.New(fake.Options{})
+	spec := hostKind(t, b)
+
+	plain := NewTable(testEnv(), b, spec, resource.Query{Kind: "host"})
+	if got := plain.CommandLine(); got != "host" {
+		t.Fatalf("CommandLine() = %q, want \"host\"", got)
+	}
+	if got := plain.FilterState(); got != "" {
+		t.Fatalf("FilterState() = %q, want empty", got)
+	}
+
+	sel, err := resource.ParseSelector("role=web and dc=ewr")
+	if err != nil {
+		t.Fatalf("parse selector: %v", err)
+	}
+	q := resource.Query{
+		Kind:     "host",
+		Selector: sel,
+		Hosts:    []resource.HostID{"web-01", "web-02"},
+		Args:     map[string]string{"unit": "nginx.service", "env": "prod"},
+	}
+	tbl := NewTable(testEnv(), b, spec, q)
+	want := "host role=web and dc=ewr --host web-01,web-02 --arg env=prod --arg unit=nginx.service"
+	if got := tbl.CommandLine(); got != want {
+		t.Fatalf("CommandLine() = %q, want %q", got, want)
+	}
+
+	// The filter travels with the view, unescaped.
+	tbl.filter = "web-01"
+	if got := tbl.FilterState(); got != "web-01" {
+		t.Fatalf("FilterState() = %q, want web-01", got)
+	}
+}
+
+// TestTableSetContextStopsStream checks that a cancelled pane context stops the
+// list instead of streaming to the end.
+func TestTableSetContextStopsStream(t *testing.T) {
+	tbl := newHostTable(t, fake.Options{})
+	ctx, cancel := context.WithCancel(context.Background())
+	tbl.SetContext(ctx)
+
+	cmd := tbl.Init()
+	cancel()
+	for i := 0; cmd != nil; i++ {
+		if i > 1000 {
+			t.Fatal("stream did not stop after the context was cancelled")
+		}
+		view, next := tbl.Update(cmd())
+		var ok bool
+		if tbl, ok = view.(*Table); !ok {
+			t.Fatalf("Update returned %T, want *Table", view)
+		}
+		cmd = next
+	}
+	if !tbl.done {
+		t.Fatal("table did not finish after the context was cancelled")
 	}
 }

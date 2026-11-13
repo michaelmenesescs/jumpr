@@ -36,6 +36,10 @@ type Table struct {
 	q    resource.Query
 	keys *keymap.Map
 
+	// base is the pane's context; every listing derives from it, so closing
+	// the pane stops the fan-out. Nil means context.Background.
+	base context.Context
+
 	// stream state
 	seq     int
 	cancel  context.CancelFunc
@@ -122,6 +126,14 @@ func sortSpec(s string) (string, bool) {
 // Init starts the first listing.
 func (t *Table) Init() tea.Cmd { return t.restart() }
 
+// SetContext makes every listing derive from ctx, so cancelling the pane's
+// context stops the stream. The view pane calls it before Init.
+func (t *Table) SetContext(ctx context.Context) {
+	if ctx != nil {
+		t.base = ctx
+	}
+}
+
 // now returns the clock the environment handed us.
 func (t *Table) now() time.Time {
 	if t.env != nil && t.env.Now != nil {
@@ -136,9 +148,12 @@ func (t *Table) restart() tea.Cmd {
 	if t.cancel != nil {
 		t.cancel()
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	parent := t.base
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
 	t.cancel = cancel
-
 	t.seq++
 	t.ch = nil
 	t.rows = nil
@@ -665,6 +680,38 @@ func (t *Table) Crumb() string {
 	}
 	return fmt.Sprintf("%s (%d)", kind, len(t.view))
 }
+
+// CommandLine is the `:` command that opens this table again:
+// "<kind> <selector>", then "--host a,b" and one sorted "--arg k=v" per arg.
+func (t *Table) CommandLine() string {
+	parts := []string{string(t.spec.Name)}
+	if !t.q.Selector.IsZero() {
+		parts = append(parts, t.q.Selector.String())
+	}
+	line := strings.Join(parts, " ")
+	if len(t.q.Hosts) > 0 {
+		hosts := make([]string, len(t.q.Hosts))
+		for i, h := range t.q.Hosts {
+			hosts[i] = string(h)
+		}
+		line += " --host " + strings.Join(hosts, ",")
+	}
+	if len(t.q.Args) > 0 {
+		keys := make([]string, 0, len(t.q.Args))
+		for k := range t.q.Args {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			line += " --arg " + k + "=" + t.q.Args[k]
+		}
+	}
+	return line
+}
+
+// FilterState is the filter text, "" when there is none. The view pane shows it
+// next to the breadcrumbs.
+func (t *Table) FilterState() string { return t.filter }
 
 // Hints lists open, the selected row's links, filter, refresh and back.
 func (t *Table) Hints() []tui.KeyHint {

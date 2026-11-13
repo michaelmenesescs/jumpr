@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 016, 019
 - **Parallel group:** M1-B (with 021)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `mux.Content` implementation that hosts a `tui.Stack`: the kind of pane that shows jumper views.
