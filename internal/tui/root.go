@@ -27,7 +27,40 @@ const (
 	crumbSeparator = " › "
 	// defaultPrefix is the prefix key used when the caller passes none.
 	defaultPrefix = "ctrl+a"
+	// autosaveInterval is how often a dirty session is written. Saves are
+	// debounced by the dirty flag, so a burst of splits costs one file write.
+	autosaveInterval = time.Second
 )
+
+// autosaveMsg asks the root to write the session file if a change is pending.
+type autosaveMsg struct{}
+
+// autosaveTick schedules the next autosave check.
+func autosaveTick() tea.Cmd {
+	return tea.Tick(autosaveInterval, func(time.Time) tea.Msg { return autosaveMsg{} })
+}
+
+// sessionOp reports whether a multiplexer operation changes what a restart has
+// to bring back.
+func sessionOp(op string) bool {
+	switch op {
+	case mux.OpSplitH, mux.OpSplitV, mux.OpKillPane, mux.OpZoom, mux.OpFocus, mux.OpResize,
+		mux.OpSwap, mux.OpLayoutNext, mux.OpNewWindow, mux.OpKillWindow, mux.OpSelectWindow,
+		mux.OpNextWindow, mux.OpPrevWindow, mux.OpRenameWindow, mux.OpRenameSession:
+		return true
+	}
+	return false
+}
+
+// isNavMsg reports whether msg changes a view stack, so the session has to be
+// saved again.
+func isNavMsg(msg tea.Msg) bool {
+	switch msg.(type) {
+	case PushViewMsg, PopViewMsg, ReplaceViewMsg, OpenQueryMsg:
+		return true
+	}
+	return false
+}
 
 // flashTickMsg expires the flash with the matching sequence number. A newer
 // flash bumps the sequence, so a stale tick is ignored.
@@ -70,6 +103,13 @@ type Root struct {
 	clip     clip.Clipboard
 	copy     *mux.CopyMode
 	copyPane mux.PaneID
+
+	// Session persistence (task 024). sessionPath is
+	// <cache>/sessions/<name>.json; dirty means a layout or stack change is
+	// waiting for the next 1 s autosave tick.
+	sessionPath string
+	dirty       bool
+	warns       []string
 }
 
 var _ tea.Model = (*Root)(nil)
@@ -148,9 +188,14 @@ func stylesFor(env *Env) mux.Styles {
 	}
 }
 
-// paneContent is the mux pane factory. The first pane shows the start query;
-// later panes open the kind of the pane they were split from.
+// paneContent is the mux pane factory. A pane restored from a session file is
+// rebuilt from its saved `:` command lines; the first pane shows the start
+// query and later panes open the kind of the pane they were split from.
 func (r *Root) paneContent(id mux.PaneID, st mux.ContentState) (mux.Content, tea.Cmd) {
+	if p, ok := r.restoredPane(id, st); ok {
+		r.panes++
+		return p, nil
+	}
 	q := r.start
 	if r.panes > 0 {
 		q = resource.Query{Kind: r.paneKind}
@@ -169,8 +214,50 @@ func (r *Root) paneContent(id mux.PaneID, st mux.ContentState) (mux.Content, tea
 		}
 		v = r.noticeView("error", []string{err.Error()})
 	}
-	_ = st // persisted pane state is restored by task 024
+	_ = st // terminal panes come back in task 050
 	return NewViewPane(r.env, id, nil, v), nil
+}
+
+// restoredPane rebuilds a view pane from the `:` command lines saved in st: the
+// first becomes the root view and the rest are pushed on top, in order, so the
+// stack is exactly what the user had. It reports false when any line cannot be
+// turned back into a view, and the caller then opens the default pane.
+func (r *Root) restoredPane(id mux.PaneID, st mux.ContentState) (*ViewPane, bool) {
+	if st.Type != "view" || len(st.Commands) == 0 || r.cmds == nil {
+		return nil, false
+	}
+	views := make([]View, 0, len(st.Commands))
+	for _, line := range st.Commands {
+		v, ok := r.commandView(line)
+		if !ok {
+			return nil, false
+		}
+		views = append(views, v)
+	}
+	p := NewViewPane(r.env, id, nil, views[0])
+	for _, v := range views[1:] {
+		p.stack.Push(v)
+	}
+	return p, true
+}
+
+// commandView runs one saved `:` line through the command registry and returns
+// the view it asks for. Only a line that opens a query can be restored; quit,
+// help and an unknown word report false.
+func (r *Root) commandView(line string) (View, bool) {
+	cmd := r.cmds.Exec(r.env, line)
+	if cmd == nil {
+		return nil, false
+	}
+	q, ok := cmd().(OpenQueryMsg)
+	if !ok || q.Query.Kind == "" {
+		return nil, false
+	}
+	v, err := r.viewFor(q.Query)
+	if err != nil {
+		return nil, false
+	}
+	return v, true
 }
 
 // viewFor resolves a query through the registry and the factories and returns
@@ -211,12 +298,15 @@ func (r *Root) viewFor(q resource.Query) (View, error) {
 	return v, nil
 }
 
-// Init starts the first pane, the first health poll and reports a failed start
-// query.
+// Init starts the first pane, the first health poll, the autosave tick and any
+// warning the caller queued before the program started.
 func (r *Root) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	if r.startErr != "" {
 		cmds = append(cmds, Flash(FlashError, "%s", r.startErr))
+	}
+	for _, w := range r.warns {
+		cmds = append(cmds, Flash(FlashWarn, "%s", w))
 	}
 	if r.initCmd != nil {
 		cmds = append(cmds, r.initCmd)
@@ -224,10 +314,88 @@ func (r *Root) Init() tea.Cmd {
 	if c := HealthPoll(r.backends(), healthInterval); c != nil {
 		cmds = append(cmds, c)
 	}
+	if r.sessionPath != "" {
+		cmds = append(cmds, autosaveTick())
+	}
 	if len(cmds) == 0 {
 		return nil
 	}
 	return tea.Batch(cmds...)
+}
+
+// SetSessionPath sets where the session is autosaved (<cache>/sessions/
+// <name>.json) and turns autosave on. An empty path turns it off, which is what
+// the tests and a scratch run use.
+func (r *Root) SetSessionPath(path string) { r.sessionPath = path }
+
+// AddWarning queues a warning line shown once the program starts. app uses it
+// for a session file it could not restore.
+func (r *Root) AddWarning(text string) {
+	if text != "" {
+		r.warns = append(r.warns, text)
+	}
+}
+
+// RestoreSession replaces the model's multiplexer with the one rebuilt from f.
+// app calls it before Init, so the restored panes' first commands run with the
+// program. A warning (some pane fell back to its default content) is returned
+// with a working model; a nil model means the file could not be opened and the
+// caller keeps the fresh session.
+func (r *Root) RestoreSession(f mux.SessionFile) error {
+	m, cmd, err := mux.Restore(f, r.paneContent, r.prefix, stylesFor(r.env))
+	if m == nil {
+		return err
+	}
+	m.SetRootPredicate(IsRootMsg)
+	if r.w > 0 && r.h > 0 {
+		m.SetSize(r.w, r.bodyHeight())
+	}
+	r.mux = m
+	// The placeholder session's first pane is gone with it, so its init command
+	// is dropped instead of being run against a pane that no longer exists.
+	r.initCmd = cmd
+	return err
+}
+
+// Snapshot describes the current session the way mux.Save writes it.
+func (r *Root) Snapshot() mux.SessionFile {
+	var history []string
+	if r.bar != nil {
+		history = r.bar.History()
+	}
+	now := time.Now
+	if r.env != nil && r.env.Now != nil {
+		now = r.env.Now
+	}
+	return mux.Snapshot(r.mux, history, now())
+}
+
+// SaveSession writes the session file now and reports the failure, so app can
+// save once more when the program stops instead of losing the last change.
+func (r *Root) SaveSession() error {
+	if r.sessionPath == "" || r.mux == nil {
+		return nil
+	}
+	r.dirty = false
+	return mux.Save(r.sessionPath, r.Snapshot())
+}
+
+// saveCmd writes the dirty session. The disk write happens inside the command,
+// never in Update. A failure is flashed; a successful save reports nothing.
+func (r *Root) saveCmd() tea.Cmd {
+	if r.sessionPath == "" || r.mux == nil {
+		r.dirty = false
+		return nil
+	}
+	f := r.Snapshot()
+	path := r.sessionPath
+	r.dirty = false
+	return func() tea.Msg {
+		if err := mux.Save(path, f); err != nil {
+			return FlashMsg{Level: FlashWarn, Text: fmt.Sprintf("session not saved: %v", err)}
+		}
+		return nil
+	}
 }
 
 // glyphs returns the active set: the one internal/app resolved from config and
@@ -349,7 +517,13 @@ func (r *Root) routeMux(msg tea.Msg) tea.Cmd {
 	if r.mux == nil {
 		return nil
 	}
+	armed := r.mux.PrefixArmed()
 	out, cmd := r.mux.Update(msg)
+	if armed || isNavMsg(msg) {
+		// A key sent after the prefix may have split, killed or renamed
+		// something; a navigation message changed a view stack.
+		r.dirty = true
+	}
 	if out == nil {
 		return cmd
 	}
@@ -537,6 +711,9 @@ func (r *Root) handlePaneMsg(pm mux.PaneMsg) tea.Cmd {
 	if IsRootMsg(pm.Msg) || rootBound(pm.Msg) {
 		return r.handleMsg(pm.Msg)
 	}
+	if isNavMsg(pm.Msg) {
+		r.dirty = true
+	}
 	c, ok := r.mux.Contents()[pm.Pane]
 	if !ok || c == nil {
 		return nil
@@ -596,6 +773,12 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 			r.flashOn = false
 		}
 		return nil
+	case autosaveMsg:
+		next := autosaveTick()
+		if !r.dirty || r.sessionPath == "" {
+			return next
+		}
+		return tea.Batch(r.saveCmd(), next)
 	case HealthMsg:
 		r.health[m.Backend] = m.Health.State
 		return nil
@@ -665,6 +848,9 @@ func (r *Root) pushFocused(v View) tea.Cmd {
 // handleOp executes the operations the mux hands back to its owner, and routes
 // the ones the mux executes itself.
 func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
+	if sessionOp(m.Op) {
+		r.dirty = true
+	}
 	switch m.Op {
 	case mux.OpCommand:
 		r.bar.Open("")

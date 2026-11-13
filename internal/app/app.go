@@ -7,6 +7,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"jumper/internal/backend/fake"
 	"jumper/internal/config"
 	"jumper/internal/errs"
+	"jumper/internal/mux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/tui"
@@ -37,6 +39,7 @@ type Options struct {
 	ConfigDir string
 	Home      string
 	Debug     bool
+	Fresh     bool
 	Version   string
 	Env       map[string]string
 }
@@ -96,6 +99,15 @@ func Run(ctx context.Context, o Options) (err error) {
 
 	root := tui.NewRoot(env, cmds, tableFactory, resource.Query{Kind: "host"}, prefix)
 
+	// Session persistence: <cache>/sessions/<name>.json, restored on start
+	// unless --fresh was given. A file that cannot be read or a pane that falls
+	// back to its default content warns at startup; neither stops the program.
+	sessionPath := filepath.Join(paths.CacheDir, "sessions", "main.json")
+	root.SetSessionPath(sessionPath)
+	if !o.Fresh {
+		restoreSession(root, sessionPath)
+	}
+
 	p := tea.NewProgram(root,
 		tea.WithInput(o.In),
 		tea.WithOutput(o.Out),
@@ -105,7 +117,29 @@ func Run(ctx context.Context, o Options) (err error) {
 	if _, err := p.Run(); err != nil {
 		return errs.Wrap(errs.Internal, "app.Run", err)
 	}
+	// Save once more on quit: the autosave tick is debounced, so the last change
+	// before a quit would otherwise be lost.
+	if err := root.SaveSession(); err != nil {
+		logger.Warn("session not saved", "path", sessionPath, "err", err)
+	}
 	return nil
+}
+
+// restoreSession loads the session file and hands it to the root. "No file yet"
+// is the normal first start; anything else is reported as a startup warning and
+// the fresh session is kept.
+func restoreSession(root *tui.Root, path string) {
+	f, err := mux.Load(path)
+	switch {
+	case err == nil:
+		if rerr := root.RestoreSession(f); rerr != nil {
+			root.AddWarning(fmt.Sprintf("session restored with warnings: %v", rerr))
+		}
+	case errors.Is(err, os.ErrNotExist):
+		// First start: nothing to restore.
+	default:
+		root.AddWarning(fmt.Sprintf("session not restored: %v", err))
+	}
 }
 
 // resolveGlyphs resolves the active glyph set once, at startup. A non-empty

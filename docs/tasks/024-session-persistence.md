@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 023
 - **Parallel group:** — (serial; touches the root or `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Quit and restart: the same windows, splits and views come back.

@@ -34,6 +34,7 @@ func run(args []string) int {
 	demo := fs.Bool("demo", false, "run against the built-in fake world (no SSH)")
 	configDir := fs.String("config-dir", "", "configuration directory (default ~/.config/jumper)")
 	debug := fs.Bool("debug", false, "write a debug log to ~/.cache/jumper/jumper.log")
+	fresh := fs.Bool("fresh", false, "start a fresh session instead of restoring the saved layout")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -72,6 +73,7 @@ func run(args []string) int {
 		ConfigDir: *configDir,
 		Home:      home,
 		Debug:     *debug,
+		Fresh:     *fresh,
 		Version:   version,
 		Env:       nil,
 	})
