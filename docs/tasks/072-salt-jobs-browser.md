@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 068, 071, 048
 - **Parallel group:** M4-C (with 073)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC W8: `:jobs` → open a job → "41 identical · 2 differ · 1 no return" → pivot to a minion's host.

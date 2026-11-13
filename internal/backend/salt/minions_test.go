@@ -390,7 +390,7 @@ func TestListMinionsStatusFailure(t *testing.T) {
 func TestListUnknownKind(t *testing.T) {
 	clk := newClock()
 	b, _ := newTestBackend(t, clk)
-	if _, err := b.List(context.Background(), resource.Query{Kind: "salt-job"}); !errs.Is(err, errs.Config) {
+	if _, err := b.List(context.Background(), resource.Query{Kind: "salt-beacon"}); !errs.Is(err, errs.Config) {
 		t.Errorf("kind = %q, want config (%v)", errs.KindOf(err), err)
 	}
 }
@@ -644,8 +644,8 @@ func TestKinds(t *testing.T) {
 		t.Errorf("Name = %q, want salt", b.Name())
 	}
 	specs := b.Kinds()
-	if len(specs) != 2 {
-		t.Fatalf("kinds = %d, want 2", len(specs))
+	if len(specs) != 3 {
+		t.Fatalf("kinds = %d, want 3", len(specs))
 	}
 	byName := map[resource.KindName]resource.KindSpec{}
 	for _, s := range specs {

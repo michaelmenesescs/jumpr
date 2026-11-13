@@ -6,6 +6,8 @@ import (
 
 	"jumper/internal/backend"
 	"jumper/internal/inventory"
+	"jumper/internal/investigation"
+	"jumper/internal/redact"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
@@ -29,6 +31,12 @@ type Env struct {
 	Now       func() time.Time
 	Factories map[resource.KindName]Factory
 	Log       *slog.Logger
+	// Redact is the redactor every view passes text through before showing
+	// or recording it (BUILD-PLAN §7). A nil Redactor leaves text alone.
+	Redact *redact.Redactor
+	// Recorder is the investigation timeline writer. It is nil when no
+	// investigation is open; a view that records checks Current() first.
+	Recorder investigation.Log
 }
 
 // SessionState is the per-session context every pane shares. Only the root model mutates it.

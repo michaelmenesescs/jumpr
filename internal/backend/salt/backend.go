@@ -119,6 +119,8 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 			items, err = b.minionRows(ctx)
 		case KindKey:
 			items, err = b.keyRows(ctx)
+		case KindJobs:
+			items, err = b.jobRows(ctx, q)
 		}
 		res := backend.Result{Items: items, Done: 1, Total: 1}
 		if err != nil {
@@ -164,10 +166,17 @@ func (b *Backend) Get(ctx context.Context, ref resource.Ref) (resource.Resource,
 }
 
 // Links returns the pivots from r: the host overview when the minion ID maps
-// to an inventory host, and the jobs of that minion. The salt-job kind arrives
-// in task 072; until then the link is a normal query that resolves to nothing.
+// to an inventory host and the jobs of that minion, or the job detail of a
+// job row.
 func (b *Backend) Links(r resource.Resource) []resource.Link {
-	if kind, ok := normalizeKind(r.Ref.Kind); !ok || kind != KindMinion {
+	kind, known := normalizeKind(r.Ref.Kind)
+	if !known {
+		return nil
+	}
+	if kind == KindJobs {
+		return b.jobLinks(r)
+	}
+	if kind != KindMinion {
 		return nil
 	}
 	id := strings.TrimSpace(r.Ref.Name)

@@ -3,8 +3,13 @@ package views
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
+	"jumper/internal/backend"
 	"jumper/internal/backend/linux"
+	"jumper/internal/backend/salt"
 	"jumper/internal/errs"
 	"jumper/internal/resource"
 	"jumper/internal/tui"
@@ -17,6 +22,8 @@ func Factories() map[resource.KindName]tui.Factory {
 		linux.KindJournal:      journalFactory,
 		linux.KindHostOverview: hostFactory,
 		linux.KindUnitDetail:   unitDetailFactory,
+		salt.KindJobs:          jobsFactory,
+		KindSaltJobDetail:      saltJobFactory,
 	}
 }
 
@@ -68,6 +75,76 @@ func unitDetailFactory(env *tui.Env, q resource.Query) (tui.View, error) {
 		return nil, errs.New(errs.Config, "views.unitDetailFactory", "unit detail needs a unit")
 	}
 	return NewUnit(env, b, host, unit), nil
+}
+
+// jobsFactory builds the jobs browser: the generic table plus the auto-refresh
+// hook a running job needs.
+func jobsFactory(env *tui.Env, q resource.Query) (tui.View, error) {
+	if env == nil || env.Registry == nil {
+		return nil, errs.New(errs.Config, "views.jobsFactory", "no backends configured")
+	}
+	b, spec, ok := env.Registry.Lookup(string(q.Kind))
+	if !ok {
+		return nil, errs.New(errs.Config, "views.jobsFactory", fmt.Sprintf("unknown kind %q", q.Kind))
+	}
+	return newJobsTable(env, b, spec, q), nil
+}
+
+// jobsTable is the jobs list. It is the generic Table plus AutoRefresh, so the
+// root re-lists the jobs every few seconds while a job is still running.
+type jobsTable struct {
+	*Table
+}
+
+// newJobsTable wraps a fresh table over the jobs kind.
+func newJobsTable(env *tui.Env, b backend.Backend, spec resource.KindSpec, q resource.Query) *jobsTable {
+	return &jobsTable{Table: NewTable(env, b, spec, q)}
+}
+
+// Update keeps the wrapper around the table Update returns.
+func (v *jobsTable) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	view, cmd := v.Table.Update(msg)
+	if next, ok := view.(*Table); ok {
+		return &jobsTable{Table: next}, cmd
+	}
+	return view, cmd
+}
+
+// AutoRefresh is zero unless one of the listed jobs is still running.
+func (v *jobsTable) AutoRefresh() time.Duration {
+	for _, r := range v.Table.rows {
+		if r.Str("state") == salt.JobRunning {
+			return saltJobAutoRefresh
+		}
+	}
+	return 0
+}
+
+// saltJobFactory builds the grouped detail of the query's job.
+func saltJobFactory(env *tui.Env, q resource.Query) (tui.View, error) {
+	if env == nil || env.Registry == nil {
+		return nil, errs.New(errs.Config, "views.saltJobFactory", "no backends configured")
+	}
+	jid := strings.TrimSpace(q.Args["jid"])
+	if jid == "" {
+		return nil, errs.New(errs.Config, "views.saltJobFactory", "job detail needs a jid")
+	}
+	if name := strings.TrimSpace(q.Backend); name != "" {
+		if b, ok := env.Registry.Get(name); ok {
+			if sb, ok := b.(SaltJobBackend); ok {
+				return NewSaltJob(env, sb, jid), nil
+			}
+		}
+	}
+	b, _, ok := env.Registry.Lookup(string(salt.KindJobs))
+	if !ok {
+		return nil, errs.New(errs.Config, "views.saltJobFactory", "no backend serves salt jobs")
+	}
+	sb, ok := b.(SaltJobBackend)
+	if !ok {
+		return nil, errs.New(errs.Config, "views.saltJobFactory", "backend does not read jobs")
+	}
+	return NewSaltJob(env, sb, jid), nil
 }
 
 // hostFromQuery is the single host a query names: Query.Hosts first, then the

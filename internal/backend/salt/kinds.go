@@ -10,6 +10,7 @@ import (
 const (
 	KindMinion resource.KindName = "salt-minion"
 	KindKey    resource.KindName = "salt-key"
+	KindJobs   resource.KindName = "salt-job"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -20,6 +21,8 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindMinion, true
 	case "salt-key", "keys":
 		return KindKey, true
+	case "salt-job", "jobs", "job":
+		return KindJobs, true
 	default:
 		return "", false
 	}
@@ -57,6 +60,24 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "fingerprint", Title: "FINGERPRINT", Width: 0},
 			},
 			DefaultSort: "id",
+		},
+		{
+			Name:    KindJobs,
+			Aliases: []string{"jobs", "job"},
+			Title:   "Salt jobs",
+			Scope:   resource.ScopeGlobal,
+			Columns: []resource.Column{
+				{ID: "jid", Title: "JID", Width: 22},
+				{ID: "start", Title: "START", Width: 9, Kind: resource.ColTime},
+				{ID: "state", Title: "STATE", Width: 7},
+				{ID: "function", Title: "FUNCTION", Width: 22},
+				{ID: "target", Title: "TARGET", Width: 24},
+				{ID: "user", Title: "USER", Width: 10},
+				{ID: "returned", Title: "RETURNED", Width: 8, Align: resource.AlignRight},
+			},
+			// The backend already orders running jobs first, then newest
+			// first; an empty DefaultSort keeps that order.
+			DefaultSort: "",
 		},
 	}
 }
