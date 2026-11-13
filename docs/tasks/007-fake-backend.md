@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 006
 - **Parallel group:** M0-B (with 010)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A deterministic in-memory backend that mirrors the approved mockup so the whole TUI can be built and tested

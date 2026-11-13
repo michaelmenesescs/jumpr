@@ -57,7 +57,7 @@ only by tasks 001, 098, 105 and 115.
 | [004](004-selector-timewindow.md) | Selector and time-window parsers | 002 | M0-A | done |
 | [005](005-resource-types.md) | Resource model types | 004 | — | done |
 | [006](006-backend-registry.md) | Backend interface and registry | 005 | — | done |
-| [007](007-fake-backend.md) | Fake backend for `--demo` and tests | 006 | M0-B | todo |
+| [007](007-fake-backend.md) | Fake backend for `--demo` and tests | 006 | M0-B | done |
 | [008](008-render-fit-table.md) | Rendering primitives: fit and table | 002 | M0-A | todo |
 | [009](009-render-spark-human.md) | Sparklines, bars, human-readable numbers | 002 | M0-A | todo |
 | [010](010-theme-keymap.md) | Theme and keymap | 005 | M0-B | todo |

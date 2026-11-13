@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 006 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 007 done; M0 in progress)_
 
 ## State
 
@@ -46,10 +46,18 @@ _Last updated: 2026-11-12 (task 006 done; M0 in progress)_
       alias already taken; `Replace` releases the old backend's keys, swaps in place and restores them if the new
       keys collide; `Kinds()` sorted by name; `Backends()` in registration order). Tests use a stub `Backend`.
 
+- [x] **Task 007 done:** `internal/backend/fake` — `New(Options{Latency, FailHosts, Now})`, `Name() = "fake"`,
+      kinds `host` (hosts/h), `unit` (units/u, host-scoped) and `alert` (alerts/al) with the mockup columns;
+      `world.go` derives every value from `fnv64a(name+":"+key)` (1,512 hosts = 504 each in ewr/lax/ord, labels
+      host/role=web/dc/env=prod, sparkline, six alerts), with `web-ewr-007` and `web-ewr-012` carrying a failed
+      `nginx.service` and an active `haproxy.service`; `List` streams ≤100 rows per `Result` with `Done/Total`,
+      honours `ctx` while sleeping and sending, and turns `FailHosts` into `Result{Host, Err}`; `Get`, `Links`
+      (`u` → unit) and `Health` (`ok`/`fake data`) implemented. Tests cover determinism, 504/1,008/1,512 sizes,
+      batching, failed hosts (both kinds), cancel, Get/Links/Health and unknown kinds.
+
 ## Next task
 
-**`docs/tasks/007-fake-backend.md`** (depends on 006, now done). Tasks 008/009 remain available in parallel group
-M0-A. Then continue in numeric order.
+**`docs/tasks/008-render-fit-table.md`** (depends on 002, done). Then 009 (both M0-A); 010 (M0-B) is independent.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -152,3 +160,12 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   failure, so a rejected Replace leaves the registry untouched — an unregistered name is an `errs.Config` error;
   (4) `Backend.Name()` is never called while the mutex is held (the registered name is stored in the entries).
   `make check` green (backend tests 1.2 s under `-race`).
+- 2026-11-12 — Task 007: `internal/backend/fake`. Choices: (1) the `unit` column `load` is systemctl's load state
+  (`loaded`, text), because `active`/`sub` are the separate ACTIVE/SUB columns; (2) a healthy host's `units` field
+  is nil so the table renders `—` as in the mockup, and only failed hosts carry `nginx`; (3) `Get` validates host
+  names against the 1,512-host fleet and returns `not-available` otherwise, while `List` with explicit
+  `Query.Hosts` accepts the given names (tests may inject hosts); (4) alert rows put `alertname`/`severity` plus
+  the extra labels into `Resource.Labels` so selectors filter alerts, and the `labels` column renders the extra
+  labels sorted as `k="v"`, `k="v"`; (5) the `unit` kind applies `Query.Selector` only when `Query.Hosts` is
+  empty (Query's "Hosts wins" rule) and filters by `Args["unit"]` when set. `make check` green; full fleet list
+  is ~30 ms under `-race`, cancellation stops the producer within one latency tick.
