@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 017
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The data model of a session: ordered windows, each with a layout, a focused pane, a last-focused pane and a zoom
