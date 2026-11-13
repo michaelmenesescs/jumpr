@@ -27,6 +27,28 @@ func (n *node) leaf() bool { return n.a == nil }
 // Layout is a binary tree of splits. Pure data, no I/O, no tea.
 type Layout struct{ root *node }
 
+// clone returns a detached copy of the tree. A snapshot hands one to the save
+// command, which marshals it on its own goroutine while the live layout keeps
+// splitting and closing panes (BUILD-PLAN §6.1: persistence must never share
+// mutable state with Update).
+func (l *Layout) clone() *Layout {
+	if l == nil {
+		return nil
+	}
+	return &Layout{root: l.root.clone()}
+}
+
+// clone copies one node and its subtree.
+func (n *node) clone() *node {
+	if n == nil {
+		return nil
+	}
+	c := *n
+	c.a = n.a.clone()
+	c.b = n.b.clone()
+	return &c
+}
+
 // NewLayout returns a layout holding a single pane.
 func NewLayout(first PaneID) *Layout { return &Layout{root: &node{pane: first}} }
 

@@ -80,7 +80,7 @@ only by tasks 001, 098, 105 and 115.
 | [022](022-root-with-mux.md) | Root integration: panes in the app, window tabs, mux commands | 020, 021 | — | done |
 | [023](023-copy-mode-clipboard.md) | Copy mode and clipboard | 022 | — | done |
 | [024](024-session-persistence.md) | Session persistence (layout survives restart) | 023 | — | done |
-| [025](025-io-agnostic-run.md) | Prove the app runs over a plain byte stream (detach de-risk) | 024 | — | todo |
+| [025](025-io-agnostic-run.md) | Prove the app runs over a plain byte stream (detach de-risk) | 024 | — | done |
 
 ### M2 — SSH + Linux core
 

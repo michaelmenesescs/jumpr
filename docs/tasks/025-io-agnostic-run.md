@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 024
 - **Parallel group:** — (serial; touches the root or `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Run the entire app with no TTY: input and output are pipes, the size is injected. Plus an automated guard for the

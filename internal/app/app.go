@@ -46,6 +46,91 @@ type Options struct {
 	// Prompter answers host-key and passphrase questions. Nil means nobody can
 	// be asked, which fails the dial with errs.Interaction.
 	Prompter interact.Prompter
+
+	// Size is the terminal size to inject at startup. When it is nil the
+	// program is on a real TTY and Bubble Tea detects the size itself.
+	Size *Size
+	// Resizes carries later size changes for a run that cannot see SIGWINCH.
+	// Each value becomes one tea.WindowSizeMsg; the pump stops with ctx.
+	Resizes <-chan Size
+	// Ready, when non-nil, is closed once the program is running and the
+	// first size was sent. Tests wait on it instead of sleeping. With Size
+	// nil there is no size to send, so Ready is closed at program start.
+	Ready chan<- struct{}
+}
+
+type Size struct{ Cols, Rows int }
+
+// startup wraps the root model to inject the configured size. The first
+// tea.WindowSizeMsg is produced by a command from Init, so it reaches the model
+// as the program starts, long before any input is read; Ready is closed right
+// after the model has handled it, which is the first moment a test may act.
+type startup struct {
+	inner tea.Model
+	size  *Size
+	ready chan<- struct{}
+}
+
+// initialSizeMsg is the injected first size. It is a distinct type so that a
+// real tea.WindowSizeMsg (which Bubble Tea may send on a terminal) is never
+// mistaken for it.
+type initialSizeMsg struct{ cols, rows int }
+
+func (s *startup) Init() tea.Cmd {
+	first := s.inner.Init()
+	switch {
+	case s.size != nil:
+		size := *s.size
+		return tea.Batch(first, func() tea.Msg {
+			return initialSizeMsg{cols: size.Cols, rows: size.Rows}
+		})
+	case s.ready != nil:
+		// No size to inject: the program is running as soon as Init ran.
+		ready := s.ready
+		s.ready = nil
+		return tea.Batch(first, func() tea.Msg {
+			close(ready)
+			return nil
+		})
+	default:
+		return first
+	}
+}
+
+func (s *startup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if init, ok := msg.(initialSizeMsg); ok {
+		m, cmd := s.inner.Update(tea.WindowSizeMsg{Width: init.cols, Height: init.rows})
+		s.inner = m
+		if s.ready != nil {
+			close(s.ready)
+			s.ready = nil
+		}
+		return s, cmd
+	}
+	m, cmd := s.inner.Update(msg)
+	s.inner = m
+	return s, cmd
+}
+
+func (s *startup) View() string { return s.inner.View() }
+
+// pumpSizes turns the Options.Resizes channel into tea.WindowSizeMsg values
+// until ctx, the channel or the program ends. It is I/O-free and never inside
+// Update, so the UI cannot block on it.
+func pumpSizes(ctx context.Context, p *tea.Program, ch <-chan Size, done <-chan struct{}) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-done:
+			return
+		case size, ok := <-ch:
+			if !ok {
+				return
+			}
+			p.Send(tea.WindowSizeMsg{Width: size.Cols, Height: size.Rows})
+		}
+	}
 }
 
 // Run loads configuration, builds the model and runs the TUI until the user
@@ -112,14 +197,24 @@ func Run(ctx context.Context, o Options) (err error) {
 		restoreSession(root, sessionPath)
 	}
 
-	p := tea.NewProgram(root,
+	var model tea.Model = root
+	if o.Size != nil || o.Ready != nil {
+		model = &startup{inner: root, size: o.Size, ready: o.Ready}
+	}
+	p := tea.NewProgram(model,
 		tea.WithInput(o.In),
 		tea.WithOutput(o.Out),
 		tea.WithAltScreen(),
 		tea.WithContext(ctx),
 	)
-	if _, err := p.Run(); err != nil {
-		return errs.Wrap(errs.Internal, "app.Run", err)
+	done := make(chan struct{})
+	if o.Resizes != nil {
+		go pumpSizes(ctx, p, o.Resizes, done)
+	}
+	_, runErr := p.Run()
+	close(done)
+	if runErr != nil {
+		return errs.Wrap(errs.Internal, "app.Run", runErr)
 	}
 	// Save once more on quit: the autosave tick is debounced, so the last change
 	// before a quit would otherwise be lost.

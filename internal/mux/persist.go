@@ -60,7 +60,9 @@ func Snapshot(m *Model, history []string, now time.Time) SessionFile {
 		if w == nil {
 			continue
 		}
-		wf := WindowFile{Name: w.Name, Layout: w.Layout, Focus: w.Focus}
+		// The layout is cloned: the save command marshals the snapshot on its
+		// own goroutine, and the live tree keeps changing meanwhile.
+		wf := WindowFile{Name: w.Name, Layout: w.Layout.clone(), Focus: w.Focus}
 		if w.Layout != nil {
 			wf.Panes = make(map[PaneID]ContentState, w.Layout.Count())
 			for _, id := range w.Layout.Panes() {
