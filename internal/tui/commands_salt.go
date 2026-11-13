@@ -31,11 +31,15 @@ const (
 	saltStateKind resource.KindName = "salt-state"
 	// saltJobDetailKind is the factory key of the grouped job detail.
 	saltJobDetailKind resource.KindName = "salt-job-detail"
+	// saltPillarKind is the factory key of the pillar screen (task 093).
+	saltPillarKind resource.KindName = "salt-pillar"
 
 	// saltProposeTimeout bounds one planning round trip started by `:salt run`.
 	saltProposeTimeout = 30 * time.Second
 	// saltTargetTimeout bounds one `--preview-target` resolution.
 	saltTargetTimeout = 30 * time.Second
+	// saltPillarTimeout bounds the two pillar reads of `:pillar-diff`.
+	saltPillarTimeout = 3 * time.Minute
 	// saltJobCacheWarning is the once-per-session warning of SPEC §8.6: a Salt
 	// transport run leaves the command and its output in the master's job cache.
 	saltJobCacheWarning = "salt transport: the command and its output stay in the master's job cache"
@@ -99,7 +103,7 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 	}
 	// :states is the state tree browser (SPEC §8.6): envs, sls files, the top
 	// file and the rendered states of one minion.
-	return c.Register(Command{
+	if err := c.Register(Command{
 		Name:    "states",
 		Aliases: []string{"sls"},
 		Usage:   ":states [env]",
@@ -107,7 +111,156 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 		Run: func(env *Env, args string) tea.Cmd {
 			return saltStatesCmd(env, strings.TrimSpace(args))
 		},
+	}); err != nil {
+		return err
+	}
+	// :pillar is the pillar screen (SPEC §8.6 "Pillar"): structure and keys
+	// visible, values hidden until one is revealed on demand.
+	if err := c.Register(Command{
+		Name:  "pillar",
+		Usage: ":pillar <minion>",
+		Help:  "Salt pillar: keys and structure, values hidden",
+		Run: func(env *Env, args string) tea.Cmd {
+			return saltPillarCmd(env, strings.TrimSpace(args))
+		},
+	}); err != nil {
+		return err
+	}
+	// :pillar-diff compares two minions' pillar shape without reading a value.
+	return c.Register(Command{
+		Name:  "pillar-diff",
+		Usage: ":pillar-diff <minion> <minion>",
+		Help:  "Salt pillar: which key paths and types differ between two minions",
+		Run: func(env *Env, args string) tea.Cmd {
+			return saltPillarDiffCmd(env, strings.TrimSpace(args))
+		},
 	})
+}
+
+// PillarOps is what the `:pillar` commands need from the Salt backend. The salt
+// package implements it; tests use a fake.
+type PillarOps interface {
+	// PillarKeys returns one minion's pillar as types and lengths only.
+	PillarKeys(ctx context.Context, minion string) (salt.PillarTree, error)
+	// PillarValue reads exactly one value, for the reveal dialog.
+	PillarValue(ctx context.Context, minion, keyPath string) (string, error)
+}
+
+// saltPillarOf returns the Salt backend as the interface the pillar commands
+// use.
+func saltPillarOf(env *Env) (PillarOps, bool) {
+	if env == nil || env.Registry == nil {
+		return nil, false
+	}
+	b, ok := env.Registry.Get(saltBackendName)
+	if !ok {
+		return nil, false
+	}
+	ops, ok := b.(PillarOps)
+	return ops, ok
+}
+
+// saltPillarCmd opens the pillar screen of minion. Without an argument the
+// session's single minion is used; anything else would be a guess.
+func saltPillarCmd(env *Env, minion string) tea.Cmd {
+	if _, ok := saltPillarOf(env); !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	if minion == "" {
+		m, ok := singleSessionMinion(env)
+		if !ok {
+			return Flash(FlashError, "usage: :pillar <minion>")
+		}
+		minion = m
+	}
+	q := resource.Query{Kind: saltPillarKind, Args: map[string]string{"minion": minion}}
+	return saltViewCmd(env, saltPillarKind, q)
+}
+
+// singleSessionMinion is the session's one minion, when it has exactly one.
+func singleSessionMinion(env *Env) (string, bool) {
+	ops, ok := saltOpsOf(env)
+	if !ok {
+		return "", false
+	}
+	minions, _ := minionsOf(ops, sessionHosts(env))
+	unique := make(map[string]bool, len(minions))
+	for _, m := range minions {
+		if m != "" {
+			unique[m] = true
+		}
+	}
+	if len(unique) != 1 {
+		return "", false
+	}
+	for m := range unique {
+		return m, true
+	}
+	return "", false
+}
+
+// saltPillarDiffCmd reads two minions' pillar shape and shows the key paths
+// whose type differs. No value is read: the comparison never needs one.
+func saltPillarDiffCmd(env *Env, args string) tea.Cmd {
+	ops, ok := saltPillarOf(env)
+	if !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	fields := strings.Fields(args)
+	if len(fields) != 2 {
+		return Flash(FlashError, "usage: :pillar-diff <minion> <minion>")
+	}
+	left, right := fields[0], fields[1]
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), saltPillarTimeout)
+		defer cancel()
+		lt, err := ops.PillarKeys(ctx, left)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "pillar-diff " + left + ": " + err.Error()}
+		}
+		rt, err := ops.PillarKeys(ctx, right)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "pillar-diff " + right + ": " + err.Error()}
+		}
+		return PushViewMsg{View: newTextPage(env, "pillar diff", pillarDiffLines(left, right, salt.DiffPillars(lt, rt)))}
+	}
+}
+
+// pillarDiffLines renders the differences between two pillar shapes: the key
+// path and the type on each side, "missing" where the key is absent.
+func pillarDiffLines(left, right string, diffs []salt.PillarDiff) []string {
+	lines := []string{fmt.Sprintf("%s ↔ %s · %s", left, right, countOf(len(diffs), "difference"))}
+	if len(diffs) == 0 {
+		return append(lines, "", "the two minions have the same key paths and types")
+	}
+	pathW := 0
+	for _, d := range diffs {
+		pathW = max(pathW, len(d.Path))
+	}
+	pathW = min(pathW, 60)
+	lines = append(lines, "KEY PATH"+"  "+padRight(left, 12)+"  "+right)
+	for _, d := range diffs {
+		lines = append(lines, padRight(d.Path, pathW)+"  "+
+			padRight(pillarSide(d.Left), 12)+"  "+pillarSide(d.Right))
+	}
+	lines = append(lines, "", "only structure: no pillar value is read by a diff")
+	return lines
+}
+
+// pillarSide names one side of a difference.
+func pillarSide(typ string) string {
+	if typ == "" {
+		return "missing"
+	}
+	return typ
+}
+
+// padRight pads s to w cells with spaces; longer text is kept whole.
+func padRight(s string, w int) string {
+	if len(s) >= w {
+		return s
+	}
+	return s + strings.Repeat(" ", w-len(s))
 }
 
 // saltStatesCmd opens the state tree browser, narrowed to env when given. The

@@ -75,7 +75,15 @@ type Call struct {
 	Kwargs  map[string]string
 	Flags   []string
 	Timeout time.Duration
+	// Sensitive keeps a call's arguments and output out of the log. Every
+	// pillar.* call is sensitive by function name alone (see hidden); any
+	// other call may say so explicitly.
+	Sensitive bool
 }
+
+// hidden reports whether the call's arguments and output must stay out of the
+// log: an explicit Sensitive, or a pillar.* function.
+func (c Call) hidden() bool { return c.Sensitive || HiddenFunction(c.Fun) }
 
 // CommandLine renders the call as a single shell line. The word order is
 // fixed: tool, JSON output flags, extra flags, target flag and expression,
@@ -153,15 +161,29 @@ func NewRunner(ex transport.Executor, master resource.HostID, o RunnerOptions) *
 // Run executes the call on the master and returns its stdout. A non-zero exit
 // code with stdout on it is returned as data: Salt exits non-zero when any
 // minion fails, and that partial output is what the callers need.
+//
+// A sensitive call (see Call.Sensitive) puts nothing about itself in the log:
+// no function, no arguments, no output — only the tool and the host, marked
+// as sensitive.
 func (r *Runner) Run(ctx context.Context, c Call) ([]byte, error) {
 	line, err := c.CommandLine()
 	if err != nil {
 		return nil, err
 	}
+	sensitive := c.hidden()
 	if r.log != nil {
-		r.log.Debug("salt call", "tool", c.Tool, "fun", c.Fun, "host", string(r.master))
+		if sensitive {
+			r.log.Debug("salt call", "tool", c.Tool, "host", string(r.master), "sensitive", true)
+		} else {
+			r.log.Debug("salt call", "tool", c.Tool, "fun", c.Fun, "host", string(r.master),
+				"args", len(c.Args), "kwargs", len(c.Kwargs))
+		}
 	}
-	return r.exec(ctx, line, r.timeoutFor(c))
+	out, err := r.exec(ctx, line, r.timeoutFor(c))
+	if r.log != nil && !sensitive {
+		r.log.Debug("salt call done", "tool", c.Tool, "host", string(r.master), "stdout_bytes", len(out))
+	}
+	return out, err
 }
 
 // Version returns the master's Salt version as a "3007.1"-style string.

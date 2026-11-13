@@ -3,7 +3,7 @@
 - **Milestone:** M7
 - **Depends on:** 092
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:pillar <minion>`: structure and keys visible, values hidden unless explicitly revealed (SPEC §8.6 "Pillar").

@@ -206,6 +206,9 @@ func (j *SaltJob) load() tea.Cmd {
 		if err != nil {
 			return saltJobLoadedMsg{Seq: seq, Err: err}
 		}
+		// A pillar.* job's arguments and returns stay hidden (task 093): the
+		// master keeps them, jumper does not show or record them.
+		info = salt.HideJobInfo(info)
 		if info.JID == "" {
 			info.JID = jid
 		}
