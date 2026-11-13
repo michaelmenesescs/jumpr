@@ -37,6 +37,9 @@ type Options struct {
 	Master    resource.HostID
 	Now       func() time.Time
 	Log       *slog.Logger
+	// StateTimeout bounds one state apply step in a plan. Zero means 15
+	// minutes (task 075).
+	StateTimeout time.Duration
 }
 
 // healthCall is one in-flight manage.status call that other Health callers can
@@ -55,6 +58,8 @@ type Backend struct {
 	master resource.HostID
 	now    func() time.Time
 	log    *slog.Logger
+	// stateTimeout is Options.StateTimeout; zero means the 15 minute default.
+	stateTimeout time.Duration
 
 	mu       sync.Mutex
 	health   backend.Health
@@ -78,6 +83,8 @@ func New(o Options) *Backend {
 		master: resource.NormalizeHostID(string(o.Master)),
 		now:    o.Now,
 		log:    o.Log,
+
+		stateTimeout: o.StateTimeout,
 	}
 	if b.now == nil {
 		b.now = time.Now

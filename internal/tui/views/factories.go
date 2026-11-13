@@ -24,6 +24,7 @@ func Factories() map[resource.KindName]tui.Factory {
 		linux.KindUnitDetail:   unitDetailFactory,
 		salt.KindJobs:          jobsFactory,
 		KindSaltJobDetail:      saltJobFactory,
+		KindSaltState:          saltStateFactory,
 		tui.KindTimeline:       timelineFactory,
 	}
 }
@@ -153,6 +154,30 @@ func saltJobFactory(env *tui.Env, q resource.Query) (tui.View, error) {
 		return nil, errs.New(errs.Config, "views.saltJobFactory", "backend does not read jobs")
 	}
 	return NewSaltJob(env, sb, jid), nil
+}
+
+// saltStateFactory builds the dry-run state view of the query's sls. It is
+// keyed by the synthetic kind salt-state; the salt backend runs the dry run.
+func saltStateFactory(env *tui.Env, q resource.Query) (tui.View, error) {
+	if env == nil || env.Registry == nil {
+		return nil, errs.New(errs.Config, "views.saltStateFactory", "no backends configured")
+	}
+	if name := strings.TrimSpace(q.Backend); name != "" {
+		if b, ok := env.Registry.Get(name); ok {
+			if sb, ok := b.(SaltStateBackend); ok {
+				return NewSaltState(env, sb, q.Args["sls"]), nil
+			}
+		}
+	}
+	b, _, ok := env.Registry.Lookup(string(salt.KindMinion))
+	if !ok {
+		return nil, errs.New(errs.Config, "views.saltStateFactory", "no backend serves salt minions")
+	}
+	sb, ok := b.(SaltStateBackend)
+	if !ok {
+		return nil, errs.New(errs.Config, "views.saltStateFactory", "backend cannot run a state dry run")
+	}
+	return NewSaltState(env, sb, q.Args["sls"]), nil
 }
 
 // hostFromQuery is the single host a query names: Query.Hosts first, then the

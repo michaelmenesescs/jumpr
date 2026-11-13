@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 057, 061, 070, 071, 072, 074
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC W4: dry-run highstate on the target set grouped by identical diff, then apply from the same view with a
