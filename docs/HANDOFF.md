@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 012 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 013 done; M0 in progress)_
 
 ## State
 
@@ -96,11 +96,21 @@ _Last updated: 2026-11-12 (task 012 done; M0 in progress)_
       `CopyLines`) and `table_format.go` (`cellText` by `ColumnKind`: Number/Bytes/Percent/Duration/Time/Spark/
       Status, nil → `—`). Tests: 8 `TestTable…` cases over the fake 1,512-host fleet.
 
+- [x] **Task 013 done:** `internal/tui/views` `text.go` — `Text` implementing `tui.View` with `NewText`/`NewKV`
+      (tabs expand to 4 spaces, keys styled `Theme.Dim`), `SetLines`/`Append`/`AppendError`/`SetSeq`/`Seq`, a
+      50,000-line cap that drops the oldest lines and shifts scroll and match indices, follow (`w`) pinning the
+      bottom, wrap (`W`, off by default) with `ansi.Wrap`, horizontal scrolling in 8-cell steps (`left`/`right`,
+      wrapless) via `ansi.TruncateLeft`, `/` search (capturing; `enter` jumps, `n`/`N` cycle, matches highlighted
+      with `Theme.Selected` through cell-based `ansi.Cut`), `esc` clearing the search then popping, the
+      `line n/total · follow · /pattern (n matches)` footer, `tui.LinesMsg` gated on `Seq` (closed+err appends a
+      Crit `stream ended: <kind>`), `Crumb`/`Hints`/`Subject`/`Capturing`/`CopyLines` (ANSI stripped). Tests: 8
+      `TestText…` cases.
+
 ## Next task
 
-**`docs/tasks/013-text-view.md`** (depends on 008, 011, both done). 014 and 015 are also unblocked (014 needs 011,
-015 needs 011); 013/014/015 are parallel group M0-C and touch disjoint files in `internal/tui/views/` and
-`internal/tui/` (013/014/015 each create their own files; 015 also owns `dialog.go`/`help.go`).
+**`docs/tasks/014-command-bar.md`** and **`docs/tasks/015-statusline-hints-dialogs.md`** are unblocked (both need
+011, done); they are parallel group M0-C and touch disjoint files. With 013 they complete the views M0-C group;
+016 then needs 003, 007, 012, 013, 014, 015.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -254,3 +264,17 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   (0.3 ms without); (5) `~` regexes compile with `(?i)`; an invalid one sets `filterBad` and matches nothing;
   (6) `NewTable` falls back to `keymap.Default()` when `env.Keys` is nil so a pane-less table (tests, task 016
   bootstrapping) never panics. `make check` green; views tests 1.98 s under `-race`, acceptance suite 8 tests.
+- 2026-11-12 — Task 013: `internal/tui/views` text view. Choices: (1) the scroll position is a **source line**
+  index, so in wrap mode one key press moves a whole logical line and `G` stops on the last one (a source line can
+  span several rows, so no attempt is made to scroll by row); (2) `Render` pads the body to `h-1` lines before the
+  footer, because `render.Fit` would otherwise pull the footer up into the first line of a short document;
+  (3) search is a case-insensitive substring (like the table filter, minus its `~` regex form) computed over the
+  ANSI-stripped text, and `enter`/`n`/`N` scroll the match to the **top** of the body rather than merely making it
+  visible, so a jump is deterministic and testable; (4) highlighting applies to each visible line at render time
+  with cell-based `ansi.Cut` segments (match runes located on the plain text, then cut by cell position) so SGR
+  sequences in the source survive; (5) `enter`/`esc`/`/`/`w`/up/down/page/top/bottom come from `env.Keys`, while
+  `left`/`right`/`W`/`n`/`N` are hard-coded because `keymap.Map` has no bindings for them; (6) the footer spells
+  `1 match`/`n matches` with a local helper — the shared `pluralWord` in `table.go` appends a bare `s`
+  (`matchs`) and `table.go` belongs to task 012; (7) capping uses `append(lines[:0], lines[d:]...)` so the
+  backing array is reused, and match indices shift by `d`. `make check` green; views tests 2.67 s under `-race`,
+  acceptance suite 8 tests (the 50,000-line cap test is ~0.1 s).

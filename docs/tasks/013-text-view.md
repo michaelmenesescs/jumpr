@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 008, 011
 - **Parallel group:** M0-C (with 012, 014, 015)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A scrollable, searchable text pane used for describe output, unit files, timelines, help, and anything that is not
