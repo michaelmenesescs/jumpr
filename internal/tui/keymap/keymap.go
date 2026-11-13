@@ -35,6 +35,7 @@ type Map struct {
 	Back       Binding
 	Command    Binding
 	Filter     Binding
+	FuzzyFind  Binding
 	Help       Binding
 	Refresh    Binding
 	Quit       Binding
@@ -63,6 +64,7 @@ func Default() *Map {
 		Back:       Binding{Keys: []string{"esc"}, Help: "back"},
 		Command:    Binding{Keys: []string{":"}, Help: "command"},
 		Filter:     Binding{Keys: []string{"/"}, Help: "filter"},
+		FuzzyFind:  Binding{Keys: []string{"ctrl+f"}, Help: "fuzzy find"},
 		Help:       Binding{Keys: []string{"?"}, Help: "help"},
 		Refresh:    Binding{Keys: []string{"r"}, Help: "refresh"},
 		Quit:       Binding{Keys: []string{"q"}, Help: "quit"},

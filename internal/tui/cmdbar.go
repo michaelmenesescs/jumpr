@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"jumper/internal/fuzzy"
 	"jumper/internal/render"
 )
 
@@ -219,7 +220,7 @@ func (b *CmdBar) complete() {
 		b.apply(b.matchBase, b.matches[b.matchIdx], b.matchSuffix)
 		return
 	}
-	cands := b.candidates(value)
+	cands := rankCandidates(partialWord(value), b.candidates(value))
 	if len(cands) == 0 {
 		b.clearMatches()
 		return
@@ -251,7 +252,7 @@ func (b *CmdBar) candidates(value string) []string {
 		if !ok || cmd.Complete == nil {
 			return nil
 		}
-		return filterPrefix(cmd.Complete(b.env, strings.TrimSpace(value[i+1:])), partial)
+		return dedupeFold(cmd.Complete(b.env, strings.TrimSpace(value[i+1:])))
 	}
 
 	seen := make(map[string]bool)
@@ -293,16 +294,33 @@ func partialWord(v string) string {
 	return v
 }
 
-func filterPrefix(cands []string, partial string) []string {
+// dedupeFold drops repeated candidates, case-insensitively, keeping the first
+// occurrence in order.
+func dedupeFold(cands []string) []string {
 	out := make([]string, 0, len(cands))
 	seen := make(map[string]bool, len(cands))
 	for _, c := range cands {
 		key := strings.ToLower(c)
-		if !hasPrefixFold(c, partial) || seen[key] {
+		if seen[key] {
 			continue
 		}
 		seen[key] = true
 		out = append(out, c)
+	}
+	return out
+}
+
+// rankCandidates orders the candidates of a non-empty typed word by fuzzy
+// score, dropping the ones that do not match. A single candidate, an empty
+// word and a tie keep the input order.
+func rankCandidates(pattern string, cands []string) []string {
+	if len(cands) < 2 || pattern == "" {
+		return cands
+	}
+	idx := fuzzy.Rank(pattern, cands)
+	out := make([]string, 0, len(idx))
+	for _, i := range idx {
+		out = append(out, cands[i])
 	}
 	return out
 }

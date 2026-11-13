@@ -3,7 +3,7 @@
 - **Milestone:** M0 (UX parity)
 - **Depends on:** 012, 014
 - **Parallel group:** —
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The find-as-you-type behaviour people expect from fzf, telescope and k9s: `wbd` finds `web-db-01`, ranked by how well

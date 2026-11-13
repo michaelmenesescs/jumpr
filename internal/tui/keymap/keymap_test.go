@@ -115,6 +115,7 @@ func TestDefault(t *testing.T) {
 		"Back":       {"esc"},
 		"Command":    {":"},
 		"Filter":     {"/"},
+		"FuzzyFind":  {"ctrl+f"},
 		"Help":       {"?"},
 		"Refresh":    {"r"},
 		"Quit":       {"q"},

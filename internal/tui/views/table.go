@@ -15,6 +15,7 @@ import (
 
 	"jumper/internal/backend"
 	"jumper/internal/errs"
+	"jumper/internal/fuzzy"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/tui"
@@ -62,6 +63,7 @@ type Table struct {
 
 	filter    string
 	filtering bool
+	fuzzy     bool // filter text is a fuzzy subsequence, not a substring
 	filterRe  *regexp.Regexp
 	filterBad bool
 
@@ -89,6 +91,7 @@ type bannerKey struct {
 	rows    int
 	errs    int
 	filter  string
+	fuzzy   bool
 	elapsed time.Duration
 	stale   int
 }
@@ -253,11 +256,21 @@ func (t *Table) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 
 	key := m.String()
 	switch {
-	case t.keys.Filter.Matches(key):
+	case t.keys.FuzzyFind.Matches(key):
+		t.fuzzy = true
 		t.filtering = true
+		t.setFilter("")
+		t.refilter()
+		return t, nil
+	case t.keys.Filter.Matches(key):
+		t.fuzzy = false
+		t.filtering = true
+		t.setFilter(t.filter)
+		t.refilter()
 		return t, nil
 	case t.keys.Back.Matches(key):
 		if t.filter != "" {
+			t.fuzzy = false
 			t.setFilter("")
 			t.refilter()
 			return t, nil
@@ -321,6 +334,7 @@ func (t *Table) filterKey(m tea.KeyMsg) tea.Cmd {
 		return nil
 	case tea.KeyEsc:
 		t.filtering = false
+		t.fuzzy = false
 		if t.filter != "" {
 			t.setFilter("")
 			t.refilter()
@@ -420,12 +434,16 @@ func (t *Table) clampCursor() {
 	}
 }
 
-// setFilter installs a new filter text and compiles the regex when it has the
-// ~ prefix. An invalid regex matches nothing and is flagged.
+// setFilter installs a new filter text. In fuzzy mode no regex is compiled; in
+// substring mode a ~ prefix becomes a case-insensitive regex. An invalid regex
+// matches nothing and is flagged.
 func (t *Table) setFilter(s string) {
 	t.filter = s
 	t.filterBad = false
 	t.filterRe = nil
+	if t.fuzzy {
+		return
+	}
 	if pat, ok := strings.CutPrefix(s, "~"); ok {
 		re, err := regexp.Compile("(?i)" + pat)
 		if err != nil {
@@ -436,11 +454,15 @@ func (t *Table) setFilter(s string) {
 	}
 }
 
-// matches reports whether row passes the current filter. The substring form is
-// case-insensitive over the row's rendered cells; ~ means a regex.
+// matches reports whether row passes the current filter. Fuzzy mode is a
+// subsequence match over the row's name and its label values; the substring
+// form is case-insensitive over the row's rendered cells; ~ means a regex.
 func (t *Table) matches(row resource.Resource) bool {
 	if t.filter == "" {
 		return true
+	}
+	if t.fuzzy {
+		return t.fuzzyMatch(row)
 	}
 	if t.filterBad {
 		return false
@@ -450,6 +472,37 @@ func (t *Table) matches(row resource.Resource) bool {
 		return t.filterRe.MatchString(text)
 	}
 	return strings.Contains(strings.ToLower(text), strings.ToLower(t.filter))
+}
+
+// fuzzyMatch reports whether the filter is a fuzzy subsequence of the row's
+// name or of any label value.
+func (t *Table) fuzzyMatch(row resource.Resource) bool {
+	if name := t.rowName(row); name != "" {
+		if _, _, ok := fuzzy.Match(t.filter, name); ok {
+			return true
+		}
+	}
+	for _, v := range row.Labels {
+		if _, _, ok := fuzzy.Match(t.filter, v); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// rowName is the row's name column: its Ref name, else a "name" field, else
+// the first column's text.
+func (t *Table) rowName(row resource.Resource) string {
+	if row.Ref.Name != "" {
+		return row.Ref.Name
+	}
+	if _, ok := t.spec.Column("name"); ok {
+		return row.Str("name")
+	}
+	if len(t.spec.Columns) > 0 {
+		return cellText(t.spec.Columns[0], row, t.now(), 0)
+	}
+	return ""
 }
 
 // rowText joins every rendered cell of row into one searchable string.
@@ -565,6 +618,7 @@ func (t *Table) banner() string {
 		rows:    len(t.rows),
 		errs:    len(t.errs),
 		filter:  t.filter,
+		fuzzy:   t.fuzzy,
 		elapsed: t.elapsed,
 		stale:   t.staleN,
 	}
@@ -589,7 +643,11 @@ func (t *Table) banner() string {
 		}
 	}
 	if t.filter != "" {
-		b.WriteString(" · /filter: ")
+		if t.fuzzy {
+			b.WriteString(" · fuzzy: ")
+		} else {
+			b.WriteString(" · /filter: ")
+		}
 		b.WriteString(t.filter)
 	}
 	t.bnKey = key
@@ -726,6 +784,7 @@ func (t *Table) Hints() []tui.KeyHint {
 	}
 	hints = append(hints,
 		tui.KeyHint{Key: firstKey(t.keys.Filter), Text: "filter"},
+		tui.KeyHint{Key: firstKey(t.keys.FuzzyFind), Text: "fuzzy"},
 		tui.KeyHint{Key: firstKey(t.keys.Refresh), Text: "refresh"},
 		tui.KeyHint{Key: firstKey(t.keys.Back), Text: "back"},
 	)

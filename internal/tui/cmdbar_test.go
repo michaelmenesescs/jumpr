@@ -238,6 +238,55 @@ func TestTabCompletesArgument(t *testing.T) {
 	}
 }
 
+func TestCmdBarFuzzyRank(t *testing.T) {
+	// Rank orders candidates by fuzzy score, not insertion order.
+	got := rankCandidates("wbd", []string{"web-ewr-001", "web-db-01", "db-01"})
+	if len(got) != 1 || got[0] != "web-db-01" {
+		t.Fatalf("rankCandidates = %v, want [web-db-01]", got)
+	}
+
+	cmds := NewCommands()
+	run := func(*Env, string) tea.Cmd { return nil }
+	if err := cmds.Register(Command{
+		Name: "open",
+		Run:  run,
+		Complete: func(_ *Env, _ string) []string {
+			// Insertion order puts the weaker alignment first.
+			return []string{"xaxbx", "a-b"}
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b := NewCmdBar(nil, cmds)
+	b.Open("open ab")
+
+	// The better-scoring candidate is inserted first and cycled first.
+	press(b, tea.KeyTab)
+	if got := b.input.Value(); got != "open a-b" {
+		t.Fatalf("tab = %q, want the fuzzy-best candidate", got)
+	}
+	press(b, tea.KeyTab)
+	if got := b.input.Value(); got != "open xaxbx" {
+		t.Errorf("second tab = %q, want the remaining candidate", got)
+	}
+
+	// A single candidate is still inserted directly.
+	cmds2 := NewCommands()
+	if err := cmds2.Register(Command{
+		Name:     "only",
+		Run:      run,
+		Complete: func(_ *Env, _ string) []string { return []string{"apply"} },
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b2 := NewCmdBar(nil, cmds2)
+	b2.Open("only ap")
+	press(b2, tea.KeyTab)
+	if got := b2.input.Value(); got != "only apply" {
+		t.Errorf("single tab = %q, want only apply", got)
+	}
+}
+
 func TestTabNoCandidatesLeavesValue(t *testing.T) {
 	b := NewCmdBar(newTestEnv(t), newTestCommands(t))
 	b.Open("zzz")

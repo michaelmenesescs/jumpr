@@ -190,6 +190,83 @@ func TestTableFilter(t *testing.T) {
 	}
 }
 
+func TestTableFuzzy(t *testing.T) {
+	tbl := drain(t, newHostTable(t, fake.Options{}))
+
+	// ctrl+f opens the fuzzy prompt; typing a scattered subsequence finds the
+	// one host whose name lines up.
+	tbl = press(t, tbl, tea.KeyMsg{Type: tea.KeyCtrlF})
+	if !tbl.Capturing() {
+		t.Fatal("Capturing() = false after ctrl+f")
+	}
+	if !tbl.fuzzy {
+		t.Fatal("ctrl+f did not switch the filter to fuzzy mode")
+	}
+	tbl = press(t, tbl, runes("webewr012"))
+	if got := len(tbl.view); got != 1 {
+		t.Fatalf("fuzzy rows = %d, want 1", got)
+	}
+	if got := tbl.view[0].Str("host"); got != "web-ewr-012" {
+		t.Fatalf("fuzzy match = %q, want web-ewr-012", got)
+	}
+
+	// Enter applies and stops capturing; the rows stay filtered.
+	tbl = press(t, tbl, tea.KeyMsg{Type: tea.KeyEnter})
+	if tbl.Capturing() {
+		t.Fatal("Capturing() = true after enter")
+	}
+	if len(tbl.view) != 1 {
+		t.Fatalf("fuzzy filter lost after enter: %d rows", len(tbl.view))
+	}
+
+	// Esc clears it.
+	tbl = press(t, tbl, tea.KeyMsg{Type: tea.KeyEsc})
+	if tbl.filter != "" || tbl.fuzzy || len(tbl.view) != 1512 {
+		t.Fatalf("esc: filter=%q fuzzy=%v rows=%d", tbl.filter, tbl.fuzzy, len(tbl.view))
+	}
+
+	// The existing "/" substring filter keeps its behaviour.
+	tbl = press(t, tbl, runes("/"))
+	tbl = press(t, tbl, runes("web-ewr"))
+	if got, want := len(tbl.view), 504; got != want {
+		t.Fatalf("substring rows = %d, want %d", got, want)
+	}
+	if tbl.fuzzy {
+		t.Fatal("/ switched the filter to fuzzy mode")
+	}
+	tbl = press(t, tbl, tea.KeyMsg{Type: tea.KeyEsc})
+
+	// And so does the ~ regex form.
+	tbl = press(t, tbl, runes("/"))
+	tbl = press(t, tbl, runes("~^web-lax-0"))
+	if got, want := len(tbl.view), 99; got != want {
+		t.Fatalf("regex rows = %d, want %d", got, want)
+	}
+	if len(tbl.CopyLines()) != 100 {
+		t.Fatalf("CopyLines = %d lines, want 100", len(tbl.CopyLines()))
+	}
+	tbl = press(t, tbl, tea.KeyMsg{Type: tea.KeyEsc})
+
+	// Fuzzy matches the name column and label values, not other cells.
+	row := resource.Resource{
+		Ref:    resource.Ref{Backend: "fake", Kind: "host", Name: "web-ord-001"},
+		Fields: map[string]any{"load": 9.99},
+		Labels: map[string]string{"dc": "zzlabel", "role": "web"},
+	}
+	tbl.filter, tbl.fuzzy = "webo", true
+	if !tbl.matches(row) {
+		t.Error("fuzzy did not match the row name")
+	}
+	tbl.filter = "zlb"
+	if !tbl.matches(row) {
+		t.Error("fuzzy did not match a label value")
+	}
+	tbl.filter = "999"
+	if tbl.matches(row) {
+		t.Error("fuzzy matched a field that is not the name or a label")
+	}
+}
+
 func TestTableSortKeepsCursor(t *testing.T) {
 	tbl := drain(t, newHostTable(t, fake.Options{}))
 
