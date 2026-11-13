@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 026, 027
 - **Parallel group:** M2-B (with 029, 030, 036)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Compile several small read-only commands into one script (one round trip per host) and split the reply back into
