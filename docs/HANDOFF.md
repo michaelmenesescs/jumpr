@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 011 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 012 done; M0 in progress)_
 
 ## State
 
@@ -88,10 +88,19 @@ _Last updated: 2026-11-12 (task 011 done; M0 in progress)_
       routing everything else to the top view, `Render` through `render.Fit`). Tests: 7 NextBatch/ListBatch cases
       and 7 Stack cases.
 
+- [x] **Task 012 done:** `internal/tui/views` — `table.go` (generic `Table` implementing `tui.View`: streaming
+      `Init`/`restart` on a cancellable `context.Background()` with `Seq` guards, batch append + per-host errors +
+      re-sort + cursor kept on the same `Ref`, keys from `env.Keys` for up/down/page/top/bottom/`/`/`r`/`enter`/
+      `esc`/`e` plus `s`/`S` sort cycling and backend `Link.Key` pivots, case-insensitive substring and `~`-regex
+      filter, windowed `Render` with banner + header + selected row + Crit error rows, `Crumb`/`Hints`/`Subject`/
+      `CopyLines`) and `table_format.go` (`cellText` by `ColumnKind`: Number/Bytes/Percent/Duration/Time/Spark/
+      Status, nil → `—`). Tests: 8 `TestTable…` cases over the fake 1,512-host fleet.
+
 ## Next task
 
-**`docs/tasks/012-table-view.md`** (depends on 007, 008, 009, 011, all done). 013 and 014 are also unblocked
-(013 needs 008 + 011, 014 needs 011); 012/013/014 are parallel group M0-C.
+**`docs/tasks/013-text-view.md`** (depends on 008, 011, both done). 014 and 015 are also unblocked (014 needs 011,
+015 needs 011); 013/014/015 are parallel group M0-C and touch disjoint files in `internal/tui/views/` and
+`internal/tui/` (013/014/015 each create their own files; 015 also owns `dialog.go`/`help.go`).
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -234,3 +243,14 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   (task 014 owns the command registry); both are added by those tasks; (4) `Flash` does not run `Sprintf` when
   there are no args, so a format containing `%` is shown literally. `make check` green; tui tests 1.35 s under
   `-race`.
+- 2026-11-12 — Task 012: `internal/tui/views` table. Choices: (1) the done banner counts `rows + errors`
+  ("1,512 hosts · 2 errors") because the task's example counts the units attempted, not just rendered rows;
+  (2) error rows put the host in the name column and the error kind at the start of the first non-name column,
+  spilling into the blank remainder — the host table's LOAD column is 6 cells, so `render.Row` would cut
+  `unreachable` to `unrea…`; (3) `s` advances to the next column ascending and `S` toggles direction (neither has
+  a `keymap.Map` binding), and both keep the cursor on the same `Ref` via `cursorOn`; (4) filtering and sorting
+  happen in `refilter` on data/filter changes only — `Render` slices the window first; header layout (per width),
+  banner and stale count are cached, so a 100x20 frame over 1,512 rows averages **3.1 ms under `-race`**
+  (0.3 ms without); (5) `~` regexes compile with `(?i)`; an invalid one sets `filterBad` and matches nothing;
+  (6) `NewTable` falls back to `keymap.Default()` when `env.Keys` is nil so a pane-less table (tests, task 016
+  bootstrapping) never panics. `make check` green; views tests 1.98 s under `-race`, acceptance suite 8 tests.

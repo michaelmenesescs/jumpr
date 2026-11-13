@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 007, 008, 009, 011
 - **Parallel group:** M0-C (with 013, 014, 015)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The k9s-style list that renders any kind from any backend: streaming rows, cursor, sort, `/` filter, error rows.
