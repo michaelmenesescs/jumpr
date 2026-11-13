@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -318,6 +319,57 @@ func TestRootZoom(t *testing.T) {
 	screen := finish(t, tm)
 	if strings.Contains(screen, "0: Z") {
 		t.Fatalf("status line still marks the window zoomed:\n%s", screen)
+	}
+}
+
+// fakeClip records every text the root hands to the clipboard.
+type fakeClip struct {
+	mu   sync.Mutex
+	text []string
+}
+
+func (f *fakeClip) Copy(text string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.text = append(f.text, text)
+	return nil
+}
+
+func (f *fakeClip) got() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.text...)
+}
+
+func TestRootCopyModeYank(t *testing.T) {
+	fc := &fakeClip{}
+	root := newRoot(t, resource.Query{Kind: "host", Hosts: ewrHosts(24)})
+	root.SetClipboard(fc)
+	tm := start(t, root)
+	waitFor(t, tm, "web-ewr-007")
+
+	sendPrefix(t, tm, "[")
+	waitFor(t, tm, "[copy]")
+
+	// V selects lines, k grows the selection by one line, y yanks it.
+	key := func(s string) {
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)})
+	}
+	key("V")
+	key("k")
+	key("y")
+	waitFor(t, tm, "yanked 2 lines")
+
+	screen := finish(t, tm)
+	if strings.Contains(screen, "[copy]") {
+		t.Fatalf("copy mode is still drawn after the yank:\n%s", screen)
+	}
+	got := fc.got()
+	if len(got) != 1 {
+		t.Fatalf("clipboard received %d copies, want 1: %q", len(got), got)
+	}
+	if n := strings.Count(got[0], "\n") + 1; n != 2 {
+		t.Fatalf("clipboard received %d lines, want 2: %q", n, got[0])
 	}
 }
 

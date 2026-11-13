@@ -7,8 +7,10 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"jumper/internal/backend"
+	"jumper/internal/clip"
 	"jumper/internal/mux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
@@ -29,6 +31,13 @@ const (
 // flashTickMsg expires the flash with the matching sequence number. A newer
 // flash bumps the sequence, so a stale tick is ignored.
 type flashTickMsg struct{ seq int }
+
+// copyDoneMsg reports the result of the clipboard write the root started when
+// the user yanked. Copy is I/O, so it never runs inside Update.
+type copyDoneMsg struct {
+	lines int
+	err   error
+}
 
 // Root is the top-level tea.Model: it owns the multiplexer, the command bar,
 // the modal dialog, the flash line and the status line. It does no I/O; every
@@ -56,6 +65,10 @@ type Root struct {
 	panes    int
 	initCmd  tea.Cmd
 	startErr string
+
+	clip     clip.Clipboard
+	copy     *mux.CopyMode
+	copyPane mux.PaneID
 }
 
 var _ tea.Model = (*Root)(nil)
@@ -92,6 +105,11 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 	_, r.initCmd = m.AddPane(mux.ContentState{}, "h")
 	return r
 }
+
+// SetClipboard installs the clipboard the root yanks into. app builds
+// clip.Multi(pbcopy, osc52(out, inTmux)) and calls this once; without one a
+// yank flashes a warning instead.
+func (r *Root) SetClipboard(c clip.Clipboard) { r.clip = c }
 
 // stylesFor builds the four mux pane styles from the theme.
 func stylesFor(env *Env) mux.Styles {
@@ -239,6 +257,9 @@ func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
 		cmd, _ := r.bar.Update(k)
 		return cmd
 	}
+	if r.copy != nil && k.String() != r.prefix {
+		return r.copyKey(k)
+	}
 	if r.muxTakesKey(k) {
 		return r.routeMux(k)
 	}
@@ -350,6 +371,13 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 	case tea.WindowSizeMsg:
 		r.w, r.h = m.Width, m.Height
 		r.mux.SetSize(r.w, r.bodyHeight())
+		if r.copy != nil {
+			if rect, ok := r.copyInterior(); ok {
+				r.copy.SetSize(rect.W, rect.H)
+			} else {
+				r.copy = nil
+			}
+		}
 		return nil
 	case tea.QuitMsg:
 		return tea.Quit
@@ -405,6 +433,14 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		return r.openHelp()
 	case KindsRequestedMsg:
 		return r.pushFocused(r.kindsView())
+	case copyDoneMsg:
+		if m.err != nil {
+			return Flash(FlashWarn, "copy: %v", m.err)
+		}
+		if m.lines == 1 {
+			return Flash(FlashOK, "yanked 1 line")
+		}
+		return Flash(FlashOK, "yanked %d lines", m.lines)
 	}
 	return r.routeMux(msg)
 }
@@ -465,7 +501,9 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 		return r.openWindowList()
 	case mux.OpDetach:
 		return Flash(FlashInfo, "detach needs the session server (coming in M5); use :q to quit")
-	case mux.OpCopyMode, mux.OpSync, mux.OpSSH, mux.OpSessionList:
+	case mux.OpCopyMode:
+		return r.openCopyMode()
+	case mux.OpSync, mux.OpSSH, mux.OpSessionList:
 		return Flash(FlashInfo, "not available yet")
 	case mux.OpKillPane:
 		if r.focusedBusy() {
@@ -487,6 +525,93 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 		return r.routeMux(m)
 	}
 	return nil
+}
+
+// openCopyMode freezes the focused pane's text and opens copy mode over that
+// pane. An empty pane flashes instead of opening an empty window.
+func (r *Root) openCopyMode() tea.Cmd {
+	if r.mux == nil {
+		return nil
+	}
+	id, c := r.mux.Focused()
+	if c == nil {
+		return nil
+	}
+	lines := c.CopyLines()
+	if len(lines) == 0 {
+		return Flash(FlashInfo, "nothing to copy")
+	}
+	r.copyPane = id
+	rect, ok := r.copyInterior()
+	if !ok {
+		return Flash(FlashWarn, "pane too small for copy mode")
+	}
+	r.copy = mux.NewCopyMode(lines, rect.W, rect.H)
+	return nil
+}
+
+// copyKey feeds one key to copy mode and finishes it on y or quit. The
+// clipboard write is I/O, so it runs in a tea.Cmd and reports back with
+// copyDoneMsg; a yank with no selection of anything is dropped.
+func (r *Root) copyKey(k tea.KeyMsg) tea.Cmd {
+	if r.copy == nil {
+		return nil
+	}
+	done, text := r.copy.Update(k.String())
+	if !done {
+		return nil
+	}
+	r.copy = nil
+	if text == "" {
+		return nil
+	}
+	c := r.clip
+	if c == nil {
+		return Flash(FlashWarn, "no clipboard configured")
+	}
+	lines := strings.Count(text, "\n") + 1
+	return func() tea.Msg { return copyDoneMsg{lines: lines, err: c.Copy(text)} }
+}
+
+// copyInterior is the cell area copy mode draws in: the focused pane's interior,
+// borders excluded. It reports false when that pane is gone or too small.
+func (r *Root) copyInterior() (mux.Rect, bool) {
+	if r.mux == nil || r.mux.Session() == nil {
+		return mux.Rect{}, false
+	}
+	rects := r.mux.Session().Rects(mux.Rect{X: 0, Y: 0, W: r.w, H: r.bodyHeight()})
+	rect, ok := rects[r.copyPane]
+	if !ok || rect.W <= 0 || rect.H <= 0 {
+		return mux.Rect{}, false
+	}
+	if len(rects) > 1 {
+		rect = mux.Rect{X: rect.X + 1, Y: rect.Y + 1, W: rect.W - 2, H: rect.H - 2}
+	}
+	if rect.W <= 0 || rect.H <= 0 {
+		return mux.Rect{}, false
+	}
+	return rect, true
+}
+
+// overlayCopy draws copy mode over the focused pane's interior in body, leaving
+// the rest of the mux view untouched.
+func (r *Root) overlayCopy(body string) string {
+	rect, ok := r.copyInterior()
+	if !ok {
+		r.copy = nil
+		return body
+	}
+	lines := strings.Split(body, "\n")
+	over := strings.Split(r.copy.View(), "\n")
+	for i := 0; i < rect.H && i < len(over); i++ {
+		y := rect.Y + i
+		if y < 0 || y >= len(lines) {
+			continue
+		}
+		line := lines[y]
+		lines[y] = ansi.Cut(line, 0, rect.X) + over[i] + ansi.Cut(line, rect.X+rect.W, render.Width(line))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // busyContent is the optional Content method that asks for a kill confirmation.
@@ -652,7 +777,11 @@ func (r *Root) View() string {
 
 	bodyH := r.bodyHeight()
 	if bodyH > 0 {
-		b.WriteString(r.mux.View())
+		body := r.mux.View()
+		if r.copy != nil {
+			body = r.overlayCopy(body)
+		}
+		b.WriteString(body)
 		b.WriteString("\n")
 	}
 	b.WriteString(r.renderInputLine(w))

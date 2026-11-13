@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 022
 - **Parallel group:** — (serial; touches the root or `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `prefix [` freezes the focused pane's text, lets you move, search, select and yank to the clipboard.
