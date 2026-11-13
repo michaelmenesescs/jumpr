@@ -25,7 +25,8 @@ type Config struct {
 
 // UIConfig configures the presentation layer.
 type UIConfig struct {
-	Color string `yaml:"color"` // auto | truecolor | 256 | 16
+	Color  string `yaml:"color"`  // auto | truecolor | 256 | 16
+	Glyphs string `yaml:"glyphs"` // auto | unicode | nerd | ascii
 }
 
 // MuxConfig configures panes, prefix keys and synchronized input.
@@ -108,7 +109,8 @@ type InteractConfig struct {
 func Default() Config {
 	return Config{
 		UI: UIConfig{
-			Color: "auto",
+			Color:  "auto",
+			Glyphs: "auto",
 		},
 		Mux: MuxConfig{
 			Prefix:       "C-a",
@@ -163,6 +165,7 @@ var (
 	// backslash, ], ^, _ and @ because those are common terminal bindings.
 	prefixRE   = regexp.MustCompile(`^C-[a-z\\\]\^_@]$`)
 	colorSet   = map[string]bool{"auto": true, "truecolor": true, "256": true, "16": true}
+	glyphSet   = map[string]bool{"auto": true, "unicode": true, "nerd": true, "ascii": true}
 	sourceType = map[string]bool{
 		"ssh_config": true,
 		"static":     true,
@@ -184,6 +187,9 @@ func (c *Config) Validate() error {
 	}
 	if !colorSet[c.UI.Color] {
 		return invalidf("ui.color: %q is not one of auto, truecolor, 256, 16", c.UI.Color)
+	}
+	if !glyphSet[c.UI.Glyphs] {
+		return invalidf("ui.glyphs: %q is not one of auto, unicode, nerd, ascii", c.UI.Glyphs)
 	}
 
 	for _, f := range []struct {

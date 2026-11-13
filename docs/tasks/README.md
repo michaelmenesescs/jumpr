@@ -245,6 +245,6 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [140](140-fuzzy-match.md) | Fuzzy matching (fzf-style) for filter and completion | 012, 014 | — | done |
-| [141](141-glyph-sets.md) | Glyph sets: unicode / nerd / ascii, `ui.glyphs` | 003, 009, 010 | — | todo |
+| [141](141-glyph-sets.md) | Glyph sets: unicode / nerd / ascii, `ui.glyphs` | 003, 009, 010 | — | done |
 
 129 tasks (127 planned + 2 UX-parity tasks added during the MVP build).

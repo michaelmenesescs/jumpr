@@ -325,3 +325,68 @@ func TestPrefixPatternAcceptsSpecialKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestGlyphsDefaultAndValidate(t *testing.T) {
+	cfg := Default()
+	if got := cfg.UI.Glyphs; got != "auto" {
+		t.Fatalf("Default().UI.Glyphs = %q, want auto", got)
+	}
+	for _, name := range []string{"auto", "unicode", "nerd", "ascii"} {
+		cfg := Default()
+		cfg.UI.Glyphs = name
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("ui.glyphs %q rejected: %v", name, err)
+		}
+	}
+
+	cfg = Default()
+	cfg.UI.Glyphs = "bogus"
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate accepted ui.glyphs: bogus")
+	}
+	if !errs.Is(err, errs.Config) {
+		t.Errorf("error kind = %q, want %q", errs.KindOf(err), errs.Config)
+	}
+	if !strings.Contains(err.Error(), "ui.glyphs") {
+		t.Errorf("error %q does not name ui.glyphs", err)
+	}
+}
+
+func TestGlyphsLoadErrorNamesFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("ui:\n  glyphs: bogus\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(path, testHome)
+	if err == nil {
+		t.Fatal("Load of ui.glyphs: bogus returned no error")
+	}
+	if !errs.Is(err, errs.Config) {
+		t.Errorf("error kind = %q, want %q", errs.KindOf(err), errs.Config)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, path) {
+		t.Errorf("error %q does not name the file %q", msg, path)
+	}
+	if !strings.Contains(msg, "ui.glyphs") {
+		t.Errorf("error %q does not name ui.glyphs", msg)
+	}
+}
+
+func TestGlyphsRoundTripYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("ui:\n  glyphs: ascii\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path, testHome)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.UI.Glyphs; got != "ascii" {
+		t.Errorf("ui.glyphs = %q, want ascii", got)
+	}
+	if got := cfg.UI.Color; got != "auto" {
+		t.Errorf("ui.color = %q, want the default auto", got)
+	}
+}

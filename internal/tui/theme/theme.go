@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
+	"jumper/internal/render"
 	"jumper/internal/resource"
 )
 
@@ -91,6 +92,45 @@ func SetProfile(name string) {
 	case "none":
 		lipgloss.SetColorProfile(termenv.Ascii)
 	}
+}
+
+// StatusMarker returns set's one-cell marker for a resource status, styled the
+// same way as StatusStyle styles the status text. The glyph set is passed in:
+// the theme holds colours only, never the active set.
+func (t *Theme) StatusMarker(set render.GlyphSet, s resource.Status) string {
+	return t.StatusStyle(s).Render(string(marker(set, s)))
+}
+
+// marker returns the rune set draws for a status.
+func marker(set render.GlyphSet, s resource.Status) rune {
+	switch s {
+	case resource.StatusOK:
+		return set.StatusOK
+	case resource.StatusWarn:
+		return set.StatusWarn
+	case resource.StatusCrit:
+		return set.StatusCrit
+	case resource.StatusNA:
+		return set.StatusNA
+	default:
+		return set.StatusUnknown
+	}
+}
+
+// Separator returns set's field separator, styled Dim.
+func (t *Theme) Separator(set render.GlyphSet) string {
+	if set.Separator == 0 {
+		return ""
+	}
+	return t.Dim.Render(string(set.Separator))
+}
+
+// Arrow returns set's drill-in arrow, styled Dim.
+func (t *Theme) Arrow(set render.GlyphSet) string {
+	if set.Arrow == 0 {
+		return ""
+	}
+	return t.Dim.Render(string(set.Arrow))
 }
 
 // StatusStyle returns the style for a resource status: Unknown is plain Base,

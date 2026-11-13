@@ -69,6 +69,9 @@ type Table struct {
 
 	w, h int
 
+	// glyphs is the active glyph set: every rune the view draws comes from it.
+	glyphs render.GlyphSet
+
 	// header cache: the column layout only changes with the width
 	hdrWidth  int
 	hdrCols   []render.TableColumn
@@ -105,6 +108,7 @@ func NewTable(env *tui.Env, b backend.Backend, spec resource.KindSpec, q resourc
 		keys = env.Keys
 	}
 	sortID, desc := sortSpec(spec.DefaultSort)
+	glyphs, _ := render.Glyphs("unicode")
 	return &Table{
 		env:      env,
 		b:        b,
@@ -114,7 +118,19 @@ func NewTable(env *tui.Env, b backend.Backend, spec resource.KindSpec, q resourc
 		sortID:   sortID,
 		sortDesc: desc,
 		filterRe: nil,
+		glyphs:   glyphs,
 	}
+}
+
+// WithGlyphs sets the glyph set this table renders with (from ui.glyphs,
+// resolved once at startup) and returns the table for chaining.
+func (t *Table) WithGlyphs(set render.GlyphSet) *Table {
+	if set.Name != "" {
+		t.glyphs = set
+		t.bncached = false
+		t.hdrCols = nil
+	}
+	return t
 }
 
 // sortSpec splits a KindSpec.DefaultSort value ("-load") into column and
@@ -510,7 +526,7 @@ func (t *Table) rowText(row resource.Resource) string {
 	now := t.now()
 	parts := make([]string, len(t.spec.Columns))
 	for i, c := range t.spec.Columns {
-		parts[i] = cellText(c, row, now, c.Width)
+		parts[i] = cellTextWith(t.glyphs, c, row, now, c.Width)
 	}
 	return strings.Join(parts, " ")
 }
@@ -562,7 +578,7 @@ func (t *Table) header(w int) ([]render.TableColumn, []int) {
 	t.hdrCols = cols
 	t.hdrWidths = widths
 	t.hdrWidth = w
-	t.hdr = t.env.Theme.Header.Render(render.Header(cols, widths))
+	t.hdr = t.env.Theme.Header.Render(render.HeaderWith(t.glyphs, cols, widths))
 	return cols, widths
 }
 
@@ -574,7 +590,7 @@ func (t *Table) rowLine(row resource.Resource, cols []render.TableColumn, widths
 	cells := make([]render.Cell, len(t.spec.Columns))
 	now := t.now()
 	for i, c := range t.spec.Columns {
-		text := cellText(c, row, now, widths[i])
+		text := cellTextWith(t.glyphs, c, row, now, widths[i])
 		if row.Fields[c.ID] == nil && c.Kind != resource.ColStatus {
 			faint := theme.Faint
 			cells[i] = render.Cell{Text: text, Style: func(s string) string { return faint.Render(s) }}
@@ -582,7 +598,7 @@ func (t *Table) rowLine(row resource.Resource, cols []render.TableColumn, widths
 		}
 		cells[i] = render.Cell{Text: text, Style: func(s string) string { return status.Render(s) }}
 	}
-	line := render.Row(cells, widths, cols)
+	line := render.RowWith(t.glyphs, cells, widths, cols)
 	if selected {
 		line = theme.Selected.Render(line)
 	}
@@ -601,7 +617,7 @@ func (t *Table) errorLine(he hostErr, widths []int) string {
 	kind := string(errs.KindOf(he.err))
 	line := render.PadRight(string(he.Host), widths[0])
 	if len(widths) == 1 {
-		line = render.Truncate(render.PadRight(line+" "+kind, widths[0]), widths[0])
+		line = render.TruncateWith(t.glyphs, render.PadRight(line+" "+kind, widths[0]), widths[0])
 	} else {
 		line += " " + kind
 	}
@@ -627,27 +643,29 @@ func (t *Table) banner() string {
 	}
 
 	var b strings.Builder
+	sep := " " + string(t.glyphs.Separator) + " "
+	dots := " " + string(t.glyphs.Ellipsis)
 	if !t.done {
 		if t.total > 0 {
-			fmt.Fprintf(&b, "loading %s/%s …", render.Int(int64(t.doneN)), render.Int(int64(t.total)))
+			fmt.Fprintf(&b, "loading %s/%s%s", render.Int(int64(t.doneN)), render.Int(int64(t.total)), dots)
 		} else {
-			fmt.Fprintf(&b, "loading %s …", render.Int(int64(len(t.rows))))
+			fmt.Fprintf(&b, "loading %s%s", render.Int(int64(len(t.rows))), dots)
 		}
 	} else {
 		n := len(t.rows) + len(t.errs)
-		fmt.Fprintf(&b, "%s %s · %d %s · %s",
-			render.Int(int64(n)), plural(t.spec.Name), len(t.errs), pluralWord(len(t.errs), "error"),
-			seconds(t.elapsed))
+		fmt.Fprintf(&b, "%s %s%s%d %s%s%s",
+			render.Int(int64(n)), plural(t.spec.Name), sep, len(t.errs), pluralWord(len(t.errs), "error"),
+			sep, seconds(t.elapsed))
 		if key.stale > 0 {
-			b.WriteString(" · stale")
+			b.WriteString(sep + "stale")
 		}
 	}
 	if t.filter != "" {
+		label := "/filter: "
 		if t.fuzzy {
-			b.WriteString(" · fuzzy: ")
-		} else {
-			b.WriteString(" · /filter: ")
+			label = "fuzzy: "
 		}
+		b.WriteString(sep + label)
 		b.WriteString(t.filter)
 	}
 	t.bnKey = key
@@ -727,7 +745,7 @@ func (t *Table) Render(w, h int) string {
 			}
 		}
 	}
-	return render.Fit(strings.Join(lines, "\n"), w, h)
+	return render.FitWith(t.glyphs, strings.Join(lines, "\n"), w, h)
 }
 
 // Crumb is "<kind> (<n>)", with the selector when the query has one.
@@ -845,7 +863,7 @@ func (t *Table) CopyLines() []string {
 	for _, r := range t.view {
 		cells := make([]string, len(t.spec.Columns))
 		for i, c := range t.spec.Columns {
-			cells[i] = cellText(c, r, now, c.Width)
+			cells[i] = cellTextWith(t.glyphs, c, r, now, c.Width)
 		}
 		lines = append(lines, strings.Join(cells, "  "))
 	}

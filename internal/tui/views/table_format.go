@@ -8,15 +8,22 @@ import (
 	"jumper/internal/resource"
 )
 
-// cellText renders one field of row as plain text, following the column's
-// kind. Missing values render as an em dash; the caller decides the style.
+// cellText renders one field of row as plain text with the unicode glyph set.
 func cellText(c resource.Column, row resource.Resource, now time.Time, width int) string {
+	set, _ := render.Glyphs("unicode")
+	return cellTextWith(set, c, row, now, width)
+}
+
+// cellTextWith renders one field of row as plain text, following the column's
+// kind, using set for every glyph it draws (the spark ramp and the ellipsis).
+// Missing values render as the set's placeholder; the caller decides the style.
+func cellTextWith(set render.GlyphSet, c resource.Column, row resource.Resource, now time.Time, width int) string {
 	if c.Kind == resource.ColStatus {
 		return statusText(row.Status)
 	}
 	v := row.Fields[c.ID]
 	if v == nil {
-		return "—"
+		return missingText(set)
 	}
 	switch c.Kind {
 	case resource.ColNumber:
@@ -47,10 +54,19 @@ func cellText(c resource.Column, row resource.Resource, now time.Time, width int
 		}
 	case resource.ColSpark:
 		if vals, ok := v.([]float64); ok {
-			return render.Spark(vals, width)
+			return render.SparkWith(set, vals, width)
 		}
 	}
 	return row.Str(c.ID)
+}
+
+// missingText is the placeholder for a missing value: an em dash, or a plain
+// hyphen when the active set must stay inside ASCII.
+func missingText(set render.GlyphSet) string {
+	if set.Ellipsis < 0x80 {
+		return "-"
+	}
+	return "—"
 }
 
 // valueInt reads an integer field value.
