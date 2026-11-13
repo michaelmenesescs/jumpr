@@ -99,11 +99,30 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 	if env != nil && env.Session != nil && env.Session.Name != "" {
 		name = env.Session.Name
 	}
+	r.registerDefaults()
 	m := mux.NewModel(mux.NewSession(name), r.paneContent, prefixKey, stylesFor(env))
 	m.SetRootPredicate(IsRootMsg)
 	r.mux = m
 	_, r.initCmd = m.AddPane(mux.ContentState{}, "h")
 	return r
+}
+
+// registerDefaults gives every kind without a specific factory the default one
+// (BUILD-PLAN §4.8: "kinds without one get the generic table view"). The panes
+// resolve `:` queries through Env.Factories themselves, so the fallback has to
+// be visible in that map and not only in viewFor.
+func (r *Root) registerDefaults() {
+	if r.env == nil || r.env.Registry == nil || r.factory == nil {
+		return
+	}
+	if r.env.Factories == nil {
+		r.env.Factories = make(map[resource.KindName]Factory)
+	}
+	for _, spec := range r.env.Registry.Kinds() {
+		if r.env.Factories[spec.Name] == nil {
+			r.env.Factories[spec.Name] = r.factory
+		}
+	}
 }
 
 // SetClipboard installs the clipboard the root yanks into. app builds
@@ -348,6 +367,64 @@ func (r *Root) toFocused(msg tea.Msg) tea.Cmd {
 	return r.handlePaneMsg(mux.PaneMsg{Pane: id, Msg: msg})
 }
 
+// openQuery hands a `:` query to the focused pane, which owns the stack the
+// views live on. It is the only place OpenQueryMsg is turned into a view push:
+// the root must not push as well, or one `:units` would open two views.
+func (r *Root) openQuery(m OpenQueryMsg) tea.Cmd {
+	q := r.scoped(m.Query)
+	if q.Kind != "" {
+		r.paneKind = q.Kind
+	}
+	if _, c := r.mux.Focused(); c == nil {
+		// Never swallow a query because no pane is focused yet (startup).
+		return Flash(FlashWarn, "no pane to open %s in", q.Kind)
+	}
+	return r.toFocused(OpenQueryMsg{Query: q})
+}
+
+// scoped gives a host-scoped query the host of the view it was opened from when
+// it names none, so `:units` on a host table means that host's units. Explicit
+// hosts win, and global kinds are returned unchanged.
+func (r *Root) scoped(q resource.Query) resource.Query {
+	if q.Kind == "" || len(q.Hosts) > 0 {
+		return q
+	}
+	spec, ok := r.kindSpec(q.Kind)
+	if !ok || spec.Scope != resource.ScopeHost {
+		return q
+	}
+	subj := r.focusedSubject()
+	hosts := subj.Hosts
+	if len(hosts) == 0 && subj.Ref.Host != "" {
+		hosts = []resource.HostID{subj.Ref.Host}
+	}
+	if len(hosts) > 0 {
+		q.Hosts = append([]resource.HostID(nil), hosts...)
+	}
+	return q
+}
+
+// kindSpec looks a kind up in the registry.
+func (r *Root) kindSpec(kind resource.KindName) (resource.KindSpec, bool) {
+	if r.env == nil || r.env.Registry == nil {
+		return resource.KindSpec{}, false
+	}
+	_, spec, ok := r.env.Registry.Lookup(string(kind))
+	return spec, ok
+}
+
+// focusedSubject is what the focused content is about, when it reports one.
+func (r *Root) focusedSubject() Subject {
+	if r.mux == nil {
+		return Subject{}
+	}
+	_, c := r.mux.Focused()
+	if s, ok := c.(interface{ Subject() Subject }); ok {
+		return s.Subject()
+	}
+	return Subject{}
+}
+
 // handlePaneMsg delivers a pane-scoped message to its content and returns the
 // command the content produced. The root routes these itself instead of going
 // through mux.Update: the mux stores the updated content but drops that
@@ -399,10 +476,7 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		}
 		return r.cmds.Exec(r.env, m.Line)
 	case OpenQueryMsg:
-		if m.Query.Kind != "" {
-			r.paneKind = m.Query.Kind
-		}
-		return r.toFocused(m)
+		return r.openQuery(m)
 	case mux.OpMsg:
 		return r.handleOp(m)
 	case mux.PaneMsg:

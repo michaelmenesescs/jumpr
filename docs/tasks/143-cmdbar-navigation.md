@@ -3,7 +3,7 @@
 - **Milestone:** M0 fix (found by driving `jumper --demo` in a PTY)
 - **Depends on:** 016, 020, 022, 014
 - **Parallel group:** —
-- **Status:** todo
+- **Status:** done
 
 ## Symptom (reproduced)
 In `jumper --demo` (110x16 PTY): `:u` + `enter` leaves the host table in place and flashes
