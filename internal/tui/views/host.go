@@ -10,6 +10,7 @@ import (
 
 	"jumper/internal/backend"
 	"jumper/internal/backend/linux"
+	"jumper/internal/backend/prom"
 	"jumper/internal/errs"
 	"jumper/internal/render"
 	"jumper/internal/resource"
@@ -25,6 +26,22 @@ const hostLoadTimeout = 30 * time.Second
 // hostJournalMax is the most journal entries one batch carries. The list is
 // capped at hostJournalLimit entries by the query anyway.
 const hostJournalMax = 50
+
+// hostMetricSparkWidth is the sparkline width of one metric column.
+const hostMetricSparkWidth = 16
+
+// hostMetricSource is a backend that carries the configured host metric
+// columns (metrics.host_columns) and can answer their PromQL.
+type hostMetricSource interface {
+	HostColumns() []prom.HostColumn
+	Queriers() []prom.NamedQuerier
+}
+
+// ruleReader is the part of a Prometheus client that can read rule
+// expressions; *prom.Client implements it.
+type ruleReader interface {
+	Rules(ctx context.Context) ([]prom.RuleGroup, error)
+}
 
 // Journal arguments of the overview's error section: priority ≤ 3 (err and
 // worse), the eight most recent entries of the session window.
@@ -58,6 +75,17 @@ type hostJournalMsg struct {
 	Closed  bool
 }
 
+// hostMetricsMsg is the metrics part: the configured columns, this host's
+// values over the window and, when an investigation is open, the alert's own
+// rule expression.
+type hostMetricsMsg struct {
+	Seq    int
+	Cols   []prom.HostColumn
+	Values map[resource.HostID]map[string]prom.HostValue
+	Alert  string
+	Err    error
+}
+
 // Host is the one-screen summary of a single host: system facts, pressure,
 // load and memory, failed units and the recent journal errors. It loads two
 // independent parts — the overview row and the journal — and renders each as
@@ -86,6 +114,15 @@ type Host struct {
 	journalErr    error
 	journalDone   bool
 
+	// metrics part (Prometheus configured)
+	metricsSeq    int
+	metricsCancel context.CancelFunc
+	metricCols    []prom.HostColumn
+	metricValues  map[resource.HostID]map[string]prom.HostValue
+	metricAlert   string
+	metricErr     error
+	metricDone    bool
+
 	w, h int
 }
 
@@ -112,7 +149,7 @@ func NewHost(env *tui.Env, b backend.Backend, host resource.HostID) *Host {
 }
 
 // Init starts both parts in parallel. Neither waits for the other.
-func (h *Host) Init() tea.Cmd { return tea.Batch(h.loadHost(), h.loadJournal()) }
+func (h *Host) Init() tea.Cmd { return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics()) }
 
 // now is the clock handed in by the environment.
 func (h *Host) now() time.Time {
@@ -197,6 +234,115 @@ func hostJournalBatches(seq int, ch <-chan backend.Result) tea.Cmd {
 	}
 }
 
+// loadMetrics starts the metrics part. It is a no-op unless a registered
+// backend carries configured host columns, which is what makes the section
+// appear only when a Prometheus is configured (metrics.host_columns defaults to
+// none).
+func (h *Host) loadMetrics() tea.Cmd {
+	if h.metricsCancel != nil {
+		h.metricsCancel()
+		h.metricsCancel = nil
+	}
+	h.metricCols = nil
+	h.metricValues = nil
+	h.metricAlert = ""
+	h.metricErr = nil
+	h.metricDone = true
+
+	src := h.metricSource()
+	if src == nil {
+		return nil
+	}
+	cols := src.HostColumns()
+	if len(cols) == 0 {
+		return nil
+	}
+	queriers := src.Queriers()
+	if len(queriers) == 0 {
+		h.metricCols = cols
+		h.metricErr = errs.New(errs.Config, "views.host.metrics", "no prometheus server configured")
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), hostLoadTimeout)
+	h.metricsCancel = cancel
+	h.metricsSeq++
+	seq := h.metricsSeq
+	h.metricDone = false
+
+	host := h.host
+	from, to := h.metricWindow()
+	var alerts []string
+	if h.env != nil && h.env.Session != nil && h.env.Session.Investigation != nil {
+		alerts = append([]string(nil), h.env.Session.Investigation.Alerts...)
+	}
+	q := queriers[0].Querier
+	return func() tea.Msg {
+		m := hostMetricsMsg{Seq: seq, Cols: cols}
+		values, err := prom.QueryHostColumns(ctx, q, cols, []resource.HostID{host}, from, to)
+		if err != nil {
+			m.Err = err
+			return m
+		}
+		m.Values = values
+		m.Alert = alertExpression(ctx, q, alerts)
+		return m
+	}
+}
+
+// metricSource finds the registered backend that carries host columns.
+func (h *Host) metricSource() hostMetricSource {
+	if h.env == nil || h.env.Registry == nil {
+		return nil
+	}
+	for _, b := range h.env.Registry.Backends() {
+		if src, ok := b.(hostMetricSource); ok && len(src.HostColumns()) > 0 {
+			return src
+		}
+	}
+	return nil
+}
+
+// metricWindow is the session window; a zero window means the last hour, the
+// same default a series list uses.
+func (h *Host) metricWindow() (time.Time, time.Time) {
+	now := h.now()
+	if h.window.IsZero() {
+		return now.Add(-time.Hour), now
+	}
+	return h.window.Bounds(now)
+}
+
+// alertExpression returns the rule expression of the first open
+// investigation's alert that the rule list knows, or "".
+func alertExpression(ctx context.Context, q prom.Querier, alerts []string) string {
+	if len(alerts) == 0 {
+		return ""
+	}
+	reader, ok := q.(ruleReader)
+	if !ok {
+		return ""
+	}
+	groups, err := reader.Rules(ctx)
+	if err != nil {
+		return ""
+	}
+	want := make(map[string]bool, len(alerts))
+	for _, a := range alerts {
+		if a = strings.TrimSpace(a); a != "" {
+			want[a] = true
+		}
+	}
+	for _, g := range groups {
+		for _, r := range g.Rules {
+			if want[r.Name] && strings.TrimSpace(r.Query) != "" {
+				return strings.TrimSpace(r.Query)
+			}
+		}
+	}
+	return ""
+}
+
 // Update handles the two streams, the session window and the keys. Neither
 // part waits for the other: each renders as soon as its first message arrives.
 func (h *Host) Update(msg tea.Msg) (tui.View, tea.Cmd) {
@@ -234,9 +380,20 @@ func (h *Host) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			return h, nil
 		}
 		return h, hostJournalBatches(m.Seq, h.journalCh)
+	case hostMetricsMsg:
+		if m.Seq != h.metricsSeq {
+			return h, nil
+		}
+		h.metricCols, h.metricValues, h.metricAlert, h.metricErr = m.Cols, m.Values, m.Alert, m.Err
+		h.metricDone = true
+		if h.metricsCancel != nil {
+			h.metricsCancel()
+			h.metricsCancel = nil
+		}
+		return h, nil
 	case tui.WindowChangedMsg:
 		h.window = m.Window
-		return h, h.loadJournal()
+		return h, tea.Batch(h.loadJournal(), h.loadMetrics())
 	case tea.KeyMsg:
 		return h, h.handleKey(m)
 	}
@@ -257,7 +414,7 @@ func (h *Host) handleKey(m tea.KeyMsg) tea.Cmd {
 	case key == "s":
 		return tui.OpenQuery(h.queryFor(linux.KindSocket))
 	case h.keys.Refresh.Matches(key):
-		return tea.Batch(h.loadHost(), h.loadJournal())
+		return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics())
 	case h.keys.Back.Matches(key):
 		return tui.Pop()
 	}
@@ -282,6 +439,10 @@ func (h *Host) Close() error {
 	if h.journalCancel != nil {
 		h.journalCancel()
 		h.journalCancel = nil
+	}
+	if h.metricsCancel != nil {
+		h.metricsCancel()
+		h.metricsCancel = nil
 	}
 	return nil
 }
@@ -444,6 +605,63 @@ func (h *Host) pressureSegment(name string, line linux.PSILine) string {
 	return st.Dim.Render(name+" ") + style.Render(value)
 }
 
+// metricsLine is the METRICS section: one "TITLE value spark" segment per
+// configured column. It is empty when no columns are configured.
+func (h *Host) metricsLine(w int) string {
+	if len(h.metricCols) == 0 {
+		return ""
+	}
+	st := h.style()
+	if h.metricErr != nil {
+		return h.sectionLabel("METRICS") + st.Crit.Render(errorLabel(h.metricErr))
+	}
+	values := h.metricValues[h.host]
+	segs := make([]string, 0, len(h.metricCols))
+	for _, col := range h.metricCols {
+		title := strings.ToUpper(strings.TrimSpace(col.Title))
+		if title == "" {
+			title = strings.ToUpper(col.ID)
+		}
+		v, ok := values[col.ID]
+		if !ok {
+			segs = append(segs, st.Dim.Render(title+" ")+st.Faint.Render("—"))
+			continue
+		}
+		sparkWidth := hostMetricSparkWidth
+		if w > 0 && w < 80 {
+			sparkWidth = 8
+		}
+		text := fmt.Sprintf("%.2f", v.Value)
+		if spark := render.Spark(v.Spark, sparkWidth); spark != "" {
+			text += " " + spark
+		}
+		segs = append(segs, st.Dim.Render(title+" ")+st.Base.Render(text))
+	}
+	if len(segs) == 0 {
+		return ""
+	}
+	return h.sectionLabel("METRICS") + strings.Join(segs, "   ")
+}
+
+// alertExprLine is the ALERT section: the open investigation's alert and the
+// rule expression it fires on, when Prometheus' rules know it.
+func (h *Host) alertExprLine(w int) string {
+	if strings.TrimSpace(h.metricAlert) == "" || h.env == nil || h.env.Session == nil ||
+		h.env.Session.Investigation == nil {
+		return ""
+	}
+	st := h.style()
+	name := ""
+	if alerts := h.env.Session.Investigation.Alerts; len(alerts) > 0 {
+		name = alerts[0]
+	}
+	line := h.sectionLabel("ALERT")
+	if name != "" {
+		line += st.Accent.Render(name) + "  "
+	}
+	return render.Truncate(line+st.Dim.Render(h.metricAlert), w)
+}
+
 // loadLine is the LOAD line, with the MEMORY block on terminals at least 100
 // columns wide (the right column is dropped below that).
 func (h *Host) loadLine(w int) string {
@@ -561,6 +779,12 @@ func (h *Host) Render(w, height int) string {
 		lines = append(lines, h.systemLine())
 		lines = append(lines, h.pressureLine())
 		lines = append(lines, h.loadLine(w))
+		if line := h.metricsLine(w); line != "" {
+			lines = append(lines, line)
+		}
+		if line := h.alertExprLine(w); line != "" {
+			lines = append(lines, line)
+		}
 	}
 
 	// Failed units: keep three lines for the journal section below.

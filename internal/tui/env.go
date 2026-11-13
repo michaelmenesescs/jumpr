@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"jumper/internal/action"
 	"jumper/internal/backend"
 	"jumper/internal/bus"
@@ -50,6 +52,10 @@ type Env struct {
 	// internal/app sets it to views.NewFanoutFromResults; package tui may not
 	// import internal/tui/views itself. nil falls back to the plain listing.
 	ResultsView func(env *Env, title string, results []action.StepResult) View
+	// AlertOpeners let a backend take over `enter` on an alert row before the
+	// built-in alert investigation runs. The first one that returns true owns
+	// the key. The k8s backend opens the pods view this way once it exists.
+	AlertOpeners []func(resource.Resource) (tea.Cmd, bool)
 }
 
 // SessionState is the per-session context every pane shares. Only the root model mutates it.

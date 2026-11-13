@@ -978,6 +978,11 @@ func (t *Table) Subject() tui.Subject {
 	}
 	row := t.view[t.cursor]
 	subj.Ref = row.Ref
+	// An alert is known by its alertname, not by its fingerprint ref: the
+	// knowledge panel and the investigation both ask for the name.
+	if name := strings.TrimSpace(row.Labels["alertname"]); name != "" {
+		subj.Alert = name
+	}
 	if host := hostOf(row); host != "" {
 		subj.Hosts = []resource.HostID{host}
 	}

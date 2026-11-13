@@ -3,7 +3,7 @@
 - **Milestone:** M8
 - **Depends on:** 101, 102, 059
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `Enter` on a firing alert opens an investigation with the right window and hosts, and the host views gain metrics.

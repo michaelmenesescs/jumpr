@@ -520,6 +520,11 @@ func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
 	if r.muxTakesKey(k) {
 		return r.routeMux(k)
 	}
+	// `enter` on an alert row expands into an investigation. Checked before the
+	// global keys and the view, so the table never flashes "no drill-in".
+	if cmd := r.alertOpenKey(k); cmd != nil {
+		return cmd
+	}
 	switch k.String() {
 	case ":":
 		r.bar.Open("")
@@ -941,6 +946,8 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		return Flash(FlashInfo, "window: %s", m.Window.String())
 	case InvestigationChangedMsg:
 		return r.applyInvestigation(m.Meta)
+	case alertResolvedMsg:
+		return r.openAlert(m)
 	case InvestigationAppendedMsg:
 		return r.refreshInvestigation()
 	case TimelineRequestedMsg:

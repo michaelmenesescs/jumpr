@@ -26,6 +26,34 @@ func Canonical(name string, rewrites []Rewrite) resource.HostID {
 	return resource.HostID(n)
 }
 
+// Rewriter is an Inventory that can hand back its identity rewrites, so a
+// caller holding a name from somewhere else can canonicalize it the same way
+// Resolve does. Store implements it.
+type Rewriter interface {
+	Rewrites() []Rewrite
+}
+
+// Rewrites returns the store's identity rewrites, as a copy.
+func (s *Store) Rewrites() []Rewrite {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return append([]Rewrite(nil), s.rewrites...)
+}
+
+// CanonicalHost canonicalizes name with inv's identity rewrites when the
+// inventory exposes them. An inventory without rewrites only gets the
+// normalized form, which is what Resolve would compute for it anyway.
+func CanonicalHost(inv Inventory, name string) resource.HostID {
+	if inv == nil {
+		return ""
+	}
+	var rewrites []Rewrite
+	if r, ok := inv.(Rewriter); ok {
+		rewrites = r.Rewrites()
+	}
+	return Canonical(name, rewrites)
+}
+
 // shortName is the part of a host name before the first dot.
 func shortName(name string) string {
 	for i := 0; i < len(name); i++ {
