@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 002
 - **Parallel group:** M3-A (with 055)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 One function every record, log line and error message passes through before it is stored or shown.
