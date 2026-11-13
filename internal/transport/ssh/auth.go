@@ -81,12 +81,21 @@ func AuthMethods(spec HostSpec, o AuthOptions) ([]ssh.AuthMethod, func()) {
 			conns = append(conns, conn)
 			ag := agent.NewClient(conn)
 			if spec.IdentitiesOnly {
-				// IdentitiesOnly: only the agent keys named by an identity
-				// file's .pub may be offered; key files are not offered at all.
-				methods = append(methods, ssh.PublicKeysCallback(a.agentSignersFiltered(ag)))
-				return methods, cleanup
+				// IdentitiesOnly narrows the *agent's* keys to those named by
+				// an identity file's .pub; the identity files themselves are
+				// still offered below. The filtered set is resolved now
+				// because Go stops the authentication loop at a publickey
+				// callback that yields no keys, which would hide the files:
+				// an agent without the listed key must not make the host
+				// unreachable.
+				if signers, err := a.agentSignersFiltered(ag)(); err == nil && len(signers) > 0 {
+					methods = append(methods, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+						return signers, nil
+					}))
+				}
+			} else {
+				methods = append(methods, ssh.PublicKeysCallback(ag.Signers))
 			}
-			methods = append(methods, ssh.PublicKeysCallback(ag.Signers))
 		}
 	}
 

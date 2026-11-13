@@ -381,6 +381,37 @@ func TestAuthIdentitiesOnlyFiltersAgentKeys(t *testing.T) {
 	}
 }
 
+func TestAuthIdentitiesOnlyUsesFileWhenAgentLacksIt(t *testing.T) {
+	// IdentitiesOnly with an agent running, but the identity file's key is not
+	// in the agent: the key file must still be offered, or the host is
+	// unreachable for anyone whose agent does not hold that key.
+	filePriv, filePub := newEd25519(t)
+	otherPriv, _ := newEd25519(t)
+	keyFile := writePrivateKey(t, filePriv, "")
+	if err := os.WriteFile(keyFile+".pub", ssh.MarshalAuthorizedKey(filePub), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sock := startAgent(t, otherPriv)
+
+	spec := HostSpec{
+		HostName:       "example.internal",
+		User:           "tester",
+		Port:           22,
+		IdentityFiles:  []string{keyFile},
+		IdentitiesOnly: true,
+	}
+	methods, cleanup := AuthMethods(spec, AuthOptions{AgentSocket: func() string { return sock }})
+	defer cleanup()
+
+	used, err := dialAuth(t, methods, func(k ssh.PublicKey) bool { return keyEqual(k, filePub) })
+	if err != nil {
+		t.Fatalf("handshake failed: %v", err)
+	}
+	if !keyEqual(used, filePub) {
+		t.Fatalf("authenticated with %v, want the identity file key %v", used, filePub)
+	}
+}
+
 func TestAuthIdentitiesOnlyWithoutAgentUsesFiles(t *testing.T) {
 	priv, pub := newEd25519(t)
 	keyFile := writePrivateKey(t, priv, "")
