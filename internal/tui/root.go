@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -150,6 +151,16 @@ type Root struct {
 	// (task 078). Standalone mode leaves it nil and keeps the flash from task
 	// 022, because there is nothing to come back to.
 	OnDetach func()
+
+	// sessions is the session server's side of the sessions dialog; detached
+	// is true while no client is attached, and away counts what happened in
+	// that time for the one-line summary of the next attach (task 082).
+	sessions SessionFuncs
+	detached bool
+	away     awayCounters
+	// pathMu guards sessionPath: app renames the session (and its autosave
+	// file) from a tea.Cmd, which is not the event loop.
+	pathMu sync.Mutex
 }
 
 var _ tea.Model = (*Root)(nil)
@@ -411,7 +422,7 @@ func (r *Root) Init() tea.Cmd {
 	if c := HealthPoll(r.backends(), healthInterval); c != nil {
 		cmds = append(cmds, c)
 	}
-	if r.sessionPath != "" {
+	if r.sessionFile() != "" {
 		cmds = append(cmds, autosaveTick())
 	}
 	// The bus step that turns raw synchronized input on has to reach the UI.
@@ -426,8 +437,20 @@ func (r *Root) Init() tea.Cmd {
 
 // SetSessionPath sets where the session is autosaved (<cache>/sessions/
 // <name>.json) and turns autosave on. An empty path turns it off, which is what
-// the tests and a scratch run use.
-func (r *Root) SetSessionPath(path string) { r.sessionPath = path }
+// the tests and a scratch run use. app renames the file from a tea.Cmd when the
+// session is renamed, so the field is guarded.
+func (r *Root) SetSessionPath(path string) {
+	r.pathMu.Lock()
+	r.sessionPath = path
+	r.pathMu.Unlock()
+}
+
+// sessionFile path of the session, or "" when autosave is off.
+func (r *Root) sessionFile() string {
+	r.pathMu.Lock()
+	defer r.pathMu.Unlock()
+	return r.sessionPath
+}
 
 // AddWarning queues a warning line shown once the program starts. app uses it
 // for a session file it could not restore.
@@ -474,22 +497,23 @@ func (r *Root) Snapshot() mux.SessionFile {
 // SaveSession writes the session file now and reports the failure, so app can
 // save once more when the program stops instead of losing the last change.
 func (r *Root) SaveSession() error {
-	if r.sessionPath == "" || r.mux == nil {
+	path := r.sessionFile()
+	if path == "" || r.mux == nil {
 		return nil
 	}
 	r.dirty = false
-	return mux.Save(r.sessionPath, r.Snapshot())
+	return mux.Save(path, r.Snapshot())
 }
 
 // saveCmd writes the dirty session. The disk write happens inside the command,
 // never in Update. A failure is flashed; a successful save reports nothing.
 func (r *Root) saveCmd() tea.Cmd {
-	if r.sessionPath == "" || r.mux == nil {
+	path := r.sessionFile()
+	if path == "" || r.mux == nil {
 		r.dirty = false
 		return nil
 	}
 	f := r.Snapshot()
-	path := r.sessionPath
 	r.dirty = false
 	return func() tea.Msg {
 		if err := mux.Save(path, f); err != nil {
@@ -579,10 +603,10 @@ func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
 	case "?":
 		return r.openHelp()
 	case "ctrl+c":
-		return tea.Quit
+		return r.quitOrAsk()
 	case "q":
 		if r.atRest() {
-			return tea.Quit
+			return r.quitOrAsk()
 		}
 	}
 	if b := r.binding(keymapNote); b.Matches(k.String()) {
@@ -904,6 +928,9 @@ func (r *Root) handlePaneMsg(pm mux.PaneMsg) tea.Cmd {
 	if IsRootMsg(pm.Msg) || rootBound(pm.Msg) {
 		return r.handleMsg(pm.Msg)
 	}
+	// What a pane finishes while nobody is attached is counted for the next
+	// attach's summary (task 082 requirement 8).
+	r.noteAwayStream(pm.Msg)
 	if isNavMsg(pm.Msg) {
 		r.dirty = true
 	}
@@ -929,7 +956,76 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case tea.QuitMsg:
+		// In server mode ending the session is destructive: ask first, and
+		// detaching stays the non-destructive default (task 082).
+		if r.serverMode() {
+			return r.openEndSession()
+		}
 		return tea.Quit
+	case endSessionMsg:
+		return tea.Quit
+	case AttachMsg:
+		r.detached = false
+		text := r.attachSummary(m)
+		r.resetAway()
+		if text == "" {
+			return nil
+		}
+		return Flash(FlashInfo, "%s", text)
+	case PrefixMsg:
+		// The attach that sent this runs outside the event loop; the prefix
+		// lives on the mux, which only Update may touch.
+		r.SetPrefix(m.Key)
+		return nil
+	case SessionControlMsg:
+		r.sessions = m.Funcs
+		return nil
+	case DetachHookMsg:
+		r.OnDetach = m.Hook
+		return nil
+	case DetachMsg:
+		// The counters keep what was counted so far: Attach sends its own
+		// detach first (a replaced client), and that must not wipe the summary
+		// the next Attach reads.
+		r.detached = true
+		return nil
+	case SessionsLoadedMsg:
+		if m.Err != nil {
+			return Flash(FlashWarn, "sessions: %v", m.Err)
+		}
+		r.dialog = r.sessionsDialogFor(m.Items)
+		return nil
+	case newSessionPromptMsg:
+		return r.openNewSessionPrompt()
+	case killSessionPromptMsg:
+		return r.openKillSessionPrompt(m.Name, m.Dormant)
+	case SelectSessionMsg:
+		return r.switchCmd(m.Name)
+	case NewSessionMsg:
+		return r.newSessionCmd(m.Name)
+	case KillSessionMsg:
+		return r.killSessionCmd(m.Name)
+	case sessionActionMsg:
+		cmds := []tea.Cmd{Flash(m.Level, "%s", m.Text)}
+		if m.Err == nil {
+			cmds = append(cmds, r.loadSessions())
+		}
+		return tea.Batch(cmds...)
+	case RenameSessionMsg:
+		return r.renameCmd(m.Name)
+	case sessionRenamedMsg:
+		if m.Err != nil {
+			return Flash(FlashError, "session not renamed: %v", m.Err)
+		}
+		r.SetSessionName(m.Name)
+		r.dirty = true
+		return Flash(FlashOK, "session renamed: %s", m.Name)
+	case FanoutBatchMsg:
+		r.noteAwayStream(m)
+		return r.routeMux(msg)
+	case LinesMsg:
+		r.noteAwayStream(m)
+		return r.routeMux(msg)
 	case CloseDialogMsg:
 		// A broadcast prompt submits and closes in one batch, so its close may
 		// land after the plan dialog it asked for; that one clears nothing.
@@ -967,6 +1063,7 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 	case runBeginMsg:
 		return r.routeRun(m.ID, m)
 	case runEventsForMsg:
+		r.noteAwayRun(m.ID, m.Msg)
 		return r.routeRun(m.ID, m.Msg)
 	case RunEventsMsg:
 		if d := r.activeRunDialog(); d != nil {
@@ -1230,6 +1327,11 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 	if sessionOp(m.Op) {
 		r.dirty = true
 	}
+	// Closing the last pane ends the session, and in server mode that ends the
+	// client too: ask first, with detaching offered as the safe answer.
+	if r.serverMode() && (m.Op == mux.OpKillPane || m.Op == mux.OpKillWindow) && r.wouldEndSession(m.Op) {
+		return r.openEndSession()
+	}
 	switch m.Op {
 	case mux.OpCommand:
 		r.bar.Open("")
@@ -1244,6 +1346,11 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 		return r.openRenameWindow()
 	case mux.OpRenameSession:
 		if name := strings.TrimSpace(m.Arg); name != "" {
+			// On the session server the rename is the server's: it also
+			// renames the registry entry and the autosave file (task 082).
+			if r.sessions.Rename != nil {
+				return r.renameCmd(name)
+			}
 			r.renameSession(name)
 			return Flash(FlashOK, "session renamed: %s", name)
 		}
@@ -1252,13 +1359,9 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 		return r.openWindowList()
 	case mux.OpDetach:
 		if r.OnDetach == nil {
-			return Flash(FlashInfo, "detach needs the session server (coming in M5); use :q to quit")
+			return Flash(FlashInfo, "standalone mode: nothing to detach from; :q quits")
 		}
-		detach := r.OnDetach
-		return func() tea.Msg {
-			detach()
-			return nil
-		}
+		return r.detachCmd()
 	case mux.OpCopyMode:
 		return r.openCopyMode()
 	case mux.OpSSH:
@@ -1266,7 +1369,7 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 	case mux.OpSync:
 		return r.syncOp(m.Arg)
 	case mux.OpSessionList:
-		return Flash(FlashInfo, "not available yet")
+		return r.openSessions()
 	case mux.OpKillPane:
 		if r.focusedBusy() {
 			r.dialog = NewConfirmDialog(themeOf(r.env), "kill pane",

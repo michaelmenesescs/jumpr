@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 081
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Everything a user touches around sessions feels like tmux.

@@ -157,7 +157,7 @@ only by tasks 001, 098, 105 and 115.
 | [079](079-server.md) | Session server: socket, lock, session registry, control commands | 077, 078 | M5-B | done |
 | [080](080-client-attach.md) | Client: raw terminal, byte pumps, resize, clean restore | 077 | M5-B | done |
 | [081](081-cli-daemon.md) | CLI subcommands and on-demand server start | 079, 080 | — | done |
-| [082](082-detach-ux.md) | Detach UX: sessions in the TUI, prompts, environment, restore after restart | 081 | — | todo |
+| [082](082-detach-ux.md) | Detach UX: sessions in the TUI, prompts, environment, restore after restart | 081 | — | done |
 | [083](083-detach-e2e-tmux.md) | End-to-end detach test through a real PTY; behaviour inside tmux | 082 | — | todo |
 
 ### M6 — systemd + Linux depth

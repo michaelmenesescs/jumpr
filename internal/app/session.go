@@ -3,9 +3,12 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +20,7 @@ import (
 	"jumper/internal/inventory"
 	"jumper/internal/investigation"
 	"jumper/internal/resource"
+	"jumper/internal/server"
 	"jumper/internal/targets"
 	"jumper/internal/tui"
 	"jumper/internal/tui/keymap"
@@ -78,6 +82,11 @@ type Session struct {
 	onDetach  func(reason string)
 	created   time.Time
 	activity  time.Time
+
+	// switchTo asks the server to hand this client to another session; skips
+	// counts the prompts refused while nobody was attached (task 082).
+	switchTo func(name string) error
+	skips    *promptSkips
 }
 
 // NewSession builds a session on top of c, named name, and starts its
@@ -240,6 +249,9 @@ func (c *Core) buildSession(s *Session) (*tui.Env, *tui.Commands, *tui.Root, err
 	if err := tui.RegisterMuxCommands(cmds); err != nil {
 		return nil, nil, nil, err
 	}
+	if err := tui.RegisterSessionCommands(cmds); err != nil {
+		return nil, nil, nil, err
+	}
 	if err := tui.RegisterHealthCommands(cmds); err != nil {
 		return nil, nil, nil, err
 	}
@@ -283,7 +295,6 @@ func (s *Session) Attach(in io.Reader, out io.Writer, size Size, env map[string]
 	if err != nil {
 		return err
 	}
-	s.root.SetPrefix(prefix)
 
 	if _, err := io.WriteString(out, enterScreen); err != nil {
 		return errs.Wrap(errs.Internal, "app.Attach", err)
@@ -306,10 +317,20 @@ func (s *Session) Attach(in io.Reader, out io.Writer, size Size, env map[string]
 	// (Send blocks before the first Init, and the root's Init is what closed
 	// ready).
 	s.core.bridge.Flush()
+	// The prefix follows the client (a tmux client gets prefix-in-tmux) and is
+	// handed to the event loop as a message: Attach is not the UI goroutine.
+	s.program.Send(tui.PrefixMsg{Key: prefix})
 	// Bubble Tea v1 diffs against its last frame and the new terminal is
 	// blank, so the size is injected even when it did not change: that is what
 	// makes it paint everything again.
 	s.program.Send(tea.WindowSizeMsg{Width: size.Cols, Height: size.Rows})
+	// What happened while nobody was looking becomes one line, and the
+	// counters start again (task 082 requirements 6 and 8).
+	hostKeys, passphrases := 0, 0
+	if s.skips != nil {
+		hostKeys, passphrases = s.skips.take()
+	}
+	s.program.Send(tui.AttachMsg{HostKeySkipped: hostKeys, PassphraseSkipped: passphrases})
 	return nil
 }
 
@@ -338,6 +359,11 @@ func (s *Session) Detach(reason string) {
 	s.setPrompter(false)
 	if was && cb != nil {
 		cb(reason)
+	}
+	// From now on what happens is counted for the next attach's summary. It is
+	// sent last: the client's EXIT must not wait on the model.
+	if s.program != nil {
+		s.program.Send(tui.DetachMsg{})
 	}
 }
 
@@ -391,9 +417,14 @@ func (s *Session) SetOnDetach(fn func(reason string)) {
 // SetDetachHook makes the prefix `d` and `:detach` unplug the terminal instead
 // of flashing the task-022 hint. A standalone run leaves the hook unset,
 // because there is nothing to attach back to; the session server sets it for
-// every session a client can leave and rejoin.
+// every session a client can leave and rejoin. A running program gets it as a
+// message: this is called from the attach path, not the UI goroutine.
 func (s *Session) SetDetachHook(fn func()) {
 	if s == nil || s.root == nil {
+		return
+	}
+	if s.program != nil {
+		s.program.Send(tui.DetachHookMsg{Hook: fn})
 		return
 	}
 	s.root.OnDetach = fn
@@ -422,10 +453,118 @@ func (s *Session) Info() Info {
 // save writes the session file now, so the last change before a quit is not
 // lost to the autosave debounce.
 func (s *Session) save() error {
-	if s == nil || s.path == "" || s.root == nil {
+	if s == nil || s.root == nil {
+		return nil
+	}
+	s.mu.Lock()
+	path := s.path
+	s.mu.Unlock()
+	if path == "" {
 		return nil
 	}
 	return s.root.SaveSession()
+}
+
+// Name reports the session's name.
+func (s *Session) Name() string {
+	if s == nil {
+		return ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.name
+}
+
+// SetSwitchHook installs what SwitchTo calls: the session server's request to
+// hand this client to another session (task 082 requirement 3).
+func (s *Session) SetSwitchHook(fn func(name string) error) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.switchTo = fn
+	s.mu.Unlock()
+}
+
+// SwitchTo asks the server to move this client to the session named name. The
+// server detaches from the current session and attaches the other, with the
+// same terminal and without the client reconnecting. It is the request the
+// root's sessions dialog raises through its callback.
+func (s *Session) SwitchTo(name string) error {
+	if s == nil {
+		return errs.New(errs.Internal, "app.SwitchTo", "no session")
+	}
+	s.mu.Lock()
+	fn := s.switchTo
+	s.mu.Unlock()
+	if fn == nil {
+		return errs.New(errs.Config, "app.SwitchTo", "no session server to switch in")
+	}
+	return fn(name)
+}
+
+// SetPromptSkips installs the counter of prompts the session server refused
+// while nobody was attached. Attach reads it to say what was skipped.
+func (s *Session) SetPromptSkips(skips *promptSkips) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.skips = skips
+	s.mu.Unlock()
+}
+
+// SetSessionFuncs installs the sessions dialog's server side on the root. The
+// server binds it right after the session is created, while the program is
+// already running, so it travels as a message.
+func (s *Session) SetSessionFuncs(f tui.SessionFuncs) {
+	if s == nil || s.root == nil {
+		return
+	}
+	if s.program != nil {
+		s.program.Send(tui.SessionControlMsg{Funcs: f})
+		return
+	}
+	s.root.SetSessionFuncs(f)
+}
+
+// Rename renames the session and its autosave file
+// (<cache>/sessions/<name>.json), and points later saves at the new file
+// (task 082 requirement 4). The root follows with SetSessionName when it hears
+// the rename finished.
+func (s *Session) Rename(name string) error {
+	if s == nil {
+		return errs.New(errs.Internal, "app.Rename", "no session")
+	}
+	name = strings.TrimSpace(name)
+	if !server.ValidSessionName(name) {
+		return errs.New(errs.Config, "app.Rename",
+			fmt.Sprintf("invalid session name %q", name))
+	}
+	s.mu.Lock()
+	old, oldPath := s.name, s.path
+	newPath := ""
+	if oldPath != "" {
+		newPath = filepath.Join(filepath.Dir(oldPath), name+".json")
+	}
+	s.name, s.path = name, newPath
+	s.mu.Unlock()
+	if name == old {
+		return nil
+	}
+	if oldPath != "" && oldPath != newPath {
+		if err := os.Rename(oldPath, newPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			s.mu.Lock()
+			s.name, s.path = old, oldPath
+			s.mu.Unlock()
+			return errs.Wrap(errs.Config, "app.Rename", err)
+		}
+	}
+	if s.root != nil {
+		// Guarded by the root: the rename runs in a tea.Cmd, not in Update.
+		s.root.SetSessionPath(newPath)
+	}
+	return nil
 }
 
 // close detaches any client, stops the program and closes the input pipe.
