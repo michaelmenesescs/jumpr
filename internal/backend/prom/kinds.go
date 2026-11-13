@@ -10,6 +10,11 @@ const (
 	KindRule resource.KindName = "rule"
 	// KindSeries is the result table of an instant query: one row per series.
 	KindSeries resource.KindName = "series"
+	// KindAlert is one Alertmanager alert. The fake backend registers the same
+	// kind name in --demo only.
+	KindAlert resource.KindName = "alert"
+	// KindSilence is one Alertmanager silence.
+	KindSilence resource.KindName = "silence"
 )
 
 // resource.Query argument keys this backend reads.
@@ -22,10 +27,14 @@ const (
 
 // Kind aliases accepted in the command bar.
 const (
-	aliasTargets = "targets"
-	aliasUp      = "up"
-	aliasRules   = "rules"
-	aliasPromQL  = "promql"
+	aliasTargets  = "targets"
+	aliasUp       = "up"
+	aliasRules    = "rules"
+	aliasPromQL   = "promql"
+	aliasAlerts   = "alerts"
+	aliasAlert    = "al"
+	aliasSilences = "silences"
+	aliasSilence  = "si"
 )
 
 // kindSpecs returns the three kinds, in the order the command bar lists them.
@@ -82,6 +91,57 @@ func normalizeKind(k resource.KindName) (resource.KindName, bool) {
 		return KindRule, true
 	case KindSeries, aliasPromQL:
 		return KindSeries, true
+	}
+	return "", false
+}
+
+// amKindSpecs returns the two Alertmanager kinds, in the order the command bar
+// lists them. They are global: one row per alert or silence of every configured
+// Alertmanager.
+func amKindSpecs() []resource.KindSpec {
+	return []resource.KindSpec{
+		{
+			Name:        KindAlert,
+			Aliases:     []string{aliasAlerts, aliasAlert},
+			Title:       "Alerts",
+			Scope:       resource.ScopeGlobal,
+			DefaultSort: "start",
+			Columns: []resource.Column{
+				{ID: "sev", Title: "SEV", Width: 10},
+				{ID: "alert", Title: "ALERT", Width: 20},
+				{ID: "labels", Title: "LABELS", Width: 34},
+				{ID: "source", Title: "SOURCE", Width: 13},
+				{ID: "start", Title: "START", Width: 20, Kind: resource.ColTime},
+				{ID: "state", Title: "STATE", Width: 10},
+			},
+		},
+		{
+			Name:        KindSilence,
+			Aliases:     []string{aliasSilences, aliasSilence},
+			Title:       "Silences",
+			Scope:       resource.ScopeGlobal,
+			DefaultSort: "-starts",
+			Columns: []resource.Column{
+				{ID: "id", Title: "ID", Width: 10},
+				{ID: "matchers", Title: "MATCHERS", Width: 34},
+				{ID: "creator", Title: "CREATOR", Width: 12},
+				{ID: "comment", Title: "COMMENT", Width: 0},
+				{ID: "starts", Title: "STARTS", Width: 20, Kind: resource.ColTime},
+				{ID: "ends", Title: "ENDS", Width: 20, Kind: resource.ColTime},
+				{ID: "state", Title: "STATE", Width: 9},
+			},
+		},
+	}
+}
+
+// normalizeAMKind maps an Alertmanager kind name or alias onto its canonical
+// name. The Prometheus kinds are not Alertmanager kinds, so they do not match.
+func normalizeAMKind(k resource.KindName) (resource.KindName, bool) {
+	switch k {
+	case KindAlert, aliasAlerts, aliasAlert:
+		return KindAlert, true
+	case KindSilence, aliasSilences, aliasSilence:
+		return KindSilence, true
 	}
 	return "", false
 }

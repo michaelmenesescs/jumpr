@@ -22,17 +22,27 @@ type PrometheusConfig struct {
 	Connection string `yaml:"connection"`
 }
 
+// AlertmanagerConfig is one Alertmanager jumper may silence (SPEC §8.3). It has
+// the same shape as a Prometheus entry: `connection` names an entry of
+// connections.yaml, empty means a direct, unauthenticated connection.
+type AlertmanagerConfig struct {
+	Name       string `yaml:"name"`
+	URL        string `yaml:"url"`
+	Connection string `yaml:"connection"`
+}
+
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.
 type Config struct {
-	UI         UIConfig           `yaml:"ui"`
-	Mux        MuxConfig          `yaml:"mux"`
-	SSH        SSHConfig          `yaml:"ssh"`
-	Inventory  InventoryConfig    `yaml:"inventory"`
-	Knowledge  KnowledgeConfig    `yaml:"knowledge"`
-	Rollout    RolloutConfig      `yaml:"rollout"`
-	Salt       SaltConfig         `yaml:"salt"`
-	Prometheus []PrometheusConfig `yaml:"prometheus"`
-	Interact   InteractConfig     `yaml:"interact"`
+	UI           UIConfig             `yaml:"ui"`
+	Mux          MuxConfig            `yaml:"mux"`
+	SSH          SSHConfig            `yaml:"ssh"`
+	Inventory    InventoryConfig      `yaml:"inventory"`
+	Knowledge    KnowledgeConfig      `yaml:"knowledge"`
+	Rollout      RolloutConfig        `yaml:"rollout"`
+	Salt         SaltConfig           `yaml:"salt"`
+	Prometheus   []PrometheusConfig   `yaml:"prometheus"`
+	Alertmanager []AlertmanagerConfig `yaml:"alertmanager"`
+	Interact     InteractConfig       `yaml:"interact"`
 }
 
 // UIConfig configures the presentation layer.
@@ -273,6 +283,22 @@ func (c *Config) Validate() error {
 		u, err := url.Parse(strings.TrimSpace(p.URL))
 		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 			return invalidf("prometheus[%d].url: %q is not an http(s) URL", i, p.URL)
+		}
+	}
+
+	amNames := make(map[string]bool, len(c.Alertmanager))
+	for i, a := range c.Alertmanager {
+		name := strings.TrimSpace(a.Name)
+		if name == "" {
+			return invalidf("alertmanager[%d].name: a server needs a name", i)
+		}
+		if amNames[name] {
+			return invalidf("alertmanager[%d].name: %q is configured twice", i, name)
+		}
+		amNames[name] = true
+		u, err := url.Parse(strings.TrimSpace(a.URL))
+		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return invalidf("alertmanager[%d].url: %q is not an http(s) URL", i, a.URL)
 		}
 	}
 

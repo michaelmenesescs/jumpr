@@ -1,0 +1,81 @@
+[
+  {
+    "labels": {
+      "alertname": "DiskFillingUp",
+      "severity": "warning",
+      "host": "web-ewr-019.example.internal",
+      "mount": "/var"
+    },
+    "annotations": {
+      "summary": "/var is 91% full on web-ewr-019"
+    },
+    "startsAt": "2026-11-12T21:30:00Z",
+    "endsAt": "0001-01-01T00:00:00Z",
+    "generatorURL": "https://prometheus.example.internal/graph?g0.expr=disk_free",
+    "fingerprint": "0f1e2d3c4b5a6978",
+    "status": {
+      "state": "active",
+      "silencedBy": [],
+      "inhibitedBy": []
+    }
+  },
+  {
+    "labels": {
+      "alertname": "HighErrorRate",
+      "severity": "critical",
+      "service": "api",
+      "dc": "ewr"
+    },
+    "annotations": {
+      "summary": "5xx rate above 2% on api"
+    },
+    "startsAt": "2026-11-12T22:00:00Z",
+    "endsAt": "0001-01-01T00:00:00Z",
+    "generatorURL": "https://prometheus.example.internal/graph?g0.expr=rate",
+    "fingerprint": "1a2b3c4d5e6f7a8b",
+    "status": {
+      "state": "active",
+      "silencedBy": [],
+      "inhibitedBy": []
+    }
+  },
+  {
+    "labels": {
+      "alertname": "HighLatency",
+      "severity": "critical",
+      "service": "checkout",
+      "dc": "lax"
+    },
+    "annotations": {
+      "summary": "p99 latency above 2s on checkout"
+    },
+    "startsAt": "2026-11-12T20:00:00Z",
+    "endsAt": "0001-01-01T00:00:00Z",
+    "generatorURL": "https://prometheus.example.internal/graph?g0.expr=histogram_quantile",
+    "fingerprint": "2b3c4d5e6f7a8b9c",
+    "status": {
+      "state": "suppressed",
+      "silencedBy": ["c3a4b5d6-0000-4000-8000-000000000001"],
+      "inhibitedBy": []
+    }
+  },
+  {
+    "labels": {
+      "alertname": "NodeDown",
+      "severity": "critical",
+      "instance": "web-lax-004.example.internal:9100"
+    },
+    "annotations": {
+      "summary": "web-lax-004 is unreachable"
+    },
+    "startsAt": "2026-11-12T21:45:00Z",
+    "endsAt": "0001-01-01T00:00:00Z",
+    "generatorURL": "https://prometheus.example.internal/graph?g0.expr=up",
+    "fingerprint": "3c4d5e6f7a8b9c0d",
+    "status": {
+      "state": "suppressed",
+      "silencedBy": [],
+      "inhibitedBy": ["4d5e6f7a8b9c0d1e"]
+    }
+  }
+]

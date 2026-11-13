@@ -1,0 +1,46 @@
+[
+  {
+    "id": "c3a4b5d6-1111-4000-8000-000000000001",
+    "status": {
+      "state": "active"
+    },
+    "updatedAt": "2026-11-12T19:55:00Z",
+    "comment": "maintenance window on checkout",
+    "createdBy": "michael",
+    "startsAt": "2026-11-12T20:00:00Z",
+    "endsAt": "2026-11-12T23:00:00Z",
+    "matchers": [
+      {
+        "name": "alertname",
+        "value": "HighLatency",
+        "isRegex": false,
+        "isEqual": true
+      },
+      {
+        "name": "service",
+        "value": "checkout",
+        "isRegex": false,
+        "isEqual": true
+      }
+    ]
+  },
+  {
+    "id": "d4b5c6d7-2222-4000-8000-000000000002",
+    "status": {
+      "state": "expired"
+    },
+    "updatedAt": "2026-11-11T08:00:00Z",
+    "comment": "old window",
+    "createdBy": "ops",
+    "startsAt": "2026-11-11T08:00:00Z",
+    "endsAt": "2026-11-11T10:00:00Z",
+    "matchers": [
+      {
+        "name": "alertname",
+        "value": "HighErrorRate",
+        "isRegex": false,
+        "isEqual": true
+      }
+    ]
+  }
+]

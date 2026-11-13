@@ -3,7 +3,7 @@
 - **Milestone:** M8
 - **Depends on:** 101, 057
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:alerts` as in the mockup; silences as bus actions (SPEC §8.3).
