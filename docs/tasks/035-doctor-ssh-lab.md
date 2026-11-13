@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 033
 - **Parallel group:** — (serial; touches `app` and `main`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A CLI check that proves SSH works end to end, and the lab test harness all later lab tests reuse.

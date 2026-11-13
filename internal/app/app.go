@@ -21,6 +21,7 @@ import (
 	"jumper/internal/backend/fake"
 	"jumper/internal/config"
 	"jumper/internal/errs"
+	"jumper/internal/interact"
 	"jumper/internal/mux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
@@ -42,6 +43,9 @@ type Options struct {
 	Fresh     bool
 	Version   string
 	Env       map[string]string
+	// Prompter answers host-key and passphrase questions. Nil means nobody can
+	// be asked, which fails the dial with errs.Interaction.
+	Prompter interact.Prompter
 }
 
 // Run loads configuration, builds the model and runs the TUI until the user
