@@ -1,0 +1,53 @@
+Name:       web-7d9f4c8b6d-h2xqp
+Namespace:  prod
+Node:       node-a/10.0.0.11
+Start Time: Tue, 01 Jan 2030 10:00:00 +0000
+Status:     Running
+IP:         10.0.0.21
+Labels:     app=web,tier=frontend
+QoS Class:  Burstable
+
+Containers:
+  app:
+    Image:        registry.example.internal/web:1.4
+    Container ID: containerd://0f7c1a
+    State: Waiting
+      Reason:  CrashLoopBackOff
+      Message: back-off 5m0s restarting failed container app
+    Last State: Terminated
+      Reason:    Error
+      Exit Code: 1
+      Started:   Tue, 01 Jan 2030 11:30:00 +0000
+      Finished:  Tue, 01 Jan 2030 11:35:00 +0000
+    Ready:         False
+    Restart Count: 5
+    Limits:
+      cpu:    500m
+      memory: 256Mi
+    Requests:
+      cpu:    100m
+      memory: 128Mi
+    Liveness:  http-get http://:8080/healthz delay=10s timeout=1s period=10s #success=1 #failure=3
+    Readiness: exec [/bin/check --ready] delay=5s timeout=1s period=10s #success=1 #failure=3
+    Ports: http:8080/TCP
+  sidecar:
+    Image: registry.example.internal/logship:0.9
+    State: Running
+      Started: Tue, 01 Jan 2030 11:30:00 +0000
+    Ready:         True
+    Restart Count: 0
+    Requests:
+      cpu: 10m
+
+Conditions:
+  Type             Status  Reason              Message
+  Initialized      True
+  Ready            False   ContainersNotReady  containers with unready status: [app]
+  ContainersReady  False   ContainersNotReady  containers with unready status: [app]
+  PodScheduled     True
+
+Events:
+  Type     Reason        Age  From               Message
+  -------  ------------  ---  -----------------  -------
+  Normal   Scheduled     2h   default-scheduler  Successfully assigned prod/web-7d9f4c8b6d-h2xqp to node-a
+  Warning  BackOff (x9)  4m   kubelet, node-a    Back-off restarting failed container app in pod web-7d9f4c8b6d-h2xqp_prod

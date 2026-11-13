@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 106
 - **Parallel group:** M9-A (with 107, 111)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `d` describe-equivalent and `y` YAML for any object (SPEC §8.2).
