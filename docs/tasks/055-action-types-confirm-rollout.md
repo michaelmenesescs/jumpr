@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 005
 - **Parallel group:** M3-A (with 054)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The types of `internal/action` and the pure decisions of the bus: how much confirmation, and how the targets are

@@ -120,7 +120,7 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [054](054-redact.md) | Secret redaction | 002 | M3-A | todo |
-| [055](055-action-types-confirm-rollout.md) | Action types, confirm level, rollout plan (pure) | 005 | M3-A | todo |
+| [055](055-action-types-confirm-rollout.md) | Action types, confirm level, rollout plan (pure) | 005 | M3-A | done |
 | [056](056-policy.md) | Policy: deny rules, protected targets, limits, read-only | 055 | M3-B | todo |
 | [057](057-bus-engine.md) | Action bus engine: propose, execute, canary, rolling, record | 054, 056 | — | todo |
 | [058](058-investigation-files.md) | Investigation and audit Markdown files | 054 | M3-B | todo |
