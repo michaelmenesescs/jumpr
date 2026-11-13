@@ -1,8 +1,9 @@
 // Package app is the composition root: it loads configuration, builds the
-// backends, the shared tui.Env, the command registry and the root model, then
-// runs the Bubble Tea program. It is the only package besides cmd/jumper that
-// may touch os.Stdin/Stdout/Stderr (BUILD-PLAN §6.1); it only reads the ones
-// handed to Run.
+// per-process core (transports, inventory, backends, policy), then one session
+// with its own bus, environment, root model and Bubble Tea program, and runs it
+// until the user quits (BUILD-PLAN §6). It is the only package besides
+// cmd/jumper that may touch os.Stdin/Stdout/Stderr (BUILD-PLAN §6.1); it only
+// reads the ones handed to Run.
 package app
 
 import (
@@ -13,9 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/config"
 	"jumper/internal/errs"
@@ -44,99 +42,33 @@ type Options struct {
 	Version  string
 	Env      map[string]string
 	// Prompter answers host-key and passphrase questions. Nil means the TUI
-	// prompter is built, which shows a dialog; with no program yet the
-	// question fails with errs.Interaction.
+	// prompter is built, which shows a dialog.
 	Prompter interact.Prompter
 
-	// Size is the terminal size to inject at startup. When it is nil the
-	// program is on a real TTY and Bubble Tea detects the size itself.
+	// Size is the terminal size to attach with. cmd/jumper reads it from the
+	// terminal with golang.org/x/term; nil means the default 80×24 (a run over
+	// pipes has no terminal to ask). Bubble Tea cannot detect it any more: the
+	// session's output is a switchable pipe, not a TTY.
 	Size *Size
 	// Resizes carries later size changes for a run that cannot see SIGWINCH.
 	// Each value becomes one tea.WindowSizeMsg; the pump stops with ctx.
 	Resizes <-chan Size
-	// Ready, when non-nil, is closed once the program is running and the
-	// first size was sent. Tests wait on it instead of sleeping. With Size
-	// nil there is no size to send, so Ready is closed at program start.
+	// Ready, when non-nil, is closed once the first client is attached and the
+	// program has taken its first size. Tests wait on it instead of sleeping.
 	Ready chan<- struct{}
 }
 
+// Size is a terminal size in cells.
 type Size struct{ Cols, Rows int }
 
-// startup wraps the root model to inject the configured size. The first
-// tea.WindowSizeMsg is produced by a command from Init, so it reaches the model
-// as the program starts, long before any input is read; Ready is closed right
-// after the model has handled it, which is the first moment a test may act.
-type startup struct {
-	inner tea.Model
-	size  *Size
-	ready chan<- struct{}
-}
+// defaultSize is what a run over pipes starts with when the caller has no
+// terminal to measure.
+var defaultSize = Size{Cols: 80, Rows: 24}
 
-// initialSizeMsg is the injected first size. It is a distinct type so that a
-// real tea.WindowSizeMsg (which Bubble Tea may send on a terminal) is never
-// mistaken for it.
-type initialSizeMsg struct{ cols, rows int }
-
-func (s *startup) Init() tea.Cmd {
-	first := s.inner.Init()
-	switch {
-	case s.size != nil:
-		size := *s.size
-		return tea.Batch(first, func() tea.Msg {
-			return initialSizeMsg{cols: size.Cols, rows: size.Rows}
-		})
-	case s.ready != nil:
-		// No size to inject: the program is running as soon as Init ran.
-		ready := s.ready
-		s.ready = nil
-		return tea.Batch(first, func() tea.Msg {
-			close(ready)
-			return nil
-		})
-	default:
-		return first
-	}
-}
-
-func (s *startup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if init, ok := msg.(initialSizeMsg); ok {
-		m, cmd := s.inner.Update(tea.WindowSizeMsg{Width: init.cols, Height: init.rows})
-		s.inner = m
-		if s.ready != nil {
-			close(s.ready)
-			s.ready = nil
-		}
-		return s, cmd
-	}
-	m, cmd := s.inner.Update(msg)
-	s.inner = m
-	return s, cmd
-}
-
-func (s *startup) View() string { return s.inner.View() }
-
-// pumpSizes turns the Options.Resizes channel into tea.WindowSizeMsg values
-// until ctx, the channel or the program ends. It is I/O-free and never inside
-// Update, so the UI cannot block on it.
-func pumpSizes(ctx context.Context, p *tea.Program, ch <-chan Size, done <-chan struct{}) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-done:
-			return
-		case size, ok := <-ch:
-			if !ok {
-				return
-			}
-			p.Send(tea.WindowSizeMsg{Width: size.Cols, Height: size.Rows})
-		}
-	}
-}
-
-// Run loads configuration, builds the model and runs the TUI until the user
-// quits or ctx is canceled. A panic anywhere below is recovered, written to
-// <cache>/crash/ and returned as an errs.Internal error.
+// Run loads configuration, builds the core and one session, attaches the given
+// reader and writer, and waits until the session ends: the user quit with `:q`,
+// closed the last pane, or ctx was canceled. A panic anywhere below is
+// recovered, written to <cache>/crash/ and returned as an errs.Internal error.
 func Run(ctx context.Context, o Options) (err error) {
 	if o.In == nil {
 		o.In = strings.NewReader("")
@@ -152,95 +84,74 @@ func Run(ctx context.Context, o Options) (err error) {
 	if err != nil {
 		return err
 	}
-	b, err := build(cfg, o, paths)
+
+	// One core per process; every session shares it (BUILD-PLAN §6).
+	core, err := newCore(ctx, cfg, paths, o.Env, o, logger)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if cerr := b.Close(); cerr != nil {
+		if cerr := core.Close(); cerr != nil {
 			logger.Warn("ssh pool not closed cleanly", "err", cerr)
 		}
 	}()
-	root := b.Root
 
-	// Session persistence: <cache>/sessions/<name>.json, restored on start
-	// unless --fresh was given. A file that cannot be read or a pane that falls
-	// back to its default content warns at startup; neither stops the program.
-	sessionPath := filepath.Join(paths.CacheDir, "sessions", "main.json")
-	root.SetSessionPath(sessionPath)
-	if !o.Fresh {
-		restoreSession(root, sessionPath)
+	sess, err := core.NewSession("main")
+	if err != nil {
+		return err
 	}
+	defer func() {
+		if cerr := sess.close(); cerr != nil {
+			logger.Warn("session not closed cleanly", "err", cerr)
+		}
+	}()
 
-	var model tea.Model = root
-	if o.Size != nil || o.Ready != nil {
-		model = &startup{inner: root, size: o.Size, ready: o.Ready}
+	// Standalone mode is a session with one client that is always attached.
+	size := defaultSize
+	if o.Size != nil {
+		size = *o.Size
 	}
-	// The inventory tick sits outside the startup wrapper: it forwards every
-	// message (including the injected first size) to the wrapped model.
-	ticked := newInventoryTicker(model, b.Env, cfg.Inventory.CacheTTL.Duration())
-	p := tea.NewProgram(ticked,
-		tea.WithInput(o.In),
-		tea.WithOutput(o.Out),
-		tea.WithAltScreen(),
-		tea.WithContext(ctx),
-	)
-	done := make(chan struct{})
+	if err := sess.Attach(o.In, o.Out, size, o.Env); err != nil {
+		return err
+	}
 	if o.Resizes != nil {
-		go pumpSizes(ctx, p, o.Resizes, done)
+		go pumpSizes(ctx, sess, o.Resizes)
 	}
-	// Prompts and startup warnings queued while the model was being built are
-	// delivered from here on.
-	b.Attach(p)
-	_, runErr := p.Run()
-	close(done)
-	if runErr != nil {
-		return errs.Wrap(errs.Internal, "app.Run", runErr)
+	if o.Ready != nil {
+		close(o.Ready)
 	}
+
+	select {
+	case <-sess.Done():
+	case <-ctx.Done():
+		sess.Kill()
+		<-sess.Done()
+	}
+
 	// Save once more on quit: the autosave tick is debounced, so the last change
 	// before a quit would otherwise be lost.
-	if err := root.SaveSession(); err != nil {
-		logger.Warn("session not saved", "path", sessionPath, "err", err)
+	if err := sess.save(); err != nil {
+		logger.Warn("session not saved", "path", sess.path, "err", err)
 	}
 	return nil
 }
 
-// inventoryTicker is the root model plus the inventory refresh tick. The tick
-// belongs to app, not to the root: cache_ttl is configuration, and the root
-// knows nothing about it. Everything else is handed to the root unchanged.
-type inventoryTicker struct {
-	root tea.Model
-	env  *tui.Env
-	ttl  time.Duration
-}
-
-var _ tea.Model = (*inventoryTicker)(nil)
-
-// newInventoryTicker wraps root; a non-positive ttl only disables the tick.
-func newInventoryTicker(root tea.Model, env *tui.Env, ttl time.Duration) *inventoryTicker {
-	return &inventoryTicker{root: root, env: env, ttl: ttl}
-}
-
-// Init starts the root and the first tick.
-func (t *inventoryTicker) Init() tea.Cmd {
-	return tea.Batch(t.root.Init(), tui.InventoryTick(t.ttl))
-}
-
-// Update turns a tick into a refresh and re-arms the next one; every other
-// message is the root's.
-func (t *inventoryTicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if _, ok := msg.(tui.InventoryTickMsg); ok {
-		return t, tea.Batch(tui.InventoryRefreshCmd(t.env), tui.InventoryTick(t.ttl))
+// pumpSizes turns the Options.Resizes channel into tea.WindowSizeMsg values
+// until ctx or the channel ends. It is I/O-free and never inside Update, so the
+// UI cannot block on it.
+func pumpSizes(ctx context.Context, sess *Session, ch <-chan Size) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case size, ok := <-ch:
+			if !ok {
+				return
+			}
+			sess.Resize(size)
+		}
 	}
-	model, cmd := t.root.Update(msg)
-	if model != nil {
-		t.root = model
-	}
-	return t, cmd
 }
-
-// View renders the root.
-func (t *inventoryTicker) View() string { return t.root.View() }
 
 // restoreSession loads the session file and hands it to the root. "No file yet"
 // is the normal first start; anything else is reported as a startup warning and

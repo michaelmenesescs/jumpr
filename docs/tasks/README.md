@@ -153,7 +153,7 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [077](077-server-protocol.md) | Session-server wire protocol codec (pure) | 002 | M5-A | done |
-| [078](078-core-session-split.md) | Split `app` into Core and Session; switchable I/O; in-process attach/detach | 076 | M5-A | todo |
+| [078](078-core-session-split.md) | Split `app` into Core and Session; switchable I/O; in-process attach/detach | 076 | M5-A | done |
 | [079](079-server.md) | Session server: socket, lock, session registry, control commands | 077, 078 | M5-B | todo |
 | [080](080-client-attach.md) | Client: raw terminal, byte pumps, resize, clean restore | 077 | M5-B | done |
 | [081](081-cli-daemon.md) | CLI subcommands and on-demand server start | 079, 080 | — | todo |

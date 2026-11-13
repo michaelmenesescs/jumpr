@@ -16,6 +16,8 @@ import (
 	"sync"
 	"syscall"
 
+	"golang.org/x/term"
+
 	"jumper/internal/app"
 	"jumper/internal/errs"
 	"jumper/internal/interact"
@@ -105,6 +107,12 @@ func run(args []string) int {
 		}
 	}
 
+	// The session's output is a switchable pipe, not the terminal, so Bubble
+	// Tea can no longer measure it: the size and every SIGWINCH are read here
+	// and handed to the app (task 078, BUILD-PLAN §6).
+	size, resizes, stopSizes := watchSize(os.Stdout)
+	defer stopSizes()
+
 	err = app.Run(ctx, app.Options{
 		In:        os.Stdin,
 		Out:       os.Stdout,
@@ -117,12 +125,53 @@ func run(args []string) int {
 		Version:   version,
 		Env:       nil,
 		Prompter:  newTermPrompter(os.Stdin, os.Stderr),
+		Size:      size,
+		Resizes:   resizes,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
 		return 1
 	}
 	return 0
+}
+
+// watchSize reads the terminal size once and reports every later SIGWINCH as
+// one app.Size, dropping values the app has not taken yet. A stdout that is not
+// a terminal yields no size, which leaves the app on its default. The returned
+// stop function unregisters the signal.
+func watchSize(f *os.File) (*app.Size, <-chan app.Size, func()) {
+	w, h, err := term.GetSize(int(f.Fd()))
+	if err != nil {
+		return nil, nil, func() {}
+	}
+	size := &app.Size{Cols: w, Rows: h}
+	ch := make(chan app.Size, 1)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGWINCH)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-sig:
+				w, h, err := term.GetSize(int(f.Fd()))
+				if err != nil {
+					continue
+				}
+				select {
+				case ch <- app.Size{Cols: w, Rows: h}:
+				default:
+					// A resize the app has not read yet is already stale.
+				}
+			}
+		}
+	}()
+	stop := func() {
+		signal.Stop(sig)
+		close(done)
+	}
+	return size, ch, stop
 }
 
 // configDirFlags are the spellings a subcommand may use for the configuration

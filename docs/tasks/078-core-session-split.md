@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 076
 - **Parallel group:** M5-A (with 077)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A session whose terminal can be unplugged and plugged back in while everything keeps running — proven in-process,

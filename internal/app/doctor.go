@@ -236,8 +236,8 @@ func (d *doctorAllRun) run(ctx context.Context) int {
 // empty. They read the composition root's pool, transport, inventory and
 // registry, so the report proves the same wiring the TUI uses.
 func (d *doctorAllRun) fillHooks() {
-	if d.hooks.Connect == nil && d.b.ssh != nil && d.b.ssh.Pool != nil {
-		pool := d.b.ssh.Pool
+	if d.hooks.Connect == nil && d.b.SSH != nil && d.b.SSH.Pool != nil {
+		pool := d.b.SSH.Pool
 		d.hooks.Connect = func(ctx context.Context, host resource.HostID) error {
 			lease, err := pool.Client(ctx, host)
 			if err != nil {
@@ -274,11 +274,11 @@ func (d *doctorAllRun) executor() transport.Executor {
 	if d.b == nil {
 		return nil
 	}
-	if ex := d.b.execs["ssh"]; ex != nil {
+	if ex := d.b.Execs["ssh"]; ex != nil {
 		return ex
 	}
-	if d.b.ssh != nil {
-		return d.b.ssh.Transport
+	if d.b.SSH != nil {
+		return d.b.SSH.Transport
 	}
 	return nil
 }
@@ -388,10 +388,10 @@ func (d *doctorAllRun) checkInventory(ctx context.Context) {
 
 // bastionNames lists the aliases some host uses as a jump, sorted.
 func (d *doctorAllRun) bastionNames() []string {
-	if d.b == nil || d.b.ssh == nil || d.b.ssh.Resolver == nil {
+	if d.b == nil || d.b.SSH == nil || d.b.SSH.Resolver == nil {
 		return nil
 	}
-	r := d.b.ssh.Resolver
+	r := d.b.SSH.Resolver
 	seen := make(map[string]bool)
 	for _, alias := range r.Hosts() {
 		spec, err := r.Resolve(alias)

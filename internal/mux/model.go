@@ -459,6 +459,16 @@ func (m *Model) Tabs() []Tab {
 // PrefixArmed reports whether the prefix key was pressed and a key is awaited.
 func (m *Model) PrefixArmed() bool { return m.prefix.Armed() }
 
+// SetPrefix replaces the session prefix key. A session server re-points it when
+// a client attaches from a different environment: inside tmux the configured
+// tmux prefix would collide with the outer one, so the alternate key applies.
+func (m *Model) SetPrefix(key string) {
+	if m == nil || m.prefix == nil || key == "" {
+		return
+	}
+	m.prefix.SetPrefix(key)
+}
+
 // Session returns the session the model owns.
 func (m *Model) Session() *Session { return m.sess }
 

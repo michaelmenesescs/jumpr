@@ -144,6 +144,12 @@ type Root struct {
 	// planCancel cancels the planning round-trip of the actions menu; esc
 	// cancels it while the planning spinner is up.
 	planCancel context.CancelFunc
+
+	// OnDetach, when set, is what the prefix `d` and `:detach` do: a session
+	// server stops rendering to the terminal and keeps the session running
+	// (task 078). Standalone mode leaves it nil and keeps the flash from task
+	// 022, because there is nothing to come back to.
+	OnDetach func()
 }
 
 var _ tea.Model = (*Root)(nil)
@@ -222,6 +228,18 @@ func (r *Root) registerDefaults() {
 // clip.Multi(pbcopy, osc52(out, inTmux)) and calls this once; without one a
 // yank flashes a warning instead.
 func (r *Root) SetClipboard(c clip.Clipboard) { r.clip = c }
+
+// SetPrefix replaces the session prefix key. A session re-points it when a
+// client attaches, because a client inside tmux needs the alternate prefix.
+func (r *Root) SetPrefix(key string) {
+	if r == nil || key == "" {
+		return
+	}
+	r.prefix = key
+	if r.mux != nil {
+		r.mux.SetPrefix(key)
+	}
+}
 
 // stylesFor builds the mux pane styles from the theme.
 func stylesFor(env *Env) mux.Styles {
@@ -1233,7 +1251,14 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 	case mux.OpWindowList:
 		return r.openWindowList()
 	case mux.OpDetach:
-		return Flash(FlashInfo, "detach needs the session server (coming in M5); use :q to quit")
+		if r.OnDetach == nil {
+			return Flash(FlashInfo, "detach needs the session server (coming in M5); use :q to quit")
+		}
+		detach := r.OnDetach
+		return func() tea.Msg {
+			detach()
+			return nil
+		}
 	case mux.OpCopyMode:
 		return r.openCopyMode()
 	case mux.OpSSH:

@@ -1,24 +1,44 @@
 package app
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
+	"jumper/internal/action"
+	"jumper/internal/backend"
 	"jumper/internal/backend/chef"
 	"jumper/internal/backend/elastic"
+	"jumper/internal/backend/fake"
 	"jumper/internal/backend/grafana"
+	"jumper/internal/backend/linux"
 	"jumper/internal/backend/prom"
+	"jumper/internal/backend/salt"
+	"jumper/internal/bus"
+	"jumper/internal/bus/generic"
 	"jumper/internal/clip"
 	"jumper/internal/config"
 	"jumper/internal/errs"
+	"jumper/internal/interact"
+	"jumper/internal/inventory"
+	"jumper/internal/investigation"
 	"jumper/internal/redact"
+	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/transport"
 	"jumper/internal/transport/httpx"
 	"jumper/internal/transport/ssh"
 	"jumper/internal/transport/sysssh"
 	"jumper/internal/tui"
+	"jumper/internal/tui/theme"
 )
 
 // PrometheusBackend builds the Prometheus backend from cfg's `prometheus:`
@@ -206,7 +226,6 @@ func ElasticBackend(cfg config.Config, profiles map[string]*httpx.Profile, deps 
 				HostField:    src.HostField,
 				MessageField: src.MessageField,
 				LevelField:   src.LevelField,
-				UnitField:    src.UnitField,
 			})
 		}
 		clusters = append(clusters, elastic.Cluster{Name: name, Client: client, Sources: sources})
@@ -275,10 +294,6 @@ func Alertmanager(cfg config.Config, profiles map[string]*httpx.Profile, deps ht
 // workstation through ex: the Chef server is never contacted directly and
 // nothing is installed on a node. It returns nil when no workstation is
 // configured, so callers can skip registration.
-//
-// The wiring lives here rather than in app.go because app.buildRegistry is
-// still the M0 version; the task that owns app.go calls this function to add
-// the backend to the registry.
 func ChefBackend(cfg config.Config, ex transport.Executor, red *redact.Redactor, log *slog.Logger) (*chef.Backend, error) {
 	workstation := strings.TrimSpace(cfg.Chef.Workstation)
 	if workstation == "" {
@@ -301,6 +316,12 @@ func ChefBackend(cfg config.Config, ex transport.Executor, red *redact.Redactor,
 		Log:         log,
 	}), nil
 }
+
+// profileFor returns the connection profile an entry names, or a plain profile
+// for an entry without one. A name that is not in connections.yaml is an
+// errs.Config error naming the server: silently falling back to no auth would
+// turn a typo into a diagnosis. product is the config section the entry came
+// from, so the error says which file to fix.
 
 // profileFor returns the connection profile an entry names, or a plain profile
 // for an entry without one. A name that is not in connections.yaml is an
@@ -395,4 +416,485 @@ func buildExecSet(cfg config.Config, o Options, stack *sshStack, paths config.Pa
 		log.Debug("ssh.transports configured", "rules", len(rules))
 	}
 	return &execSet{Executor: router, Streamer: router, ShellOpener: router, pool: stack.Pool}, nil
+}
+
+// Core is the part of a run that lives for the whole process (BUILD-PLAN §6):
+// the SSH resolver, pool and transport, the inventory, the backends and their
+// registry, the Salt runner and executor, the guard-rail policy, the redactor,
+// the knowledge index, the agent-socket holder and the clipboard factory.
+//
+// One Core is built per process by NewCore and closed once. Everything that
+// belongs to one session — its investigation log, its bus, its environment,
+// its root model and its one tea.Program — is in Session, which is built on top
+// of a Core by Core.NewSession.
+type Core struct {
+	cfg   config.Config
+	paths config.Paths
+	home  string
+	log   *slog.Logger
+	env   map[string]string
+	fresh bool
+	demo  bool
+	// readOnly is what `--readonly` asked for: every session the core builds
+	// starts with the bus's read-only switch on.
+	readOnly bool
+	bridge   *uiBridge
+
+	// Prompter answers host-key and passphrase questions for every session's
+	// SSH handshakes. It is the caller's when Options carried one.
+	Prompter interact.Prompter
+	// Glyphs is the glyph set of the process, resolved once from the config
+	// and JUMPER_GLYPHS.
+	Glyphs render.GlyphSet
+
+	// SSH is the transport stack; nil in --demo.
+	SSH *sshStack
+	// Inventory is the merged host store; nil in --demo.
+	Inventory *inventoryRuntime
+	// Registry holds every backend this process registered.
+	Registry *backend.Registry
+	// Exec is the transport reads and fan-outs go through; nil in --demo.
+	Exec transport.Executor
+	// Shells opens interactive shells for terminal panes; nil in --demo.
+	Shells transport.ShellOpener
+	// Execs are the transports `--via` may name, keyed by "ssh"/"salt".
+	Execs map[string]transport.Executor
+	// Planners are the write-capable backends, keyed by registration name.
+	Planners map[string]action.Planner
+	// Salt is what the Salt commands read from the configuration.
+	Salt tui.SaltOptions
+	// SaltRunner is the master's command runner; nil when salt.master is unset.
+	SaltRunner *salt.Runner
+	// Policy is the guard rail every session's bus enforces.
+	Policy *bus.Policy
+	// Redactor cleans text before it is stored or shown (§7).
+	Redactor *redact.Redactor
+	// Knowledge indexes the knowledge root; nil when it could not be built.
+	Knowledge *investigation.Index
+	// Clipboard builds a session's clipboard around its switchable output.
+	Clipboard func(out io.Writer, inTmux bool) clip.Clipboard
+	// Agent is the SSH_AUTH_SOCK holder every dial reads; a new attach
+	// replaces its path.
+	Agent *agentSocket
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+	// closers release what build started and Close does not own otherwise.
+	closers   []func()
+	closeOnce sync.Once
+	closeErr  error
+}
+
+// NewCore builds the per-process core from cfg. baseEnv is the caller's
+// environment: it seeds the agent-socket holder and supplies HOME when the
+// caller has no Option for it. Nothing is dialled here and no inventory source
+// is loaded on this path; the caller must Close the result.
+func NewCore(ctx context.Context, cfg config.Config, paths config.Paths, baseEnv map[string]string, log *slog.Logger) (*Core, error) {
+	home := baseEnv["HOME"]
+	if home == "" {
+		home, _ = os.UserHomeDir()
+	}
+	return newCore(ctx, cfg, paths, baseEnv, Options{Home: home, Env: baseEnv}, log)
+}
+
+// newCore is NewCore plus the caller's options: --demo, the prompter, --fresh
+// and the home directory Run resolved. Nothing is dialled here either.
+func newCore(ctx context.Context, cfg config.Config, paths config.Paths, baseEnv map[string]string, o Options, log *slog.Logger) (*Core, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if log == nil {
+		log = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	c := &Core{
+		cfg:      cfg,
+		paths:    paths,
+		home:     o.Home,
+		log:      log,
+		env:      baseEnv,
+		fresh:    o.Fresh,
+		demo:     o.Demo,
+		readOnly: o.ReadOnly,
+		bridge:   newUIBridge(),
+	}
+	c.ctx, c.cancel = context.WithCancel(ctx)
+	c.Agent = newAgentSocket(o)
+	c.Prompter = o.Prompter
+
+	theme.SetProfile(cfg.UI.Color)
+	glyphs, err := resolveGlyphs(cfg.UI.Glyphs, os.Getenv("JUMPER_GLYPHS"))
+	if err != nil {
+		c.cancel()
+		return nil, err
+	}
+	c.Glyphs = glyphs
+
+	c.Policy = loadPolicy(paths, log)
+	red, err := buildRedactor(c.Policy)
+	if err != nil {
+		c.cancel()
+		return nil, err
+	}
+	c.Redactor = red
+	c.Knowledge = buildKnowledge(paths, log)
+	c.Clipboard = clipboardFactory()
+
+	if o.Demo {
+		if err := c.buildDemo(); err != nil {
+			_ = c.Close()
+			return nil, err
+		}
+		return c, nil
+	}
+	if err := c.buildReal(o); err != nil {
+		_ = c.Close()
+		return nil, err
+	}
+	return c, nil
+}
+
+// saltRunner builds the master's command runner, or nil when salt.master is
+// unset (Salt unconfigured, BUILD-PLAN §11).
+func saltRunner(cfg config.Config, ex transport.Executor, log *slog.Logger) *salt.Runner {
+	master := strings.TrimSpace(cfg.Salt.Master)
+	if master == "" {
+		return nil
+	}
+	return salt.NewRunner(ex, resource.HostID(master), salt.RunnerOptions{
+		Sudo:    cfg.Salt.Sudo,
+		Timeout: cfg.Salt.Timeout.Duration(),
+		Log:     log,
+	})
+}
+
+// buildDemo assembles the fake backend core: no SSH, no inventory, no prompts.
+func (c *Core) buildDemo() error {
+	reg := backend.NewRegistry()
+	if err := reg.Register(fake.New(fake.Options{})); err != nil {
+		return errs.Wrap(errs.Internal, "app.build", fmt.Errorf("register fake backend: %w", err))
+	}
+	c.Registry = reg
+	c.Execs = map[string]transport.Executor{}
+	c.Planners = map[string]action.Planner{}
+	return nil
+}
+
+// buildReal assembles the SSH + Linux (+ Salt) core.
+func (c *Core) buildReal(o Options) error {
+	cfg, log := c.cfg, c.log
+	if c.Prompter == nil {
+		c.Prompter = tui.NewPrompter(c.bridge.Send, cfg.Interact.Timeout.Duration())
+	}
+
+	stack, err := buildSSHWith(cfg, o, log, c.Prompter, c.Agent)
+	if err != nil {
+		return err
+	}
+	c.SSH = stack
+
+	// buildExecSet honours ssh.transports: hosts matching a rule go through the
+	// system ssh client instead of the native pool (SPEC §7.1).
+	ex, err := buildExecSet(cfg, o, stack, c.paths, log)
+	if err != nil {
+		return err
+	}
+	c.Exec = ex
+	c.Shells = ex
+
+	// The Salt runner drives salt, salt-run and salt-key on the master over
+	// the same SSH transport. No master means no Salt at all.
+	c.SaltRunner = saltRunner(cfg, ex, log)
+
+	sources, warns := inventorySources(cfg, stack.Resolver, o.Home, c.SaltRunner)
+	for _, w := range warns {
+		c.bridge.Warning(w)
+	}
+
+	store := inventory.New(sources, inventoryRewrites(cfg), inventoryCachePath(c.paths), nil)
+	c.Inventory = &inventoryRuntime{Store: store}
+	if err := c.Inventory.LoadCache(); err != nil {
+		c.bridge.Warning("inventory cache: " + err.Error())
+	}
+	// The first frame must show hosts, and the sources wired here are local
+	// (ssh_config, static): with no cache they are read once before the UI
+	// starts. Anything slower runs in the background, as the ticker in Run
+	// does for every later refresh.
+	if len(store.Hosts()) == 0 && len(sources) > 0 && allLocal(sources) {
+		c.refreshInventorySync(c.ctx)
+	} else {
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.refreshInventory(c.ctx)
+		}()
+	}
+
+	reg := backend.NewRegistry()
+
+	// The Salt backend is built first because the Linux backend asks it for
+	// the extra pivots of a host row (host → minion) through LinkProvider.
+	var (
+		saltBackend *salt.Backend
+		links       backend.LinkProvider
+	)
+	if c.SaltRunner != nil {
+		saltBackend = salt.New(salt.Options{
+			Runner:    c.SaltRunner,
+			Inventory: store,
+			Master:    resource.HostID(strings.TrimSpace(cfg.Salt.Master)),
+			Log:       log,
+		})
+		links = saltBackend
+		c.Salt = tui.SaltOptions{SuggestOver: cfg.Salt.SuggestOver, Configured: true}
+	}
+
+	lb := linux.New(linux.Options{
+		Exec:        ex,
+		Stream:      ex,
+		Inventory:   c.Inventory,
+		Concurrency: cfg.SSH.Concurrency,
+		Timeout:     cfg.SSH.ExecTimeout.Duration(),
+		Log:         log,
+		Links:       links,
+	})
+	if err := reg.Register(lb); err != nil {
+		return errs.Wrap(errs.Internal, "app.build", fmt.Errorf("register linux backend: %w", err))
+	}
+	c.Registry = reg
+
+	c.Execs = map[string]transport.Executor{"ssh": ex}
+	if saltBackend != nil {
+		if err := reg.Register(saltBackend); err != nil {
+			return errs.Wrap(errs.Internal, "app.build", fmt.Errorf("register salt backend: %w", err))
+		}
+		saltExec := salt.NewExecutor(c.SaltRunner, saltBackend, salt.ExecOptions{
+			Chunk:   cfg.Salt.ListChunk,
+			Timeout: cfg.Salt.Timeout.Duration(),
+		})
+		c.Execs["salt"] = saltExec
+		c.closers = append(c.closers, saltExec.Close)
+	}
+
+	c.Planners = make(map[string]action.Planner, 2)
+	// One planner instance per name: every session's bus and the actions menu
+	// must see the same one.
+	c.Planners["generic"] = generic.New(c.Execs, "ssh")
+	if saltBackend != nil {
+		c.Planners["salt"] = saltBackend
+	}
+
+	if len(sources) == 0 {
+		c.bridge.Warning("no inventory sources: add inventory.sources (ssh_config or static) to config.yaml, or run with --demo")
+	} else if len(store.Hosts()) == 0 {
+		c.bridge.Warning("inventory has no hosts: check inventory.sources (ssh_config aliases, static file path), or run with --demo")
+	}
+	return nil
+}
+
+// Close stops the background inventory work, releases the Salt executor and
+// shuts the connection pool down. It is safe to call more than once.
+func (c *Core) Close() error {
+	if c == nil {
+		return nil
+	}
+	c.closeOnce.Do(func() {
+		if c.cancel != nil {
+			c.cancel()
+		}
+		c.wg.Wait()
+		for _, close := range c.closers {
+			close()
+		}
+		if c.SSH != nil {
+			c.closeErr = c.SSH.Close()
+		}
+	})
+	return c.closeErr
+}
+
+// Warnings returns the warning lines the core queued so far: an inventory
+// source that failed, a session file that could not be restored. The UI shows
+// them as flashes; the tests assert what the user would have been told.
+func (c *Core) Warnings() []string {
+	if c == nil {
+		return nil
+	}
+	return c.bridge.Warnings()
+}
+
+// refreshInventory loads every source once. The store keeps the previous hosts
+// of a source that fails, so the caller only has to report the failures.
+func (c *Core) refreshInventory(ctx context.Context) {
+	if c.Inventory == nil {
+		return
+	}
+	failed := c.Inventory.Refresh(ctx)
+	for _, line := range sortedSourceErrors(failed) {
+		c.bridge.Warning("inventory: " + line)
+	}
+}
+
+// refreshInventorySync is refreshInventory for the first start with no cache.
+func (c *Core) refreshInventorySync(ctx context.Context) {
+	if c.Inventory == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, firstLoadTimeout)
+	defer cancel()
+	c.refreshInventory(ctx)
+}
+
+// loadPolicy reads <config>/policy.yaml. A policy that does not parse is a
+// warning and the built-in guard rails; a missing file is the built-in ones.
+func loadPolicy(paths config.Paths, log *slog.Logger) *bus.Policy {
+	if paths.ConfigDir == "" {
+		return bus.DefaultPolicy()
+	}
+	p, err := bus.LoadPolicy(filepath.Join(paths.ConfigDir, "policy.yaml"))
+	if err != nil {
+		if log != nil {
+			log.Warn("policy.yaml ignored", "err", err)
+		}
+		return bus.DefaultPolicy()
+	}
+	return p
+}
+
+type namedPlanner struct {
+	name    string
+	planner action.Planner
+}
+
+// m3Runtime is the M3 assembly as the rest of the app sees it: the guard rails,
+// the redactor, the record, the knowledge index and the action bus. Nothing
+// here touches the UI, so a lab test can build the same layer without a
+// terminal.
+type m3Runtime struct {
+	Policy   *bus.Policy
+	Redact   *redact.Redactor
+	Log      *investigation.FileLog
+	Index    *investigation.Index
+	Bus      bus.Bus
+	Planners map[string]action.Planner
+}
+
+// buildM3 assembles the M3 layer, in the order the pieces depend on each other:
+// policy (the file is the source of the extra redaction patterns) → redactor →
+// investigation log under knowledge.root → knowledge index → bus → planners.
+// ctx is the session context and becomes the bus's root context, so a rollout
+// outlives the pane that started it. A missing policy file means the built-in
+// policy, and a knowledge tree that cannot be read leaves Index nil instead of
+// stopping the start.
+func buildM3(ctx context.Context, cfg config.Config, paths config.Paths, home string, session *tui.SessionState, planners []namedPlanner, logger *slog.Logger) (*m3Runtime, error) {
+	policy, err := bus.LoadPolicy(filepath.Join(paths.ConfigDir, "policy.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	red, err := redact.New(policy.RedactPatterns())
+	if err != nil {
+		return nil, err
+	}
+	root := config.ExpandHome(cfg.Knowledge.Root, home)
+	rec := investigation.NewLog(root, red, nil)
+	index, ixErr := investigation.BuildIndex(root)
+	if ixErr != nil {
+		if logger != nil {
+			logger.Warn("knowledge index not built", "root", root, "err", ixErr)
+		}
+		index = nil
+	}
+
+	b := bus.New(bus.Options{
+		Policy:   policy,
+		Rollout:  rolloutConfig(cfg.Rollout),
+		Recorder: rec,
+		Redact:   red,
+		ReadOnly: func() bool { return sessionReadOnly(session) },
+		Context:  ctx,
+		Log:      logger,
+	})
+	rt := &m3Runtime{
+		Policy:   policy,
+		Redact:   red,
+		Log:      rec,
+		Index:    index,
+		Bus:      b,
+		Planners: make(map[string]action.Planner, len(planners)),
+	}
+	for _, np := range planners {
+		if np.planner == nil || np.name == "" {
+			continue
+		}
+		if err := b.Register(np.name, np.planner); err != nil {
+			return nil, err
+		}
+		rt.Planners[np.name] = np.planner
+	}
+	return rt, nil
+}
+
+// buildRedactor returns the process's redactor: the built-in patterns plus the
+// extra ones policy.yaml declares (§7). A pattern that does not compile is an
+// errs.Config error the start reports, never a warning: a redactor that
+// silently dropped a secret pattern would leak the thing it was written to
+// hide.
+func buildRedactor(pol *bus.Policy) (*redact.Redactor, error) {
+	var extra []string
+	if pol != nil {
+		extra = pol.RedactPatterns()
+	}
+	return redact.New(extra)
+}
+
+// buildKnowledge indexes the knowledge root once. A missing or unreadable root
+// is not an error: the index is simply empty.
+func buildKnowledge(paths config.Paths, log *slog.Logger) *investigation.Index {
+	if paths.KnowledgeRoot == "" {
+		return nil
+	}
+	ix, err := investigation.BuildIndex(paths.KnowledgeRoot)
+	if err != nil {
+		if log != nil {
+			log.Debug("knowledge index", "root", paths.KnowledgeRoot, "err", err)
+		}
+		return nil
+	}
+	return ix
+}
+
+// clipboardFactory returns the function that builds one session's clipboard:
+// pbcopy, and OSC 52 to the attached terminal as the fallback, which also works
+// when the client is tmux.
+func clipboardFactory() func(out io.Writer, inTmux bool) clip.Clipboard {
+	return func(out io.Writer, inTmux bool) clip.Clipboard {
+		pb := clip.NewPbcopy(pbcopyRunner(clipTimeout))
+		if out == nil {
+			return pb
+		}
+		return clip.Multi(pb, clip.NewOSC52(out, inTmux))
+	}
+}
+
+// clipTimeout bounds one pbcopy run.
+const clipTimeout = 2 * time.Second
+
+// pbcopyRunner feeds stdin to a local command and gives up after timeout. The
+// process is built here, never in internal/clip (BUILD-PLAN §6.1 rule 6).
+func pbcopyRunner(timeout time.Duration) func(name string, stdin []byte) error {
+	return func(name string, stdin []byte) error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, name)
+		cmd.Stdin = bytes.NewReader(stdin)
+		if err := cmd.Run(); err != nil {
+			return errs.Wrap(errs.Internal, "clip."+name, err)
+		}
+		return nil
+	}
+}
+
+// sessionReadOnly reports the session-level read-only switch the bus consults.
+func sessionReadOnly(s *tui.SessionState) bool {
+	return s != nil && s.ReadOnly
 }
