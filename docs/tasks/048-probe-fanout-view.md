@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 036, 037, 046
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:probe failed-units` on the target set → "N identical · M differ · K errors", drill into groups, diff against the

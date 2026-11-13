@@ -108,7 +108,7 @@ only by tasks 001, 098, 105 and 115.
 | [045](045-journal-kind-view.md) | Journal: windowed query, follow, view | 042, 044, 013 | M2-E | done |
 | [046](046-targets.md) | Target sets: current set, saved sets, selection | 039, 022 | M2-E | done |
 | [047](047-host-overview-view.md) | Host overview view | 044, 045, 013 | — | done |
-| [048](048-probe-fanout-view.md) | Read-only probes and the grouped fan-out view | 036, 037, 046 | — | todo |
+| [048](048-probe-fanout-view.md) | Read-only probes and the grouped fan-out view | 036, 037, 046 | — | done |
 | [049](049-vt-emulator-adapter.md) | Terminal emulator adapter (spike with a go/no-go list) | 008 | M2-D | done |
 | [050](050-terminal-pane.md) | Terminal pane and `:ssh` | 034, 049, 022, 046 | — | todo |
 | [051](051-prompt-dialogs.md) | Interactive prompts in the TUI (host keys, passphrases) | 029, 022 | M2-F | done |

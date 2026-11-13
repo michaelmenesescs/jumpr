@@ -9,6 +9,7 @@ import (
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
+	"jumper/internal/transport"
 	"jumper/internal/tui/keymap"
 	"jumper/internal/tui/theme"
 )
@@ -21,6 +22,7 @@ type Env struct {
 	Inventory inventory.Inventory // nil until the app wires the inventory in
 	Sets      *targets.Store      // saved target sets; nil = none configured
 	Session   *SessionState       // targets, window, investigation, readonly
+	Exec      transport.Executor  // remote reads for probes and fan-outs; nil = none
 	Theme     *theme.Theme
 	Glyphs    render.GlyphSet // active set, resolved once by internal/app
 	Keys      *keymap.Map

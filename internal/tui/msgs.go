@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"jumper/internal/backend"
+	"jumper/internal/fanout"
 	"jumper/internal/interact"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
@@ -77,6 +78,15 @@ type HealthMsg struct {
 type ListBatchMsg struct {
 	Seq     int
 	Results []backend.Result
+	Closed  bool
+}
+
+// FanoutBatchMsg is one batch of a multi-host run (a probe, `:run`): the
+// per-host results of internal/fanout, tagged with the run's Seq so batches of
+// a superseded run are dropped.
+type FanoutBatchMsg struct {
+	Seq     int
+	Results []fanout.HostResult
 	Closed  bool
 }
 
