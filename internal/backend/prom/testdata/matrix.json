@@ -1,0 +1,34 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "up",
+          "job": "node",
+          "instance": "web-01.example.internal:9100"
+        },
+        "values": [
+          [1763099700, "0.42"],
+          [1763099760, "0.51"],
+          [1763099820, "NaN"],
+          [1763099880, "0.63"],
+          [1763099940, "+Inf"],
+          [1763100000, "0.71"]
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "up",
+          "job": "node",
+          "instance": "web-02.example.internal:9100"
+        },
+        "values": [
+          [1763099700, "1.5"],
+          [1763100000, "2.25"]
+        ]
+      }
+    ]
+  }
+}

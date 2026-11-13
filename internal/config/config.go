@@ -5,22 +5,34 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"jumper/internal/errs"
 )
 
+// PrometheusConfig is one Prometheus server jumper may query (SPEC §8.3).
+// `connection` names an entry of connections.yaml; empty means a direct,
+// unauthenticated connection.
+type PrometheusConfig struct {
+	Name       string `yaml:"name"`
+	URL        string `yaml:"url"`
+	Connection string `yaml:"connection"`
+}
+
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.
 type Config struct {
-	UI        UIConfig        `yaml:"ui"`
-	Mux       MuxConfig       `yaml:"mux"`
-	SSH       SSHConfig       `yaml:"ssh"`
-	Inventory InventoryConfig `yaml:"inventory"`
-	Knowledge KnowledgeConfig `yaml:"knowledge"`
-	Rollout   RolloutConfig   `yaml:"rollout"`
-	Salt      SaltConfig      `yaml:"salt"`
-	Interact  InteractConfig  `yaml:"interact"`
+	UI         UIConfig           `yaml:"ui"`
+	Mux        MuxConfig          `yaml:"mux"`
+	SSH        SSHConfig          `yaml:"ssh"`
+	Inventory  InventoryConfig    `yaml:"inventory"`
+	Knowledge  KnowledgeConfig    `yaml:"knowledge"`
+	Rollout    RolloutConfig      `yaml:"rollout"`
+	Salt       SaltConfig         `yaml:"salt"`
+	Prometheus []PrometheusConfig `yaml:"prometheus"`
+	Interact   InteractConfig     `yaml:"interact"`
 }
 
 // UIConfig configures the presentation layer.
@@ -245,6 +257,22 @@ func (c *Config) Validate() error {
 	for i, rw := range c.Inventory.Identity.Rewrites {
 		if _, err := regexp.Compile(rw.From); err != nil {
 			return invalidf("inventory.identity.rewrites[%d].from: %v", i, err)
+		}
+	}
+
+	names := make(map[string]bool, len(c.Prometheus))
+	for i, p := range c.Prometheus {
+		name := strings.TrimSpace(p.Name)
+		if name == "" {
+			return invalidf("prometheus[%d].name: a server needs a name", i)
+		}
+		if names[name] {
+			return invalidf("prometheus[%d].name: %q is configured twice", i, name)
+		}
+		names[name] = true
+		u, err := url.Parse(strings.TrimSpace(p.URL))
+		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return invalidf("prometheus[%d].url: %q is not an http(s) URL", i, p.URL)
 		}
 	}
 

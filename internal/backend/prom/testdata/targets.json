@@ -1,0 +1,33 @@
+{
+  "status": "success",
+  "data": {
+    "activeTargets": [
+      {
+        "discoveredLabels": {
+          "__address__": "192.0.2.11:9100",
+          "__meta_kubernetes_pod_name": "web-01"
+        },
+        "labels": {
+          "instance": "web-01.example.internal:9100",
+          "job": "node"
+        },
+        "scrapePool": "node",
+        "scrapeUrl": "http://web-01.example.internal:9100/metrics",
+        "health": "up",
+        "lastError": "",
+        "lastScrape": "2026-11-12T14:00:03.123Z"
+      },
+      {
+        "labels": {
+          "instance": "db-01.example.internal:9100",
+          "job": "node"
+        },
+        "scrapePool": "node",
+        "scrapeUrl": "http://db-01.example.internal:9100/metrics",
+        "health": "down",
+        "lastError": "dial tcp 192.0.2.21:9100: connect: connection refused",
+        "lastScrape": "2026-11-12T14:00:01Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "NodeDown",
+          "instance": "db-01.example.internal:9100",
+          "severity": "page"
+        },
+        "annotations": {
+          "summary": "node down"
+        },
+        "state": "firing",
+        "activeAt": "2026-11-12T13:40:00Z",
+        "value": "0e+00"
+      }
+    ]
+  }
+}

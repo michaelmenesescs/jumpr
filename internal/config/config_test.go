@@ -291,6 +291,18 @@ func TestValidate(t *testing.T) {
 		{"bad rewrite", func(c *Config) {
 			c.Inventory.Identity.Rewrites = []Rewrite{{From: "([a-z"}}
 		}, "inventory.identity.rewrites[0].from"},
+		{"prometheus without a name", func(c *Config) {
+			c.Prometheus = []PrometheusConfig{{URL: "https://prometheus.example.internal"}}
+		}, "prometheus[0].name"},
+		{"prometheus configured twice", func(c *Config) {
+			c.Prometheus = []PrometheusConfig{
+				{Name: "eu", URL: "https://prometheus.example.internal"},
+				{Name: "eu", URL: "https://prometheus.example.internal"},
+			}
+		}, "prometheus[1].name"},
+		{"prometheus without a scheme", func(c *Config) {
+			c.Prometheus = []PrometheusConfig{{Name: "eu", URL: "prometheus.example.internal"}}
+		}, "prometheus[0].url"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := Default()
@@ -388,5 +400,32 @@ func TestGlyphsRoundTripYAML(t *testing.T) {
 	}
 	if got := cfg.UI.Color; got != "auto" {
 		t.Errorf("ui.color = %q, want the default auto", got)
+	}
+}
+
+func TestLoadPrometheusSection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	body := "prometheus:\n" +
+		"  - name: eu\n" +
+		"    url: https://prometheus.example.internal\n" +
+		"  - name: us\n" +
+		"    url: https://prometheus-us.example.internal\n" +
+		"    connection: us-sso\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	cfg, err := Load(path, testHome)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	want := []PrometheusConfig{
+		{Name: "eu", URL: "https://prometheus.example.internal"},
+		{Name: "us", URL: "https://prometheus-us.example.internal", Connection: "us-sso"},
+	}
+	if !reflect.DeepEqual(cfg.Prometheus, want) {
+		t.Errorf("prometheus = %+v, want %+v", cfg.Prometheus, want)
+	}
+	if got := Default().Prometheus; len(got) != 0 {
+		t.Errorf("Default().Prometheus = %v, want empty", got)
 	}
 }

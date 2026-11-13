@@ -3,7 +3,7 @@
 - **Milestone:** M8
 - **Depends on:** 099
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC §8.3 for Prometheus.
