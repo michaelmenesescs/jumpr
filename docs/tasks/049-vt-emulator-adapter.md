@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 008
 - **Parallel group:** M2-D (with 039, 040, 041, 042, 043)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Wrap `github.com/charmbracelet/x/vt` behind `vt.Emulator` (BUILD-PLAN §4.9) and prove it is good enough for
