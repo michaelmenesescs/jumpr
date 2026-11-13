@@ -109,6 +109,7 @@ type Pane struct {
 	reason     string
 	restored   bool
 	focused    bool
+	protected  bool
 	closed     bool
 	cols, rows int
 
@@ -506,8 +507,59 @@ func (p *Pane) View(w, h int) string {
 	return render.Fit(strings.Join(lines, "\n"), w, h)
 }
 
-// Title is the pane border title.
-func (p *Pane) Title() string { return "ssh " + p.shortHost() }
+// Title is the pane border title. A pane whose host policy protects says so
+// (SPEC §11.1).
+func (p *Pane) Title() string {
+	title := "ssh " + p.shortHost()
+	p.mu.Lock()
+	protected := p.protected
+	p.mu.Unlock()
+	if protected {
+		title += " (protected)"
+	}
+	return title
+}
+
+// Host is the host the pane's shell runs on.
+func (p *Pane) Host() resource.HostID { return p.host }
+
+// SetProtected marks the pane's host as protected by policy, which the border
+// title then shows.
+func (p *Pane) SetProtected(on bool) {
+	p.mu.Lock()
+	p.protected = on
+	p.mu.Unlock()
+}
+
+// Protected reports whether the pane was marked as a protected host.
+func (p *Pane) Protected() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.protected
+}
+
+// SendLine writes one line and a carriage return to the remote shell, the way
+// a broadcast line reaches it. The bytes go through the writer goroutine, so a
+// stalled connection cannot block the caller.
+func (p *Pane) SendLine(line string) error {
+	p.mu.Lock()
+	st := p.st
+	c := p.conn
+	closed := p.closed
+	p.mu.Unlock()
+	if closed || st != stateConnected || c == nil {
+		return errs.New(errs.NotAvailable, "termpane.SendLine", "pane is not connected").WithHost(string(p.host))
+	}
+	b := append([]byte(line), '\r')
+	select {
+	case c.writes <- b:
+		return nil
+	case <-c.ctx.Done():
+		return errs.Wrap(errs.Canceled, "termpane.SendLine", c.ctx.Err()).WithHost(string(p.host))
+	default:
+		return errs.New(errs.Timeout, "termpane.SendLine", "write queue is full").WithHost(string(p.host))
+	}
+}
 
 // SetFocus records whether the pane has the focus, which decides whether the
 // cursor is drawn.
@@ -616,4 +668,84 @@ func statusLine(lines []string, text string, w, h int) []string {
 	}
 	lines[h-1] = dim(render.PadRight(text, w))
 	return lines
+}
+
+// editedMark is what a line the tracker lost track of is recorded as. It is
+// deliberately not the line, wrong records being worse than an honest "unknown"
+// (SPEC §11.1, task 064 pitfalls).
+const editedMark = "…(edited)"
+
+// LineTracker reconstructs the line typed in a raw synchronized session, from
+// the key presses the panes received. It is best effort by design: a key it
+// cannot follow marks the line edited instead of guessing what the shell did.
+type LineTracker struct {
+	runes  []rune
+	edited bool
+}
+
+// Reset forgets the line and the edited mark.
+func (t *LineTracker) Reset() {
+	t.runes = t.runes[:0]
+	t.edited = false
+}
+
+// Line is the reconstructed line, or editedMark when the tracker lost track.
+func (t *LineTracker) Line() string {
+	if t.edited {
+		return editedMark
+	}
+	return string(t.runes)
+}
+
+// Edited reports whether the tracker lost track of the line.
+func (t *LineTracker) Edited() bool { return t.edited }
+
+// Key applies one key press and reports the line it completed. enter is true
+// when the key was enter; line is then the reconstructed line and the tracker
+// starts over. line is "" for every other key.
+func (t *LineTracker) Key(k tea.KeyMsg) (line string, enter bool) {
+	if k.Paste {
+		t.runes = append(t.runes, k.Runes...)
+		return "", false
+	}
+	switch k.Type {
+	case tea.KeyRunes:
+		if k.Alt {
+			t.edited = true
+			return "", false
+		}
+		t.runes = append(t.runes, k.Runes...)
+	case tea.KeySpace:
+		t.runes = append(t.runes, ' ')
+	case tea.KeyEnter:
+		line := t.Line()
+		t.Reset()
+		return line, true
+	case tea.KeyBackspace:
+		if len(t.runes) > 0 {
+			t.runes = t.runes[:len(t.runes)-1]
+		}
+	case tea.KeyCtrlU:
+		t.runes = t.runes[:0]
+	case tea.KeyCtrlW:
+		t.dropWord()
+	default:
+		// An escape sequence, ctrl+r, a function key: the line changed in a
+		// way this tracker cannot follow.
+		t.edited = true
+	}
+	return "", false
+}
+
+// dropWord deletes the word before the cursor, the way ctrl+w does in a shell:
+// trailing spaces first, then the word itself.
+func (t *LineTracker) dropWord() {
+	i := len(t.runes)
+	for i > 0 && t.runes[i-1] == ' ' {
+		i--
+	}
+	for i > 0 && t.runes[i-1] != ' ' {
+		i--
+	}
+	t.runes = t.runes[:i]
 }

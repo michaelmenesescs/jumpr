@@ -83,6 +83,10 @@ func (m *Model) box(id PaneID, r Rect, focused bool) []string {
 	if focused {
 		border, titleStyle = m.styles.BorderFocused, m.styles.TitleFocused
 	}
+	if m.inSync(id) && m.styles.BorderSync.GetForeground() != nil {
+		// A pane raw synchronized input goes to is drawn in the Crit colour.
+		border = m.styles.BorderSync
+	}
 
 	innerW, innerH := r.W-2, r.H-2
 	title := ""

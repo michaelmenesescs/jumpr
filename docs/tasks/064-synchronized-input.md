@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 061, 050
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Type once, send to several terminal panes — safely. Plus the recording and read-only rules for shells.

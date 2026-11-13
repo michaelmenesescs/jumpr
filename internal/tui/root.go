@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"jumper/internal/backend"
+	"jumper/internal/bus"
 	"jumper/internal/clip"
 	"jumper/internal/investigation"
 	"jumper/internal/mux"
@@ -94,6 +95,15 @@ type Root struct {
 	pending []Dialog // questions that arrived while prompt was on screen
 	w, h    int
 
+	// Synchronized input (task 064): the line being reconstructed while raw
+	// sync is on, the channel a bus step uses to switch the mode, the planner
+	// registered on the bus, and the guard rails' policy and pane limit.
+	sync     *syncState
+	syncMode chan bool
+	syncPl   *syncPlanner
+	guard    *bus.Policy
+	maxSync  int
+
 	flash    FlashMsg
 	flashOn  bool
 	flashSeq int
@@ -127,6 +137,10 @@ type Root struct {
 	// pendingRun is the run a list dialog asked to reopen: the dialog's own
 	// CloseDialogMsg follows the pick, so the root consumes it there.
 	pendingRun int
+	// syncClose is how many CloseDialogMsg a broadcast prompt's submit has in
+	// flight. The prompt closes itself and submits in one batch, so the close
+	// can arrive after the plan dialog is already up; those are swallowed.
+	syncClose int
 	// planCancel cancels the planning round-trip of the actions menu; esc
 	// cancels it while the planning spinner is up.
 	planCancel context.CancelFunc
@@ -172,6 +186,13 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 	m := mux.NewModel(mux.NewSession(name), r.paneContent, prefixKey, stylesFor(env))
 	m.SetRootPredicate(IsRootMsg)
 	r.mux = m
+	// The synchronized-input specs belong to this model, so the planner is
+	// built and registered here; a bus that already has one keeps its own.
+	r.syncMode = make(chan bool, syncModeBuffer)
+	r.syncPl = &syncPlanner{panes: m.Contents, mode: r.syncMode}
+	if env != nil && env.Bus != nil {
+		_ = env.Bus.Register("mux", r.syncPl)
+	}
 	_, r.initCmd = m.AddPane(mux.ContentState{}, "h")
 	return r
 }
@@ -202,7 +223,7 @@ func (r *Root) registerDefaults() {
 // yank flashes a warning instead.
 func (r *Root) SetClipboard(c clip.Clipboard) { r.clip = c }
 
-// stylesFor builds the four mux pane styles from the theme.
+// stylesFor builds the mux pane styles from the theme.
 func stylesFor(env *Env) mux.Styles {
 	if env == nil || env.Theme == nil {
 		return mux.Styles{}
@@ -211,8 +232,10 @@ func stylesFor(env *Env) mux.Styles {
 	return mux.Styles{
 		Border:        t.Border,
 		BorderFocused: t.BorderFocused,
-		Title:         t.Title,
-		TitleFocused:  t.Accent.Bold(true),
+		// Panes raw synchronized input goes to are drawn in the Crit colour.
+		BorderSync:   t.Crit,
+		Title:        t.Title,
+		TitleFocused: t.Accent.Bold(true),
 	}
 }
 
@@ -266,6 +289,8 @@ func (r *Root) termPane(id mux.PaneID, host string, restored bool) mux.Content {
 		Term: "xterm-256color",
 		Now:  now,
 	})
+	// A protected host says so in the border title (SPEC §11.1).
+	r.markProtected(p)
 	if restored {
 		p.MarkRestored()
 	}
@@ -370,6 +395,10 @@ func (r *Root) Init() tea.Cmd {
 	}
 	if r.sessionPath != "" {
 		cmds = append(cmds, autosaveTick())
+	}
+	// The bus step that turns raw synchronized input on has to reach the UI.
+	if c := r.waitSyncMode(); c != nil {
+		cmds = append(cmds, c)
 	}
 	if len(cmds) == 0 {
 		return nil
@@ -518,7 +547,7 @@ func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
 		return r.copyKey(k)
 	}
 	if r.muxTakesKey(k) {
-		return r.routeMux(k)
+		return r.routeKey(k)
 	}
 	// `enter` on an alert row expands into an investigation. Checked before the
 	// global keys and the view, so the table never flashes "no drill-in".
@@ -849,6 +878,15 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 	case tea.QuitMsg:
 		return tea.Quit
 	case CloseDialogMsg:
+		// A broadcast prompt submits and closes in one batch, so its close may
+		// land after the plan dialog it asked for; that one clears nothing.
+		if r.syncClose > 0 {
+			r.syncClose--
+			if _, ok := r.dialog.(*promptDialog); ok {
+				r.dialog = nil
+			}
+			return nil
+		}
 		if r.prompt != nil {
 			r.prompt = r.nextPrompt()
 			return nil
@@ -956,6 +994,16 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		return r.openResolvePrompt()
 	case HelpRequestedMsg:
 		return r.openHelp()
+	case syncBroadcastMsg:
+		return r.broadcastLine(m.Line)
+	case syncModeMsg:
+		next := r.waitSyncMode()
+		if cmd := r.applySyncMode(m.On); cmd != nil {
+			return tea.Batch(cmd, next)
+		}
+		return next
+	case syncIdleMsg:
+		return r.checkSyncIdle()
 	case KindsRequestedMsg:
 		return r.pushFocused(r.kindsView())
 	case copyDoneMsg:
@@ -1149,7 +1197,9 @@ func (r *Root) handleOp(m mux.OpMsg) tea.Cmd {
 		return r.openCopyMode()
 	case mux.OpSSH:
 		return r.sshOp(m.Arg)
-	case mux.OpSync, mux.OpSessionList:
+	case mux.OpSync:
+		return r.syncOp(m.Arg)
+	case mux.OpSessionList:
 		return Flash(FlashInfo, "not available yet")
 	case mux.OpKillPane:
 		if r.focusedBusy() {
@@ -1496,6 +1546,8 @@ func (r *Root) statusData() StatusData {
 			d.Windows = append(d.Windows, WindowTab{Index: tab.Index, Name: tab.Name, Active: tab.Active})
 		}
 	}
+	// Raw synchronized input shows its badge for as long as the mode lasts.
+	d.Sync = r.mux.SyncCount()
 	if r.env != nil && r.env.Session != nil {
 		d.ReadOnly = r.env.Session.ReadOnly
 		d.Targets = len(r.env.Session.Targets.Hosts)

@@ -314,11 +314,15 @@ func muxCommands() []Command {
 			Complete: func(*Env, string) []string { return nil },
 		},
 		{
-			Name:     "sync",
-			Usage:    ":sync",
-			Help:     "toggle synchronized input across panes",
-			Run:      func(*Env, string) tea.Cmd { return opCmd(mux.OpSync, "") },
-			Complete: func(*Env, string) []string { return nil },
+			Name:  "sync",
+			Usage: ":sync [raw|off]",
+			Help:  "broadcast a line to the panes, or toggle raw synchronized input",
+			Run: func(_ *Env, args string) tea.Cmd {
+				return opCmd(mux.OpSync, strings.TrimSpace(args))
+			},
+			Complete: func(_ *Env, args string) []string {
+				return filterPrefix([]string{"raw", "off"}, partialWord(args))
+			},
 		},
 	}
 }

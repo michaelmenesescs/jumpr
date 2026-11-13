@@ -89,13 +89,18 @@ func (r *Root) promptSSH(initial string) tea.Cmd {
 
 // openSSH resolves name through the inventory and opens a shell pane beside
 // the focused one. A name the inventory cannot resolve is an error flash: a
-// typo must not start a connection to something else.
+// typo must not start a connection to something else. A read-only session
+// refuses the shell unless policy allows it, and opening one is recorded
+// (SPEC §11.1).
 func (r *Root) openSSH(name string) tea.Cmd {
 	if r.env == nil || r.env.Shells == nil {
 		return Flash(FlashWarn, "no SSH in demo mode")
 	}
 	if r.mux == nil {
 		return nil
+	}
+	if reason := r.shellRefusal(); reason != "" {
+		return Flash(FlashWarn, "%s", reason)
 	}
 	id := resource.HostID(name)
 	if r.env.Inventory != nil {
@@ -105,10 +110,16 @@ func (r *Root) openSSH(name string) tea.Cmd {
 		}
 		id = h.ID
 	}
+	// The entry goes in before the pane exists: a shell that fails to connect
+	// was still opened.
+	entry := r.recordShellOpened(id)
 	r.connectTerm = true
 	_, cmd := r.mux.AddPane(mux.ContentState{Type: "term", Host: string(id)}, "h")
 	r.connectTerm = false
-	return cmd
+	if entry == nil {
+		return cmd
+	}
+	return tea.Batch(entry, cmd)
 }
 
 // subjectHost is the single host the focused view is about, if any.

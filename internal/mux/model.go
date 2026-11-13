@@ -12,10 +12,12 @@ import (
 // mux calls Init itself and batches both.
 type Factory func(id PaneID, st ContentState) (Content, tea.Cmd)
 
-// Styles are the four styles the mux draws panes with.
+// Styles are the styles the mux draws panes with. BorderSync marks the panes
+// raw synchronized input is going to (SPEC §11.1).
 type Styles struct {
 	Border        lipgloss.Style
 	BorderFocused lipgloss.Style
+	BorderSync    lipgloss.Style
 	Title         lipgloss.Style
 	TitleFocused  lipgloss.Style
 }
@@ -40,6 +42,9 @@ type Model struct {
 	styles  Styles
 	isRoot  func(tea.Msg) bool
 	panes   map[PaneID]Content
+	// syncPanes is the raw synchronized-input fan-out set of the active
+	// window; empty while the mode is off (task 064).
+	syncPanes []PaneID
 
 	width, height int
 }
@@ -103,7 +108,8 @@ func (m *Model) paneMsg(pm PaneMsg) (tea.Msg, tea.Cmd) {
 }
 
 // keyMsg feeds the prefix machine, applies an operation or forwards the key to
-// the focused content.
+// the focused content. While raw synchronized input is on, the key goes to
+// every terminal pane of the set instead (SPEC §11.1).
 func (m *Model) keyMsg(k tea.KeyMsg) (tea.Msg, tea.Cmd) {
 	op, consumed := m.prefix.Feed(k.String())
 	switch {
@@ -115,7 +121,86 @@ func (m *Model) keyMsg(k tea.KeyMsg) (tea.Msg, tea.Cmd) {
 	case consumed:
 		return nil, nil
 	}
+	if m.syncActive() {
+		return nil, m.syncKey(k)
+	}
 	return nil, m.toFocused(k)
+}
+
+// SetSync turns raw synchronized input on for panes, or off when panes is
+// empty. Only the panes handed in receive keys; the mode is cleared whenever
+// the window changes or a pane is added or removed (task 064).
+func (m *Model) SetSync(panes []PaneID) {
+	if len(panes) == 0 {
+		m.syncPanes = nil
+		return
+	}
+	m.syncPanes = append([]PaneID(nil), panes...)
+}
+
+// SyncPanes is a copy of the fan-out set; empty while the mode is off.
+func (m *Model) SyncPanes() []PaneID {
+	return append([]PaneID(nil), m.syncPanes...)
+}
+
+// SyncOn reports whether raw synchronized input is on.
+func (m *Model) SyncOn() bool { return len(m.syncPanes) > 0 }
+
+// SyncCount is the number of panes keys are delivered to; 0 while off.
+func (m *Model) SyncCount() int { return len(m.syncPanes) }
+
+// SyncTo delivers one key press to the panes of the sync set, the way a key
+// typed into a synchronized window reaches them all. It returns nil while the
+// mode is off.
+func (m *Model) SyncTo(k tea.KeyMsg) tea.Cmd {
+	if !m.syncActive() {
+		return nil
+	}
+	return m.syncKey(k)
+}
+
+// syncActive reports whether keys typed at the focused pane have to be
+// broadcast: the mode is on and the focused pane is a live terminal. Keys that
+// go to a view are never broadcast (task 064 pitfalls).
+func (m *Model) syncActive() bool {
+	if len(m.syncPanes) == 0 {
+		return false
+	}
+	_, c := m.Focused()
+	return c != nil && c.RawKeys()
+}
+
+// syncKey sends one key press to every connected terminal pane of the sync set.
+func (m *Model) syncKey(k tea.KeyMsg) tea.Cmd {
+	var cmds []tea.Cmd
+	for _, id := range m.syncPanes {
+		c, ok := m.panes[id]
+		if !ok || c == nil || !c.RawKeys() {
+			continue
+		}
+		if cmd := m.updateContent(id, c, k); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
+}
+
+// clearSync switches raw synchronized input off. It is called whenever the
+// window changes or a pane is added or removed, so the mode can never outlive
+// the pane set it was turned on for.
+func (m *Model) clearSync() { m.syncPanes = nil }
+
+// inSync reports whether id is one of the panes keys are broadcast to.
+func (m *Model) inSync(id PaneID) bool {
+	for _, p := range m.syncPanes {
+		if p == id {
+			return true
+		}
+	}
+	return false
 }
 
 // toFocused forwards msg to the focused content of the active window.
@@ -156,6 +241,11 @@ func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 
 // applyOp executes one multiplexer operation.
 func (m *Model) applyOp(op OpMsg) (tea.Msg, tea.Cmd) {
+	switch op.Op {
+	case OpNewWindow, OpKillWindow, OpSelectWindow, OpNextWindow, OpPrevWindow:
+		// Synchronized input belongs to one pane set of one window.
+		m.clearSync()
+	}
 	switch op.Op {
 	case OpSplitH:
 		return nil, m.split(true)
@@ -293,8 +383,10 @@ func (m *Model) selectWindow(i int) tea.Cmd {
 	return nil
 }
 
-// create builds the content of a new pane and runs its init.
+// create builds the content of a new pane and runs its init. Adding a pane ends
+// synchronized input: the set it was turned on for is gone (task 064).
 func (m *Model) create(id PaneID, st ContentState, focus bool) tea.Cmd {
+	m.clearSync()
 	if m.factory == nil {
 		return nil
 	}
@@ -313,8 +405,10 @@ func (m *Model) create(id PaneID, st ContentState, focus bool) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// closeContent releases one content and forgets it.
+// closeContent releases one content and forgets it. Removing a pane ends
+// synchronized input.
 func (m *Model) closeContent(id PaneID) {
+	m.clearSync()
 	c, ok := m.panes[id]
 	if !ok {
 		return
