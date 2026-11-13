@@ -49,8 +49,8 @@ type unitInfoer interface {
 	UnitInfo(ctx context.Context, host resource.HostID, unit string) (linux.UnitInfo, error)
 }
 
-// Unit is the tabbed detail of one systemd unit: status, show, cat and journal.
-// Tab 5 (deps) is added by task 085.
+// Unit is the tabbed detail of one systemd unit: status, show, cat, journal and
+// the dependency trees.
 type Unit struct {
 	env  *tui.Env
 	b    backend.Backend
@@ -73,8 +73,10 @@ type Unit struct {
 	show   int
 	cat    int
 	jour   int
+	dep    int
 
 	journal *Journal
+	deps    *unitDeps
 
 	w, h int
 }
@@ -106,11 +108,14 @@ func NewUnit(env *tui.Env, b backend.Backend, host resource.HostID, unit string)
 		Window: u.window,
 	})
 	u.status, u.show, u.cat, u.jour = 0, 1, 2, 3
+	u.deps = NewUnitDeps(env, b, u.host, u.name)
+	u.dep = 4
 	u.tabs = NewTabs(env, []Tab{
 		{Key: "1", Title: "status", View: NewText(env, u.name+" status", nil)},
 		{Key: "2", Title: "show", View: NewText(env, u.name+" show", nil)},
 		{Key: "3", Title: "cat", View: NewText(env, u.name+" cat", nil)},
 		{Key: "4", Title: "journal", View: u.journal},
+		{Key: "5", Title: "deps", View: u.deps},
 	})
 	return u
 }
@@ -202,11 +207,15 @@ func (u *Unit) handleKey(m tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// refresh reloads the batch and restarts the journal when it has been visited.
+// refresh reloads the batch, the journal and the deps tab when they have been
+// visited.
 func (u *Unit) refresh() tea.Cmd {
 	cmds := []tea.Cmd{u.load()}
 	if u.tabs.Visited(u.jour) {
 		cmds = append(cmds, u.journal.Init())
+	}
+	if u.tabs.Visited(u.dep) {
+		cmds = append(cmds, u.deps.Init())
 	}
 	return tea.Batch(cmds...)
 }

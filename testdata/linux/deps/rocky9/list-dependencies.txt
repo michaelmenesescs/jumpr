@@ -1,0 +1,14 @@
+multi-user.target
+  basic.target
+    sysinit.target
+      systemd-journald.socket
+      systemd-journald.service
+      systemd-journald-dev-log.socket
+    paths.target
+    slices.target
+    sockets.target
+    timers.target
+  network-online.target
+    NetworkManager-wait-online.service
+  nginx.service
+  sshd.service

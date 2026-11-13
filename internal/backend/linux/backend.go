@@ -160,6 +160,13 @@ func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Re
 		go b.listKernel(ctx, out, hosts, q)
 		return out, nil
 	}
+	if kind == KindTimer {
+		// Timers are one listing per host plus the optional enrichment round
+		// trip, so they keep their own path.
+		out := make(chan backend.Result)
+		go b.listTimers(ctx, out, hosts, q)
+		return out, nil
+	}
 	batch, err := b.batch(kind)
 	if err != nil {
 		return nil, err
@@ -257,6 +264,9 @@ func (b *Backend) Get(ctx context.Context, ref resource.Ref) (resource.Resource,
 	}
 	if b.exec == nil {
 		return resource.Resource{}, errs.New(errs.Config, "linux.Get", "no transport executor configured")
+	}
+	if kind == KindTimer {
+		return b.timer(ctx, host, ref.Name)
 	}
 	batch, err := b.batch(kind)
 	if err != nil {
@@ -375,6 +385,36 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 					Kind:  KindJournal,
 					Hosts: hosts,
 					Args:  map[string]string{"unit": r.Ref.Name},
+				},
+			},
+		}
+	case KindTimer:
+		if r.Ref.Name == "" {
+			return nil
+		}
+		// A timer opens its own unit detail; its journal is the journal of the
+		// unit it activates, or its own when it activates nothing.
+		activated := strings.TrimSpace(r.Str("activates"))
+		if activated == "" {
+			activated = r.Ref.Name
+		}
+		return []resource.Link{
+			{
+				Label: "detail",
+				Key:   "enter",
+				To: resource.Query{
+					Kind:  KindUnitDetail,
+					Hosts: hosts,
+					Args:  map[string]string{"unit": r.Ref.Name},
+				},
+			},
+			{
+				Label: "journal",
+				Key:   "j",
+				To: resource.Query{
+					Kind:  KindJournal,
+					Hosts: hosts,
+					Args:  map[string]string{"unit": activated},
 				},
 			},
 		}

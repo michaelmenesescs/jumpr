@@ -1,0 +1,4 @@
+Thu 2026-11-12 14:00:00 UTC 21min left Thu 2026-11-12 13:00:00 UTC 38min ago logrotate.timer logrotate.service
+n/a                          n/a        Thu 2026-11-12 00:00:00 UTC 14h ago systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+Wed 2026-11-19 00:00:00 UTC 6 days left Wed 2026-11-12 00:00:00 UTC 14h ago fstrim.timer fstrim.service
+Thu 2026-11-12 15:00:00 UTC 1h 30min left Thu 2026-11-12 00:00:00 UTC 13h ago apt-daily.timer apt-daily.service

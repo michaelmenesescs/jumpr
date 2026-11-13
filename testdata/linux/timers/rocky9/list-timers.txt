@@ -1,0 +1,3 @@
+Thu 2026-11-12 14:00:00 EST 21min left Thu 2026-11-12 13:00:00 EST 38min ago logrotate.timer logrotate.service
+Fri 2026-11-13 02:00:00 EST 11h left   -                            -                      dnf-makecache.timer dnf-makecache.service
+Thu 2026-11-12 15:00:00 EST 1h 30min left Thu 2026-11-12 00:00:00 EST 13h ago unbound-anchor.timer unbound-anchor.service

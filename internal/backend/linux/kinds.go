@@ -25,6 +25,7 @@ const (
 	KindCgroup       resource.KindName = "cgroup"
 	KindKernel       resource.KindName = "kernel"
 	KindPkg          resource.KindName = "pkg"
+	KindTimer        resource.KindName = "timer"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -58,6 +59,8 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindKernel, true
 	case "pkg", "pkgs", "packages", "package":
 		return KindPkg, true
+	case "timer", "timers":
+		return KindTimer, true
 	default:
 		return "", false
 	}
@@ -290,6 +293,23 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "installed", Title: "INSTALLED", Width: 11, Kind: resource.ColTime},
 			},
 			DefaultSort: "name",
+		},
+		{
+			// Timers: one row per timer unit, with the next and last run. The
+			// generic timer view and `:timers [host]` use these columns.
+			Name:    KindTimer,
+			Aliases: []string{"timers"},
+			Title:   "Timers",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "timer", Title: "TIMER", Width: 26},
+				{ID: "next", Title: "NEXT", Width: 9, Kind: resource.ColTime},
+				{ID: "left", Title: "LEFT", Width: 10, Align: resource.AlignRight, Kind: resource.ColDuration},
+				{ID: "last", Title: "LAST", Width: 9, Kind: resource.ColTime},
+				{ID: "passed", Title: "PASSED", Width: 10, Align: resource.AlignRight, Kind: resource.ColDuration},
+				{ID: "activates", Title: "ACTIVATES", Width: 0},
+			},
+			DefaultSort: "next",
 		},
 	}
 }

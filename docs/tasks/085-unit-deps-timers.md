@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 084
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC §8.1.1: dependency tree for a unit; `:timers` per host.
