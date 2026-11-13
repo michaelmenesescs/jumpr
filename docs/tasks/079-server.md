@@ -3,7 +3,7 @@
 - **Milestone:** M5
 - **Depends on:** 077, 078
 - **Parallel group:** M5-B (with 080)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `jumper server`: a per-user process that listens on a unix socket and connects clients to sessions.
