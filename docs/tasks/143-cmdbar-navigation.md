@@ -1,49 +1,63 @@
-# Task 143 — `:kind` from the command bar must actually switch the view
+# Task 143 — `:kind` in the muxed app fails with "no view factory for kind unit"
 
-- **Milestone:** M0 fix (found by smoking `jumper --demo`)
-- **Depends on:** 016, 022, 014
+- **Milestone:** M0 fix (found by driving `jumper --demo` in a PTY)
+- **Depends on:** 016, 020, 022, 014
 - **Parallel group:** —
 - **Status:** todo
 
-## Symptom (reproduced, not theorised)
-In `jumper --demo`, typing `:` then `units` then `enter` leaves the host table untouched: no new view, no crumb change,
-no flash. Same for `:u`. Meanwhile `Commands.Exec` does build an `OpenQueryMsg` (its own tests pass), and
-`internal/tui/viewpane.go` handles `OpenQueryMsg` — but `internal/tui/root.go` and the mux in front of it do not, so in
-the muxed app the message is dropped before it reaches a pane.
+## Symptom (reproduced)
+In `jumper --demo` (110x16 PTY): `:u` + `enter` leaves the host table in place and flashes
+`no view factory for kind unit`. `:units` behaves the same. The command bar itself is fine: `Commands.Exec` resolves the
+alias and emits `OpenQueryMsg`, and the message does reach a pane.
+
+## Root cause (read from the code — do not re-diagnose from scratch)
+`internal/tui/root.go:174` resolves a factory with a **default**: `f := r.factory`, then lets
+`env.Factories[spec.Name]` override it. `internal/tui/viewpane.go:108` has no default:
+
+```go
+f := p.env.Factories[spec.Name]
+if f == nil { return nil, fmt.Errorf("no view factory for kind %s", spec.Name) }
+```
+
+Only `journal` is registered in `views.Factories()` (task 045). In the muxed app every query goes through a `ViewPane`,
+so every kind except journal — `host`, `unit`, `alert`, and later every real backend kind — fails. The unmuxed path
+worked because the root still had its default factory.
 
 ## Goal
-The command bar's primary verb works end to end in the real app: `:units`, `:u`, `:hosts`, `:alerts` switch the focused
-pane to that kind's view, the crumb and banner update, and an unknown word flashes an error instead of doing nothing.
+`ViewPane` resolves views exactly like `Root` does: a registered factory wins, otherwise the default table factory is
+used. `:units`, `:hosts`, `:u`, `:alerts` and `:journal` all open the right view inside a pane, with the crumb and
+banner updating, and `esc` returning to the previous view.
 
 ## Files
-- modify `internal/tui/root.go` (route `OpenQueryMsg`; it owns the stack the panes wrap)
-- modify `internal/mux/` routing so a pane-level message reaches the focused pane's `ViewPane` (only if the root-level
-  route is genuinely insufficient — decide from the code and say which in the report)
-- modify `internal/tui/root_test.go`, `internal/tui/mux_pane_test.go` (or the mux test file that exists)
+- modify `internal/tui/viewpane.go` (hold a default `Factory`; `NewViewPane` takes it as a parameter)
+- modify `internal/tui/root.go` (the `NewViewPane(r.env, id, nil, v)` call site passes `r.factory`)
+- modify `internal/tui/viewpane_test.go` (the existing "no view factory" test now asserts the **default** path; keep a
+  case where the default is nil and the error survives)
 - create `internal/tui/cmdnav_test.go`
 
 ## Requirements
-1. `Commands.Exec` already returns the right message — do **not** change its contract (§4.8). Fix routing, not parsing.
-2. From the command bar, `:` + a registered kind or alias + `enter` must replace the focused pane's view with a new
-   `Table` (or the registered factory's view) for that kind, keeping the old view reachable with `esc`.
-3. The crumb, banner and hint bar must reflect the new view (they already do once the view is on the stack).
-4. A selector argument works: `:units failed` shows only failed units; a bad selector or unknown kind flashes
-   `FlashError` and leaves the current view alone.
-5. No double-open: the same query must not push two views (guard on the existing cursor/stack semantics).
-6. In the demo backend, `:units` must show unit rows (`unit` kind, host-scoped), and `esc` must return to hosts.
+1. `NewViewPane(env *Env, id mux.PaneID, ctx context.Context, root View, defaultFactory Factory) *ViewPane` — not a
+   BUILD-PLAN contract, so the extra parameter is allowed; update every call site and test.
+2. Resolution order in `viewFor`: `env.Factories[spec.Name]` if present and non-nil, else `p.defaultFactory`, else the
+   current `no view factory for kind %s` error. Mirror `root.viewFor` exactly — same order, same messages.
+3. A default-factory view for a `unit` query in the demo backend must be a `*views.Table` with the `unit` spec's
+   columns; `journal` must still get its registered `journalFactory` (existing behaviour, existing test passes).
+4. No double-push: one `OpenQueryMsg` pushes exactly one view; `esc` pops back to the previous view and its crumb.
+5. Unknown kind still flashes `unknown kind: <x>` (from `Registry.Lookup`); unknown command still flashes
+   `unknown command: <x>`.
 
 ## Out of scope
-New commands, fuzzy ranking of kinds, the kind picker dialog (already covered by 014/140).
+New factories, the kind picker dialog, command parsing changes (§4.8 is frozen).
 
 ## Acceptance
 ```
-go test ./internal/tui/ -run "TestCmdNav|TestOpenQueryRouting" -v
+go test ./internal/tui/ -run "TestViewPane|TestCmdNav" -v
 go test ./...
 ```
-Plus a recorded manual check in the report: in a 110x18 PTY, `jumper --demo`, `:units⏎` shows a `unit` table with the
-crumb `unit`, `esc` returns to `host`; `:bogus⏎` flashes an unknown-command error and stays put.
+Plus a recorded manual check in the report: 110x16 PTY, `jumper --demo`, `:units⏎` → a `unit` table (crumb `unit`),
+`esc` → hosts; `:journal⏎` → journal view; `:bogus⏎` → unknown-command flash, view unchanged.
 
 ## Pitfalls
-- Do not let the mux swallow the message when no pane has focus yet at startup.
-- `OpenQueryMsg` must remain handled exactly once; both root and `ViewPane` handling it would push two views.
-- Keep the keymap contract: `esc` pops, `:` opens the bar.
+- `TestViewPaneNoFactory` (viewpane_test.go:250) asserts today's broken behaviour; update its intent, keep the
+  nil-default case.
+- Do not make `env.Factories` non-nil everywhere just to dodge the fallback — the fallback is the fix.
