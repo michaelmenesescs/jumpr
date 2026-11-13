@@ -1,14 +1,44 @@
 # jumper
 
-Agentless, client-side infrastructure debugging TUI (Go).
+**It feels like k9s + isd-tui + tmux + the Salt and Chef CLIs + everyday Linux tools, and it needs
+nothing on the servers.** One central terminal interface you control, learn once, and operate any
+infrastructure through: from an alert to the hosts behind it, to the units, processes, sockets,
+logs and metrics on those hosts, to the pods on them, to the config management that put them
+there — and then to the fix, with everything you did written down.
 
-- Start here: [docs/HANDOFF.md](docs/HANDOFF.md)
-- Spec: [docs/SPEC.md](docs/SPEC.md)
-- Build plan and contracts: [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md)
-- Tasks: [docs/tasks/README.md](docs/tasks/README.md)
-- Test lab: [lab/README.md](lab/README.md)
-- Requirements interview: [docs/INTERVIEW.md](docs/INTERVIEW.md)
-- Agent rules: [AGENTS.md](AGENTS.md)
+Agentless and client-side: SSH plus commands that already exist on RHEL 8+/Ubuntu 20.04+, a
+kubeconfig or an HTTP API when you configure one. Nothing is installed, copied or left behind on a
+node.
+
+## Quick start
+
+```sh
+tar xzf jumper-v1.2.3-darwin-arm64.tar.gz && install -m 0755 jumper ~/bin/jumper
+jumper --demo                 # the built-in fake fleet: the interface, no configuration
+jumper init                   # ~/.config/jumper/{config,connections,policy,keymap}.yaml
+$EDITOR ~/.config/jumper/config.yaml   # ssh.config_files: [~/.ssh/config]
+jumper doctor                 # checks config, SSH, agent, bastions, backends
+jumper                        # :hosts role=web  →  enter  →  u/j/p/s  →  x  (actions)
+```
+
+`:kind selector` is the interface, `C-a` is the tmux-style prefix, `?` is help. Detach with
+`C-a d`; the session keeps running and `jumper` attaches again.
+
+## Documentation
+
+- [docs/USER-GUIDE.md](docs/USER-GUIDE.md) — install, `jumper init`, SSH and Salt, the nine
+  workflows, sessions and detach, the safety model, investigations and knowledge files,
+  connection profiles, plugins, troubleshooting with `doctor`.
+- [docs/KEYS.md](docs/KEYS.md) — every key binding, generated from the defaults; all of them are
+  rebindable in `keymap.yaml`.
+- [docs/SPEC.md](docs/SPEC.md) — what jumper does and why.
+- [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) — the contracts: packages, interfaces, messages,
+  protocol, errors, dependencies.
+- [docs/HANDOFF.md](docs/HANDOFF.md) — current state of the build.
+- [docs/tasks/README.md](docs/tasks/README.md) — the task index and workflow.
+- [lab/README.md](lab/README.md) — the local test lab.
+- [docs/INTERVIEW.md](docs/INTERVIEW.md) — the requirements interview.
+- [AGENTS.md](AGENTS.md) — rules for agent-assisted changes.
 
 ## Lab observability stack (M8, M11)
 

@@ -3,7 +3,7 @@
 - **Milestone:** M12
 - **Depends on:** 124, 126
 - **Parallel group:** — (serial; last task)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Daily-driver ready: rebindable keys, a reproducible release, and docs a new user can follow.

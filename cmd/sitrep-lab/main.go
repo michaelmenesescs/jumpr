@@ -16,6 +16,7 @@
 //	@@ capture salt         record the Salt CLI output from the lab into testdata/
 //	@@ capture chef         record the knife output from the lab into testdata/
 //	@@ sanitize <file...>   sanitize captured files in place
+//	@@ release --version vX.Y.Z   build, pack and checksum the darwin release
 package main
 
 import (
@@ -99,9 +100,67 @@ func run(args []string) error {
 		return capture(args[1:])
 	case "sanitize":
 		return sanitizeFiles(args[1:])
+	case "release":
+		return release(args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+// release implements `release --version vX.Y.Z [--out DIR] [--sign IDENTITY]
+// [--arch arm64,amd64] [--skip-checks]`: it builds, packs and checksums the
+// darwin binaries and refuses a tree with uncommitted changes (unless
+// --skip-checks). The work itself is internal/devtools.Release; this function
+// owns the flags and the terminal writer.
+func release(args []string) error {
+	fs := flag.NewFlagSet("release", flag.ContinueOnError)
+	version := fs.String("version", "", "version to build, for example v1.2.3")
+	out := fs.String("out", "", "output directory (default dist/)")
+	sign := fs.String("sign", "", "codesign identity for the binaries; empty leaves them unsigned")
+	arches := fs.String("arch", "", "comma-separated darwin architectures (default arm64,amd64)")
+	skip := fs.Bool("skip-checks", false, "skip the clean-tree check and make check")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("release: unexpected argument %q", fs.Arg(0))
+	}
+	root, err := repoRoot()
+	if err != nil {
+		return err
+	}
+	var archList []string
+	for _, a := range strings.Split(*arches, ",") {
+		if a = strings.TrimSpace(a); a != "" {
+			archList = append(archList, a)
+		}
+	}
+	return devtools.Release(context.Background(), devtools.ReleaseOptions{
+		RepoDir:    root,
+		Version:    *version,
+		OutDir:     *out,
+		Archs:      archList,
+		Sign:       *sign,
+		SkipChecks: *skip,
+		Run:        runReleaseCommand,
+	}, os.Stdout)
+}
+
+// runReleaseCommand is the release's command runner: the command, its directory
+// and its extra environment, inheriting the rest of ours. Subprocesses live in
+// cmd/ because internal/ may not open one (BUILD-PLAN §6.1).
+func runReleaseCommand(ctx context.Context, c devtools.Cmd) error {
+	cmd := exec.CommandContext(ctx, c.Name, c.Args...)
+	cmd.Dir = c.Dir
+	if len(c.Env) > 0 {
+		cmd.Env = append(os.Environ(), c.Env...)
+	}
+	cmd.Stdout = c.Stdout
+	cmd.Stderr = c.Stderr
+	return cmd.Run()
 }
 
 func repoRoot() (string, error) {
