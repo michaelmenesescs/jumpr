@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 066, 039
 - **Parallel group:** M4-B (with 068, 071)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Hosts and labels (`salt.role`, `salt.dc`, `salt.os`, …) from the master's grains cache, without touching minions.
