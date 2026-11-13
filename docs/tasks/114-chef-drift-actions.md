@@ -3,7 +3,7 @@
 - **Milestone:** M10
 - **Depends on:** 113, 061
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC §8.7 drift and actions: jumper runs `chef-client` on targets via its own fan-out, not `knife ssh`.
