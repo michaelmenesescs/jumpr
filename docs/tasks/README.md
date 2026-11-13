@@ -190,7 +190,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [098](098-http-connection-profiles.md) | HTTP connection profiles: proxy, TLS, static auth | 003, 054 | — | done |
 | [099](099-auth-helper-secrets.md) | Auth helper protocol, secrets, example helper (Go) | 098 | M8-A | done |
-| [100](100-doctor-conn.md) | `jumper doctor conn` | 098 | M8-A | todo |
+| [100](100-doctor-conn.md) | `jumper doctor conn` | 098 | M8-A | done |
 | [101](101-prometheus-client-views.md) | Prometheus backend: targets, rules, PromQL, sparklines, chart | 099 | — | todo |
 | [102](102-alertmanager.md) | Alertmanager: alerts view and silences | 101, 057 | — | todo |
 | [103](103-alert-to-investigation.md) | Alert → investigation → hosts (SPEC W1 complete) | 101, 102, 059 | — | todo |

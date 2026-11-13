@@ -3,7 +3,7 @@
 - **Milestone:** M8
 - **Depends on:** 098
 - **Parallel group:** M8-A (with 099)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The main tool for adapting jumper to an environment (SPEC §7.2 last bullet).

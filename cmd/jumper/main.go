@@ -68,6 +68,11 @@ func run(args []string) int {
 			fmt.Printf("jumper %s\n", version)
 			return 0
 		case "doctor":
+			// Both doctor subcommands live here: `ssh <host>` probes a real
+			// host, `conn <profile> <url>` probes an HTTP connection profile.
+			if len(rest) > 1 && rest[1] == "conn" {
+				return runDoctor(ctx, rest[1:], home, *configDir)
+			}
 			pos, dir, code := doctorArgs(rest[1:], *configDir)
 			if code >= 0 {
 				return code
@@ -215,4 +220,68 @@ func ctxErr(ctx context.Context) error {
 		return errs.Wrap(errs.Interaction, "prompt", err)
 	}
 	return nil
+}
+
+// runDoctor implements `jumper doctor conn <profile> <url> [--verbose]` (SPEC
+// §7.2). It returns the process exit code: 0 only when the endpoint answered 2xx
+// and did not redirect to a login page.
+func runDoctor(ctx context.Context, args []string, home, configDir string) int {
+	const usage = "usage: jumper doctor conn <profile> <url> [--verbose]"
+	if len(args) == 0 || args[0] != "conn" {
+		fmt.Fprintln(os.Stderr, usage)
+		return 2
+	}
+	fs := flag.NewFlagSet("jumper doctor conn", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	verbose := fs.Bool("verbose", false, "also show the response headers, redacted")
+	// Flags may come before or after the two positionals; flag.Parse stops at
+	// the first non-flag, so consume one positional at a time.
+	var positional []string
+	rest := args[1:]
+	for len(rest) > 0 {
+		if err := fs.Parse(rest); err != nil {
+			if err == flag.ErrHelp {
+				return 0
+			}
+			return 2
+		}
+		left := fs.Args()
+		if len(left) == 0 {
+			break
+		}
+		positional = append(positional, left[0])
+		rest = left[1:]
+	}
+	if len(positional) != 2 {
+		fmt.Fprintln(os.Stderr, usage)
+		return 2
+	}
+	profile, target := positional[0], positional[1]
+
+	res, err := app.DoctorConn(ctx, os.Stdout, profile, target, app.DoctorOptions{
+		ConfigDir: configDir,
+		Home:      home,
+		Env:       environ(),
+		Verbose:   *verbose,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		return 1
+	}
+	if !res.OK {
+		return 1
+	}
+	return 0
+}
+
+// environ copies the process environment into a map for the `env` proxy type.
+// cmd/jumper is where the environment is read; internal/app never is.
+func environ() map[string]string {
+	env := make(map[string]string, len(os.Environ()))
+	for _, kv := range os.Environ() {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			env[kv[:i]] = kv[i+1:]
+		}
+	}
+	return env
 }
