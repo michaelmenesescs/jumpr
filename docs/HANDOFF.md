@@ -408,10 +408,18 @@ Verification that actually ran (Mac mini, final tree):
 | `jumper doctor` with the real `~/.ssh/config` | 6 hosts parsed, bastions reported absent, host-key prompter rendered, dead host classified `timeout` |
 | **`make homelab-test` against a real Ubuntu 24.04.5 over SSH** | **all TestHomelab* PASS** — overview 9 sections / 2,325 bytes / **7 ms** (dial 28 ms, first byte 1 ms), 310 units (192 active), 50 journal entries, 24 probe commands proven read-only |
 
-The homelab target was an OrbStack Ubuntu 24.04 machine (`ssh jumper-lab`, 192.168.139.62) because
-the user's own Ubuntu box (100.120.74.69) was unreachable all morning — it accepted TCP, exchanged
-an SSH banner, then stopped answering the publickey packet, and later reset connections outright.
-Task 144's suite now skips cleanly on a silent node (`homelabSkipIfSilent`), so this is repeatable.
+Two real targets, both green:
+
+- `ssh jumper-lab` — OrbStack Ubuntu 24.04.5 on the OrbStack kernel, which has **no PSI**. This is the
+  run that found the missing-`CONFIG_PSI` bug below.
+- `ssh macmini` — the user's own Ubuntu 24.04 box (Linux 6.8.0-149, 8.0 GB). It was down all morning
+  (TCP accepted, SSH banner exchanged, publickey answers never came, later resets), and passed
+  7/7 once it came back: `id -un` → `mike` in 228 ms, 516 units / 349 active, 50 journal entries,
+  overview **37 ms / 2,853 bytes / 9 sections**, dial 81 ms, first byte 4 ms. That is the normal
+  path; `jumper-lab` covered the no-PSI path.
+
+Task 144's suite skips cleanly on a silent node (`homelabSkipIfSilent`), so both runs are repeatable:
+`JUMPER_HOMELAB_UBUNTU=macmini make homelab-test`.
 
 **Bug the real host found:** the PSI probe section exited 1 on a kernel without `CONFIG_PSI`
 (`/proc/pressure/*` absent), so the overview reported a *failed* section instead of "not available".
