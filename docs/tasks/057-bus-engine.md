@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 054, 056
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The implementation of `bus.Bus`: the only code path that performs writes.
