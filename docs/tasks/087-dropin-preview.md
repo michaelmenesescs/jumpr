@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 086
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC §8.1.1 "Edit (drop-in override): preview only in v1".

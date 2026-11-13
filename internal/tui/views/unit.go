@@ -195,7 +195,8 @@ func (u *Unit) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 	return u, cmd
 }
 
-// handleKey handles the detail's own keys: `x` actions, `r` refresh.
+// handleKey handles the detail's own keys: `x` actions, `r` refresh, and `E`
+// drop-in preview from the cat tab (task 087).
 func (u *Unit) handleKey(m tea.KeyMsg) (tea.Cmd, bool) {
 	key := m.String()
 	switch {
@@ -203,6 +204,8 @@ func (u *Unit) handleKey(m tea.KeyMsg) (tea.Cmd, bool) {
 		return u.actions(), true
 	case u.keys.Refresh.Matches(key):
 		return u.refresh(), true
+	case key == "E" && u.tabs.Active() == u.cat:
+		return u.openDropIn(), true
 	}
 	return nil, false
 }
