@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 106
 - **Parallel group:** M9-A (with 108, 111)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `l` / `Enter` on a pod: logs with follow, previous, container choice (SPEC §8.2; mockup pod logs).
