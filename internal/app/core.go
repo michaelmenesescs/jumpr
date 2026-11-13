@@ -19,6 +19,7 @@ import (
 	"jumper/internal/backend/elastic"
 	"jumper/internal/backend/fake"
 	"jumper/internal/backend/grafana"
+	"jumper/internal/backend/k8s"
 	"jumper/internal/backend/linux"
 	"jumper/internal/backend/prom"
 	"jumper/internal/backend/salt"
@@ -231,6 +232,30 @@ func ElasticBackend(cfg config.Config, profiles map[string]*httpx.Profile, deps 
 		clusters = append(clusters, elastic.Cluster{Name: name, Client: client, Sources: sources})
 	}
 	return elastic.New(elastic.Options{Clusters: clusters, Log: log, Redact: redactText}), nil
+}
+
+// KubernetesBackend builds the Kubernetes backend from cfg's `kubernetes:`
+// section (SPEC §8.2).
+//
+// kubeconfig is an explicit path; empty means the standard rules: $KUBECONFIG
+// (kubeconfigEnv — the caller passes the value in, because only internal/app
+// may read the environment, BUILD-PLAN §6.1) and then ~/.kube/config. protected
+// lists kubernetes.contexts_protected, whose contexts make the session
+// read-only when selected (SPEC §16). The backend is built even without a
+// kubeconfig: it then reports HealthUnconfigured, as a grey dot, rather than
+// leaving the k8s kinds unregistered.
+//
+// The wiring lives here rather than in app.go because app.buildRegistry is
+// still the M0 version; the task that owns app.go calls this function to add
+// the backend to the registry and RegisterK8sCommands to the command registry.
+func KubernetesBackend(cfg config.Config, home, kubeconfigEnv string, log *slog.Logger) (*k8s.Backend, error) {
+	return k8s.New(k8s.Options{
+		Kubeconfig:    cfg.Kubernetes.Kubeconfig,
+		KubeconfigEnv: kubeconfigEnv,
+		Home:          home,
+		Protected:     cfg.Kubernetes.ContextsProtected,
+		Log:           log,
+	})
 }
 
 // Alertmanager builds the Alertmanager backend and its silence planner from

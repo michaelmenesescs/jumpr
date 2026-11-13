@@ -69,6 +69,10 @@ chef:
   sudo: false                    # run knife under sudo -n
   timeout: 30s                   # one knife call
 
+kubernetes:
+  kubeconfig: ""                 # empty = $KUBECONFIG, then ~/.kube/config
+  contexts_protected: []         # switching to one makes the session read-only
+
 interact:
   timeout: 2m                    # how long a prompt (host key, passphrase) waits while detached
 

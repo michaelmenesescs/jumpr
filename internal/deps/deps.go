@@ -26,4 +26,8 @@ import (
 	_ "golang.org/x/sys/unix"
 	_ "golang.org/x/term"
 	_ "gopkg.in/yaml.v3"
+	_ "k8s.io/api/core/v1"
+	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
+	_ "k8s.io/client-go/kubernetes"
+	_ "sigs.k8s.io/yaml"
 )

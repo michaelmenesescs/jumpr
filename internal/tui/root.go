@@ -1629,6 +1629,11 @@ func (r *Root) statusData() StatusData {
 	if badge := r.rolloutBadge(); badge != "" {
 		d.Context = badge
 	}
+	// The Kubernetes context says where the lists come from. It shares the
+	// context slot with the rollout badge, which wins while it is set.
+	if d.Context == "" {
+		d.Context = K8sContextBadge(r.env)
+	}
 	if r.mux.PrefixArmed() {
 		if t := themeOf(r.env); t != nil {
 			d.Prefix = t.Accent.Bold(true).Render(d.Prefix)

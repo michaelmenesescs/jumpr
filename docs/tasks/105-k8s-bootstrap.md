@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 065
 - **Parallel group:** — (serial; adds dependencies)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A `k8s` backend that connects with the standard kubeconfig rules and can switch contexts (SPEC §8.2).

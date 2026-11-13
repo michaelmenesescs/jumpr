@@ -66,6 +66,15 @@ type LogSourceConfig struct {
 	UnitField    string `yaml:"unit_field"`
 }
 
+// KubernetesConfig is the `kubernetes:` section (SPEC §8.2). Kubeconfig is an
+// explicit path; empty means the standard rules: $KUBECONFIG, then
+// ~/.kube/config. ContextsProtected lists the contexts that make the session
+// read-only when they are selected (SPEC §16).
+type KubernetesConfig struct {
+	Kubeconfig        string   `yaml:"kubeconfig"`
+	ContextsProtected []string `yaml:"contexts_protected"`
+}
+
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.
 type Config struct {
 	UI            UIConfig              `yaml:"ui"`
@@ -79,6 +88,7 @@ type Config struct {
 	Alertmanager  []AlertmanagerConfig  `yaml:"alertmanager"`
 	Grafana       []GrafanaConfig       `yaml:"grafana"`
 	Elasticsearch []ElasticsearchConfig `yaml:"elasticsearch"`
+	Kubernetes    KubernetesConfig      `yaml:"kubernetes"`
 	Chef          ChefConfig            `yaml:"chef"`
 	Interact      InteractConfig        `yaml:"interact"`
 }
@@ -338,10 +348,10 @@ func (c *Config) Validate() error {
 	if strings.TrimSpace(c.Chef.Knife) == "" {
 		return invalidf("chef.knife: the knife command must not be empty")
 	}
-	if strings.ContainsAny(c.Chef.Knife, " 	\n") {
+	if strings.ContainsAny(c.Chef.Knife, " \t\n") {
 		return invalidf("chef.knife: %q must be one command name or path", c.Chef.Knife)
 	}
-	if ws := strings.TrimSpace(c.Chef.Workstation); strings.ContainsAny(ws, " 	\n") {
+	if ws := strings.TrimSpace(c.Chef.Workstation); strings.ContainsAny(ws, " \t\n") {
 		return invalidf("chef.workstation: %q must be one host name", ws)
 	}
 
@@ -421,6 +431,18 @@ func (c *Config) Validate() error {
 				return invalidf("elasticsearch[%d].sources[%d].index: a log source needs an index pattern", i, k)
 			}
 		}
+	}
+
+	seenContexts := make(map[string]bool, len(c.Kubernetes.ContextsProtected))
+	for i, name := range c.Kubernetes.ContextsProtected {
+		ctxName := strings.TrimSpace(name)
+		if ctxName == "" {
+			return invalidf("kubernetes.contexts_protected[%d]: a context needs a name", i)
+		}
+		if seenContexts[ctxName] {
+			return invalidf("kubernetes.contexts_protected[%d]: %q is listed twice", i, ctxName)
+		}
+		seenContexts[ctxName] = true
 	}
 
 	for i, tr := range c.SSH.Transports {
