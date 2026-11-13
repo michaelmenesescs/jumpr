@@ -1,0 +1,25 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: ntp-offset
+description: NTP offset and jitter in milliseconds
+target: host
+command: |
+  chronyc -n tracking 2>/dev/null |
+  awk -F: '/System time/ {printf "system_offset_ms\t%.3f\n", $2*1000}
+           /RMS offset/  {printf "rms_offset_ms\t%.3f\n", $2*1000}
+           /Frequency/   {printf "frequency_ppm\t%.3f\n", $2+0}'
+parse:
+  type: columns
+  names: [metric, value]
+view:
+  columns: [metric, value]
+  group_by_output: true
+links:
+  - label: journal
+    to: journal
+    args: { unit: chronyd.service }
+actions:
+  - name: resync
+    command: chronyc makestep
+    privileged: true
+    confirm: true

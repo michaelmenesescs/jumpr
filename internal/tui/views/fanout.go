@@ -14,6 +14,7 @@ import (
 	"jumper/internal/errs"
 	"jumper/internal/fanout"
 	"jumper/internal/group"
+	"jumper/internal/plugin"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
@@ -267,11 +268,48 @@ func (f *Fanout) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 	switch key {
 	case "o":
 		return f, f.openOutput()
+	case "S":
+		return f, f.saveAsPlugin()
 	case " ", "space":
 		f.toggleMark()
 		return f, nil
 	}
 	return f, nil
+}
+
+// saveAsPlugin is `S`: the command behind these results is saved as a plugin
+// file, in one keystroke (SPEC §5 W5). The prompt asks for the name, the write
+// happens in a tea.Cmd, and the path is flashed when it lands. A grouped view
+// built after the fact has no command to save, and neither has one with no
+// plugin directory configured.
+func (f *Fanout) saveAsPlugin() tea.Cmd {
+	dir := ""
+	if f.env != nil {
+		dir = f.env.PluginDir
+	}
+	if strings.TrimSpace(dir) == "" {
+		return tui.Flash(tui.FlashError, "no plugin directory configured")
+	}
+	command := strings.TrimSpace(f.cmd.Script)
+	if command == "" {
+		return tui.Flash(tui.FlashInfo, "these results carry no command to save")
+	}
+	sudo := f.cmd.Sudo
+	var theme *theme.Theme
+	if f.env != nil {
+		theme = f.env.Theme
+	}
+	suggested := plugin.SuggestName(f.title)
+	dialog := tui.NewPromptDialog(theme, "save as plugin", "name:", suggested, func(name string) tea.Cmd {
+		return func() tea.Msg {
+			path, err := plugin.Save(dir, name, command, sudo)
+			if err != nil {
+				return tui.FlashMsg{Level: tui.FlashError, Text: err.Error()}
+			}
+			return tui.FlashMsg{Level: tui.FlashOK, Text: "saved " + path}
+		}
+	})
+	return func() tea.Msg { return tui.OpenDialogMsg{Dialog: dialog} }
 }
 
 // rowCount is the number of rows: one per group, then one per error kind.
@@ -614,14 +652,17 @@ func (f *Fanout) Crumb() string { return f.title }
 
 // Hints are the keys the view answers.
 func (f *Fanout) Hints() []tui.KeyHint {
-	return []tui.KeyHint{
+	hints := []tui.KeyHint{
 		{Key: firstKey(f.keys.Open), Text: "hosts"},
 		{Key: firstKey(f.keys.Diff), Text: "diff"},
 		{Key: "o", Text: "output"},
 		{Key: firstKey(f.keys.Refresh), Text: "re-run"},
 		{Key: "space", Text: "mark"},
-		{Key: firstKey(f.keys.Back), Text: "back"},
 	}
+	if f.env != nil && strings.TrimSpace(f.env.PluginDir) != "" && strings.TrimSpace(f.cmd.Script) != "" {
+		hints = append(hints, tui.KeyHint{Key: "S", Text: "save as plugin"})
+	}
+	return append(hints, tui.KeyHint{Key: firstKey(f.keys.Back), Text: "back"})
 }
 
 // Subject is every host the run covers.

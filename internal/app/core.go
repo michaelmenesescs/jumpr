@@ -31,6 +31,7 @@ import (
 	"jumper/internal/interact"
 	"jumper/internal/inventory"
 	"jumper/internal/investigation"
+	"jumper/internal/plugin"
 	"jumper/internal/redact"
 	"jumper/internal/render"
 	"jumper/internal/resource"
@@ -40,6 +41,7 @@ import (
 	"jumper/internal/transport/sysssh"
 	"jumper/internal/tui"
 	"jumper/internal/tui/theme"
+	"jumper/internal/tui/views"
 )
 
 // PrometheusBackend builds the Prometheus backend from cfg's `prometheus:`
@@ -922,4 +924,91 @@ func pbcopyRunner(timeout time.Duration) func(name string, stdin []byte) error {
 // sessionReadOnly reports the session-level read-only switch the bus consults.
 func sessionReadOnly(s *tui.SessionState) bool {
 	return s != nil && s.ReadOnly
+}
+
+// PluginDir is where the YAML plugins live: <config-dir>/plugins (SPEC §12).
+// `:plugins` lists from it and `S` in a grouped view saves into it.
+func PluginDir(paths config.Paths) string {
+	return filepath.Join(paths.ConfigDir, plugin.DirName)
+}
+
+// PluginManager builds the YAML plugin manager and loads the directory once
+// (SPEC §12, task 117). The problems of that first load are returned so the
+// caller can warn about them; a directory with no plugins is not an error.
+//
+// The manager registers one backend per plugin, whose kind is the plugin name,
+// so `:<name>` opens it like any built-in kind. The caller registers the
+// planner it returns — m.Planner() — with the action bus under the name
+// "plugin"; every plugin action then goes through the bus and is recorded with
+// the actor plugin:<name>.
+//
+// The wiring lives here rather than in build.go because build still assembles
+// the M0 registry; the task that owns build.go calls this function.
+func PluginManager(reg *backend.Registry, ex transport.Executor, inv inventory.Inventory, dir string, timeout time.Duration, log *slog.Logger) (*plugin.Manager, []plugin.Problem, error) {
+	opts := plugin.ManagerOptions{
+		Dir:      dir,
+		Registry: reg,
+		Exec:     ex,
+		Timeout:  timeout,
+		Log:      log,
+	}
+	if inv != nil {
+		opts.Select = func(sel resource.Selector) []resource.HostID {
+			hosts := inv.Select(sel)
+			out := make([]resource.HostID, 0, len(hosts))
+			for _, h := range hosts {
+				out = append(out, h.ID)
+			}
+			return out
+		}
+		opts.Resolve = func(name string) (resource.HostID, bool) {
+			h, ok := inv.Resolve(name)
+			if !ok {
+				return "", false
+			}
+			return h.ID, true
+		}
+	}
+	m, err := plugin.NewManager(opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return m, m.Load(), nil
+}
+
+// PluginFactories returns the views of the grouped plugins: a plugin that
+// declares view.group_by_output and runs one command for every host gets the
+// fan-out view rather than the table (SPEC §12). Every other plugin keeps the
+// generic table, which already renders the host column and the declared
+// columns. The task that owns build.go merges this into Env.Factories.
+func PluginFactories(m *plugin.Manager) map[resource.KindName]tui.Factory {
+	out := make(map[resource.KindName]tui.Factory)
+	if m == nil {
+		return out
+	}
+	for _, def := range m.Definitions() {
+		b, ok := m.Backend(def.Name)
+		if !ok || !b.GroupByOutput() || !b.UniformCommand() {
+			// A command that substitutes {{ .Host }} renders differently per
+			// target, so it can only be a table.
+			continue
+		}
+		kind, title := b.Kind(), def.Description
+		if title == "" {
+			title = def.Name
+		}
+		bk := b
+		out[kind] = func(env *tui.Env, q resource.Query) (tui.View, error) {
+			hosts, herr := bk.Hosts(q)
+			if herr != nil {
+				return nil, herr
+			}
+			cmd, cerr := bk.Command("", q.Args)
+			if cerr != nil {
+				return nil, cerr
+			}
+			return views.NewFanout(env, "plugin "+title, cmd, hosts, nil), nil
+		}
+	}
+	return out
 }

@@ -1,0 +1,28 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: nginx-status
+description: nginx worker and connection summary
+target: host
+privileged: true
+command: |
+  nginx -T 2>/dev/null | grep -E '^\s*(worker_processes|worker_connections|listen)' ;
+  ss -Htanp state established '( sport = :443 )' | wc -l
+parse:
+  type: regex
+  pattern: '^\s*(?P<directive>\w+)\s+(?P<value>[^;]+);'
+view:
+  columns: [directive, value]
+  group_by_output: true
+links:
+  - label: journal
+    to: journal
+    args: { unit: nginx.service }
+actions:
+  - name: reload
+    command: systemctl reload nginx
+    privileged: true
+    confirm: true
+  - name: test-config
+    command: nginx -t
+    privileged: true
+    confirm: true

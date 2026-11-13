@@ -1,0 +1,22 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: pg-replication
+description: PostgreSQL standbys and their replay lag
+target: host
+command: |
+  psql -U postgres -w -At -F ' ' -c "SELECT client_addr, state, coalesce(round(extract(epoch FROM replay_lag)), 0) FROM pg_stat_replication"
+parse:
+  type: columns
+  names: [client, state, lag_s]
+view:
+  columns: [client, state, lag_s]
+  group_by_output: true
+links:
+  - label: journal
+    to: journal
+    args: { unit: postgresql.service }
+actions:
+  - name: reload
+    command: systemctl reload postgresql
+    privileged: true
+    confirm: true

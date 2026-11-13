@@ -1,0 +1,19 @@
+apiVersion: jumper/v1
+kind: Plugin
+name: lb-pool-members
+description: load balancer pool members and their connection counts
+target: http
+connection: corp-sso
+request:
+  method: GET
+  url: https://lb-api.example.internal/v1/pools/{{ .Param "pool" }}/members
+params:
+  - name: pool
+    description: pool name, for example web-https
+    required: true
+parse:
+  type: jq
+  expr: '.members[] | {host: .address, state: .state, conns: .active}'
+view:
+  columns: [host, state, conns]
+emits_hosts: host

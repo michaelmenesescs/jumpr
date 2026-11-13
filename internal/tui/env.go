@@ -70,6 +70,10 @@ type Env struct {
 	// Salt is what the `:salt` commands and the --via hint read. The zero
 	// value means Salt is not configured.
 	Salt SaltOptions
+	// PluginDir is the plugins directory (<config-dir>/plugins). `S` in a
+	// grouped results view saves the command there as a plugin (task 117);
+	// empty means saving is refused and `:plugins` lists nothing.
+	PluginDir string
 }
 
 // SaltOptions is the part of the Salt configuration the UI needs: the target

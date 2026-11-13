@@ -22,9 +22,6 @@ const (
 	inventoryOp = "plugin.inventory"
 	// nameColumn is the row column that names a host.
 	nameColumn = "name"
-	// hostColumn is accepted as the name column too, so one parse serves a
-	// host table and an inventory source.
-	hostColumn = "host"
 	// stderrTailBytes caps the remote stderr a failure message carries.
 	stderrTailBytes = 200
 )

@@ -3,7 +3,7 @@
 - **Milestone:** M10
 - **Depends on:** 116, 063
 - **Parallel group:** M10-B (with 118)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A loaded plugin behaves like a built-in kind (SPEC §12, W5 "saved as a YAML plugin in one keystroke").
