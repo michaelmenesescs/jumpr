@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 002
 - **Parallel group:** M0-A (with 003, 004, 008)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Small pure formatters used by tables and overviews.

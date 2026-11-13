@@ -61,9 +61,16 @@ _Last updated: 2026-11-12 (task 008 done; M0 in progress)_
       `ColumnWidths`, `Row`, `Header`). Tests cover wide runes, ANSI colour, truncation narrower than the text, and
       a 500-case property test on `Fit`.
 
+- [x] **Task 009 done:** `internal/render` formatters — `spark.go` (`Spark`: eight-block ramp scaled to the finite
+      peak, NaN → space, averaging downsample when too long, left-pad when too short, exactly `width` cells;
+      `Bar`: `█`/`·`, fraction clamped 0..1) and `human.go` (`Int` with `,` groups and a sign-safe `MinInt64`
+      path, `Bytes` IEC with one decimal above bytes, `Duration` two units max (`d h m s`, sub-second → `0s`),
+      `Age` (`—` for zero time), `Percent` (`71%` at ≥ 10, `3.2%` below)). Tests cover every format, NaN and
+      negative inputs, MinInt64 and a width property over 8 series × 20 widths.
+
 ## Next task
 
-**`docs/tasks/009-render-spark-human.md`** (depends on 002, done). Then 010 (M0-B) is independent.
+**`docs/tasks/010-theme-keymap.md`** (depends on 005, done). Then 011 needs 006 + 010.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -181,3 +188,10 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   minimum of 4 it returns the minimums rather than going below them (the row is then wider than `total`);
   (3) `Header` uses `Row`, so numeric titles follow `AlignRight`; (4) `Fit` splits on `\n` only (no CRLF
   normalisation). `make check` green; render tests 1.3 s under `-race`, `Fit` property test 500 random cases.
+- 2026-11-12 — Task 009: `internal/render` spark/bar + human formatters. Choices: (1) `Spark` scales to the
+  largest *finite* (non-NaN) value and treats a non-positive peak as flat `▁`, so all-negative series do not
+  index below the ramp; (2) downsampled buckets average the non-NaN entries (all-NaN bucket → space), using
+  fractional bucket edges `i*n/width`; (3) `Duration` shows the largest unit plus at most one smaller one, so
+  `38m 12s` keeps its seconds while `41d 3h 20m` stops at hours; sub-second → `0s`; (4) `Int`/`Bytes` take the
+  magnitude as `uint64` so `math.MinInt64` formats instead of wrapping; (5) `Bar` rounds to the nearest cell
+  (`0.3` of 3 → one block) and treats NaN as zero. `make check` green; render tests 1.3 s under `-race`.

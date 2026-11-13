@@ -59,7 +59,7 @@ only by tasks 001, 098, 105 and 115.
 | [006](006-backend-registry.md) | Backend interface and registry | 005 | — | done |
 | [007](007-fake-backend.md) | Fake backend for `--demo` and tests | 006 | M0-B | done |
 | [008](008-render-fit-table.md) | Rendering primitives: fit and table | 002 | M0-A | done |
-| [009](009-render-spark-human.md) | Sparklines, bars, human-readable numbers | 002 | M0-A | todo |
+| [009](009-render-spark-human.md) | Sparklines, bars, human-readable numbers | 002 | M0-A | done |
 | [010](010-theme-keymap.md) | Theme and keymap | 005 | M0-B | todo |
 | [011](011-tui-core.md) | TUI core: View, Env, messages, NextBatch, ViewStack | 006, 010 | — | todo |
 | [012](012-table-view.md) | Generic table view | 007, 008, 009, 011 | M0-C | todo |
