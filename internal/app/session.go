@@ -311,6 +311,11 @@ func (c *Core) buildSession(s *Session) (*tui.Env, *tui.Commands, *tui.Root, err
 	for kind, f := range views.Factories() {
 		env.Factories[kind] = f
 	}
+	if c.plugins != nil {
+		for kind, f := range PluginFactories(c.plugins) {
+			env.Factories[kind] = f
+		}
+	}
 
 	// The bus's root context is the session's: a rollout outlives the dialog
 	// that started it and survives a detach, but not the end of the session.
@@ -356,6 +361,16 @@ func (c *Core) buildSession(s *Session) (*tui.Env, *tui.Commands, *tui.Root, err
 		return nil, nil, nil, err
 	}
 	if err := tui.RegisterSaltCommands(cmds, s.bus); err != nil {
+		return nil, nil, nil, err
+	}
+	// `:ctx`, `:ns` and `:pf` exist only when the Kubernetes backend registered
+	// (task 159 wired it).
+	if c.k8s {
+		if err := tui.RegisterK8sCommands(cmds); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	if err := tui.RegisterPluginCommands(cmds, c.plugins); err != nil {
 		return nil, nil, nil, err
 	}
 

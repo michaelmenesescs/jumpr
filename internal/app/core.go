@@ -551,6 +551,11 @@ type Core struct {
 	Knowledge *investigation.Index
 	// Clipboard builds a session's clipboard around its switchable output.
 	Clipboard func(out io.Writer, inTmux bool) clip.Clipboard
+	// k8s is true when the Kubernetes backend registered, so the session
+	// registers `:ctx`/`:ns`/`:pf` only when there is something to point at.
+	k8s bool
+	// plugins is the YAML plugin manager, nil when no plugin loaded.
+	plugins *plugin.Manager
 	// Agent is the SSH_AUTH_SOCK holder every dial reads; a new attach
 	// replaces its path.
 	Agent *agentSocket
@@ -795,6 +800,12 @@ func (c *Core) buildReal(o Options) error {
 	if saltBackend != nil {
 		c.Planners["salt"] = saltBackend
 	}
+
+	// M8–M11: register every optional backend whose config section is set.
+	// Before this existed the builders were written and tested but nothing
+	// called them, so the binary could only ever reach fake/linux/salt
+	// (task 159; found by running the binary against a real k3s cluster).
+	c.wireExtraBackends()
 
 	if len(sources) == 0 {
 		c.bridge.Warning("no inventory sources: add inventory.sources (ssh_config or static) to config.yaml, or run with --demo")
@@ -1096,4 +1107,101 @@ func PluginFactories(m *plugin.Manager) map[resource.KindName]tui.Factory {
 		}
 	}
 	return out
+}
+
+// wireExtraBackends registers the optional backends — Prometheus, Alertmanager,
+// Grafana, Elasticsearch, Chef, Kubernetes and the YAML plugins — whose config
+// sections are set. A backend that cannot be built is a startup warning naming
+// its section and the app starts without it; an empty section registers nothing.
+func (c *Core) wireExtraBackends() {
+	cfg, log := c.cfg, c.log
+	profiles, err := httpx.LoadProfiles(filepath.Join(c.paths.ConfigDir, "connections.yaml"), c.home)
+	if err != nil {
+		c.bridge.Warning("connections.yaml: " + err.Error())
+	}
+	deps := httpx.Deps{Env: c.env, Redactor: c.Redactor}
+
+	warn := func(section string, err error) {
+		if err != nil {
+			c.bridge.Warning(section + ": " + err.Error())
+		}
+	}
+
+	if b, berr := PrometheusBackend(cfg, profiles, deps, log); berr != nil {
+		warn("prometheus", berr)
+	} else if b != nil {
+		if rerr := c.Registry.Register(b); rerr != nil {
+			warn("prometheus", rerr)
+		}
+	}
+
+	am, amPlanner, aerr := Alertmanager(cfg, profiles, deps, cfg.Knowledge.Root, log)
+	if aerr != nil {
+		warn("alertmanager", aerr)
+	} else if am != nil {
+		if rerr := c.Registry.Register(am); rerr != nil {
+			warn("alertmanager", rerr)
+		} else if amPlanner != nil {
+			c.Planners["alertmanager"] = amPlanner
+		}
+	}
+
+	if b, gerr := GrafanaBackend(cfg, profiles, deps, GrafanaHooks{}, log); gerr != nil {
+		warn("grafana", gerr)
+	} else if b != nil {
+		if rerr := c.Registry.Register(b); rerr != nil {
+			warn("grafana", rerr)
+		}
+	}
+
+	var redactText func(string) string
+	if c.Redactor != nil {
+		redactText = c.Redactor.String
+	}
+	if b, eerr := ElasticBackend(cfg, profiles, deps, redactText, log); eerr != nil {
+		warn("elastic", eerr)
+	} else if b != nil {
+		if rerr := c.Registry.Register(b); rerr != nil {
+			warn("elastic", rerr)
+		}
+	}
+
+	if b, cerr := ChefBackend(cfg, c.Exec, c.Redactor, log); cerr != nil {
+		warn("chef", cerr)
+	} else if b != nil {
+		if rerr := c.Registry.Register(b); rerr != nil {
+			warn("chef", rerr)
+		}
+	}
+
+	// Kubernetes registers even without a kubeconfig: it then reports
+	// Unconfigured (a grey health dot) instead of hiding its kinds.
+	if b, kerr := KubernetesBackend(cfg, c.home, c.env["KUBECONFIG"], log); kerr != nil {
+		warn("kubernetes", kerr)
+	} else if b != nil {
+		if rerr := c.Registry.Register(b); rerr != nil {
+			warn("kubernetes", rerr)
+		} else {
+			c.k8s = true
+			if dyn, derr := KubernetesDynamicBackend(cfg, c.home, c.env["KUBECONFIG"], log); derr != nil {
+				warn("kubernetes", derr)
+			} else if dyn != nil {
+				if rerr := c.Registry.Register(dyn); rerr != nil {
+					warn("kubernetes", rerr)
+				} else if planner := KubernetesPatchPlanner(dyn); planner != nil {
+					c.Planners["k8s"] = planner
+				}
+			}
+		}
+	}
+
+	if mgr, problems, perr2 := PluginManager(c.Registry, c.Exec, c.Inventory, PluginDir(c.paths), cfg.SSH.ExecTimeout.Duration(), log); perr2 != nil {
+		warn("plugins", perr2)
+	} else if mgr != nil {
+		c.plugins = mgr
+		for _, pb := range problems {
+			c.bridge.Warning("plugin " + pb.File + ": " + pb.Msg)
+		}
+		c.Planners["plugin"] = plugin.NewPlanner(mgr)
+	}
 }
