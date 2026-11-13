@@ -3,7 +3,7 @@
 - **Milestone:** M1
 - **Depends on:** 018, 019
 - **Parallel group:** M1-B (with 020)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A Bubble Tea component that owns a `Session` and its `Content`s, draws all panes of the active window with
