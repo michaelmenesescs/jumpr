@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -37,6 +38,7 @@ type policyState struct {
 	allowRoot       bool
 	shellInReadonly bool
 	syncRaw         string
+	redact          []string
 	rules           []policyRule
 }
 
@@ -59,6 +61,9 @@ type policyDoc struct {
 	AllowRootTransport *bool     `yaml:"allow_root_transport"`
 	ShellInReadOnly    *bool     `yaml:"shell_in_readonly"`
 	Sync               *syncDoc  `yaml:"sync"`
+	// Redact lists extra secret patterns for internal/redact (task 065):
+	// policy is where an operator already writes what must not happen.
+	Redact []string `yaml:"redact"`
 }
 
 // denyDoc is one entry of the deny list.
@@ -203,6 +208,72 @@ func (p *Policy) SyncRaw() string {
 	return p.st.syncRaw
 }
 
+// RedactPatterns returns the extra secret patterns of the file's `redact: []`
+// key, in order. internal/app feeds them to redact.New; the built-in patterns
+// are always applied and are not listed here.
+func (p *Policy) RedactPatterns() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return append([]string(nil), p.st.redact...)
+}
+
+// Describe returns the effective policy as plain text lines: the switches it
+// enforces and the deny rules in the order Check applies them (the built-ins
+// first, then the file's). `:policy` shows it in a text view.
+func (p *Policy) Describe() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	st := &p.st
+	out := []string{
+		"readonly: " + strconv.FormatBool(st.readonly),
+		"max_targets: " + unlimitedText(st.maxTargets),
+		"protected: " + selectorsText(st.protected),
+		"allow_root_transport: " + strconv.FormatBool(st.allowRoot),
+		"shell_in_readonly: " + strconv.FormatBool(st.shellInReadonly),
+		"sync.raw: " + st.syncRaw,
+		"redact: " + countText(len(st.redact), "extra pattern") + " (built-in patterns always apply)",
+		"",
+		fmt.Sprintf("deny rules (%d, built-ins first):", len(st.rules)),
+	}
+	for i := range st.rules {
+		r := &st.rules[i]
+		line := fmt.Sprintf("  %2d. %s", i+1, r.text)
+		if r.reason != "" {
+			line += " — " + r.reason
+		}
+		out = append(out, line)
+	}
+	return out
+}
+
+// unlimitedText renders max_targets, where 0 means unlimited.
+func unlimitedText(n int) string {
+	if n <= 0 {
+		return "unlimited"
+	}
+	return strconv.Itoa(n)
+}
+
+// selectorsText renders the protected selectors as one line.
+func selectorsText(sels []resource.Selector) string {
+	if len(sels) == 0 {
+		return "(none)"
+	}
+	parts := make([]string, 0, len(sels))
+	for i := range sels {
+		parts = append(parts, sels[i].String())
+	}
+	return strings.Join(parts, ", ")
+}
+
+// countText renders "1 pattern" / "2 patterns".
+func countText(n int, word string) string {
+	if n == 1 {
+		return "1 " + word
+	}
+	return strconv.Itoa(n) + " " + word + "s"
+}
+
 // defaultPolicyState is the built-in policy.
 func defaultPolicyState() policyState {
 	return policyState{
@@ -312,6 +383,20 @@ func applyPolicyDoc(st *policyState, doc policyDoc) error {
 			st.syncRaw = doc.Sync.Raw
 		default:
 			return fmt.Errorf("sync.raw must be confirm or deny, not %q", doc.Sync.Raw)
+		}
+	}
+	if doc.Redact != nil {
+		// Validate here, while the file name is still in the error: a bad
+		// pattern must not surface later as a redactor failure.
+		st.redact = make([]string, 0, len(doc.Redact))
+		for i, pat := range doc.Redact {
+			if strings.TrimSpace(pat) == "" {
+				return fmt.Errorf("redact[%d]: empty pattern", i)
+			}
+			if _, err := regexp.Compile(pat); err != nil {
+				return fmt.Errorf("redact[%d]: %w", i, err)
+			}
+			st.redact = append(st.redact, pat)
 		}
 	}
 

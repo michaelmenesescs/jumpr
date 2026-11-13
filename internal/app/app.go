@@ -37,8 +37,12 @@ type Options struct {
 	Home      string
 	Debug     bool
 	Fresh     bool
-	Version   string
-	Env       map[string]string
+	// ReadOnly starts the session with the read-only switch on, so every write
+	// the bus plans is denied until `:readonly off`. policy.yaml's own
+	// `readonly: true` also starts it on and cannot be turned off in-session.
+	ReadOnly bool
+	Version  string
+	Env      map[string]string
 	// Prompter answers host-key and passphrase questions. Nil means the TUI
 	// prompter is built, which shows a dialog; with no program yet the
 	// question fails with errs.Interaction.

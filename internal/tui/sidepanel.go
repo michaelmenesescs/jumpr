@@ -154,9 +154,16 @@ type sidePanel struct {
 	seq     int
 }
 
-// newSidePanel builds a panel over root's knowledge base.
+// newSidePanel builds a panel over root's knowledge base. When internal/app
+// already built the index at startup the panel starts from it; a reindex still
+// rebuilds from disk.
 func newSidePanel(env *Env, root string) *sidePanel {
-	return &sidePanel{env: env, root: root, loading: true}
+	p := &sidePanel{env: env, root: root, loading: true}
+	if env != nil && env.Knowledge != nil {
+		p.ix = env.Knowledge
+		p.loading = false
+	}
+	return p
 }
 
 // Init starts the index build.

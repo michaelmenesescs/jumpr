@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -23,6 +24,8 @@ import (
 	"jumper/internal/config"
 	"jumper/internal/interact"
 	"jumper/internal/inventory"
+	"jumper/internal/investigation"
+	"jumper/internal/redact"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
 	"jumper/internal/transport"
@@ -47,6 +50,9 @@ type built struct {
 	// Prompter is what the SSH handshakes ask through (host keys, passphrases);
 	// nil in --demo.
 	Prompter interact.Prompter
+	// Session is the per-session state every pane shares. It is created before
+	// the bus so the bus's ReadOnly callback can read the same value.
+	Session *tui.SessionState
 
 	// actionBus is the only write path (BUILD-PLAN §4.5); nil in --demo.
 	actionBus bus.Bus
@@ -61,6 +67,9 @@ type built struct {
 
 	ssh    *sshStack
 	bridge *uiBridge
+	// m3 is the M3 layer: policy, redactor, record, knowledge index and the
+	// action bus; nil in --demo, where nothing can write.
+	m3 *m3Runtime
 
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
@@ -78,6 +87,7 @@ func build(cfg config.Config, o Options, paths config.Paths) (*built, error) {
 	b := &built{Logger: log, Paths: paths, bridge: newUIBridge()}
 	ctx, cancel := context.WithCancel(context.Background())
 	b.cancel = cancel
+	b.Session = &tui.SessionState{Name: "main", ReadOnly: o.ReadOnly}
 
 	if o.Demo {
 		if err := b.buildDemo(cfg, o); err != nil {
@@ -194,7 +204,17 @@ func (b *built) buildReal(ctx context.Context, cfg config.Config, o Options, log
 		b.closers = append(b.closers, saltExec.Close)
 	}
 
-	b.wireBus(ctx, cfg, saltBackend, log)
+	m3, err := buildM3(ctx, cfg, b.Paths, o.Home, b.Session, []namedPlanner{
+		{name: "linux", planner: lb},
+		{name: "generic", planner: generic.New(b.execs, "ssh")},
+		{name: "salt", planner: saltBackend},
+	}, log)
+	if err != nil {
+		return err
+	}
+	b.m3 = m3
+	b.actionBus = m3.Bus
+	b.planners = m3.Planners
 
 	if len(sources) == 0 {
 		b.bridge.Warning("no inventory sources: add inventory.sources (ssh_config or static) to config.yaml, or run with --demo")
@@ -264,12 +284,22 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 	if err != nil {
 		return err
 	}
+	session := b.Session
+	if session == nil {
+		session = &tui.SessionState{Name: "main", ReadOnly: o.ReadOnly}
+	}
+	// A policy that says readonly: true shows the RO badge from the first
+	// frame: the bus refuses writes either way, and the status line must not
+	// claim otherwise.
+	if b.m3 != nil && b.m3.Policy.ReadOnly() {
+		session.ReadOnly = true
+	}
 
 	env := &tui.Env{
 		Registry:  b.Registry,
 		Inventory: inv,
 		Sets:      targets.NewStore(b.Paths.ConfigDir),
-		Session:   &tui.SessionState{Name: "main"},
+		Session:   session,
 		Exec:      ex,
 		Shells:    shells,
 		Theme:     theme.Dark(),
@@ -290,6 +320,17 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 	for kind, f := range views.Factories() {
 		env.Factories[kind] = f
 	}
+	if b.m3 != nil {
+		env.Policy = b.m3.Policy
+		env.Redact = b.m3.Redact
+		env.Recorder = b.m3.Log
+		env.Bus = b.m3.Bus
+		env.Planners = b.m3.Planners
+		env.Knowledge = b.m3.Index
+		env.ResultsView = func(e *tui.Env, title string, results []action.StepResult) tui.View {
+			return views.NewFanoutFromResults(e, title, results)
+		}
+	}
 	b.Env = env
 
 	cmds := tui.NewCommands()
@@ -302,6 +343,9 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 	}
 	// `:run` and `:probe` write through the bus or the chosen transport; the
 	// Salt family adds targets, the dry run, module runs and ping.
+	if err := tui.RegisterPolicyCommands(cmds); err != nil {
+		return err
+	}
 	if err := tui.RegisterRunCommands(cmds, b.actionBus); err != nil {
 		return err
 	}
@@ -316,6 +360,11 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 	// hosts. With none it still opens there and the warning above says how to
 	// add some; there is no other view to start in.
 	b.Root = tui.NewRoot(env, cmds, tableFactory, resource.Query{Kind: linux.KindHost}, prefix)
+	if b.m3 != nil {
+		// The shell guard rails and the sync mode ask the same policy the bus
+		// applies, so a rule cannot be enforced in one place and not the other.
+		b.Root.SetPolicy(b.m3.Policy)
+	}
 	return nil
 }
 
@@ -323,6 +372,97 @@ func (b *built) finish(cfg config.Config, o Options, inv inventory.Inventory, ex
 // closure around views.NewFanout because package tui injects the opener.
 func fanoutOpener(env *tui.Env, title string, cmd transport.Command, hosts []resource.HostID, normalize func(string) string) tui.View {
 	return views.NewFanout(env, title, cmd, hosts, normalize)
+}
+
+// namedPlanner is one planner and the name the bus registers it under. The
+// slice order decides which planner wins a spec ID that two of them claim.
+type namedPlanner struct {
+	name    string
+	planner action.Planner
+}
+
+// m3Runtime is the M3 assembly as the rest of the app sees it: the guard rails,
+// the redactor, the record, the knowledge index and the action bus. Nothing
+// here touches the UI, so a lab test can build the same layer without a
+// terminal.
+type m3Runtime struct {
+	Policy   *bus.Policy
+	Redact   *redact.Redactor
+	Log      *investigation.FileLog
+	Index    *investigation.Index
+	Bus      bus.Bus
+	Planners map[string]action.Planner
+}
+
+// buildM3 assembles the M3 layer, in the order the pieces depend on each other:
+// policy (the file is the source of the extra redaction patterns) → redactor →
+// investigation log under knowledge.root → knowledge index → bus → planners.
+// ctx is the session context and becomes the bus's root context, so a rollout
+// outlives the pane that started it. A missing policy file means the built-in
+// policy, and a knowledge tree that cannot be read leaves Index nil instead of
+// stopping the start.
+func buildM3(ctx context.Context, cfg config.Config, paths config.Paths, home string, session *tui.SessionState, planners []namedPlanner, logger *slog.Logger) (*m3Runtime, error) {
+	policy, err := bus.LoadPolicy(filepath.Join(paths.ConfigDir, "policy.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	red, err := redact.New(policy.RedactPatterns())
+	if err != nil {
+		return nil, err
+	}
+	root := config.ExpandHome(cfg.Knowledge.Root, home)
+	rec := investigation.NewLog(root, red, nil)
+	index, ixErr := investigation.BuildIndex(root)
+	if ixErr != nil {
+		if logger != nil {
+			logger.Warn("knowledge index not built", "root", root, "err", ixErr)
+		}
+		index = nil
+	}
+
+	b := bus.New(bus.Options{
+		Policy:   policy,
+		Rollout:  rolloutConfig(cfg.Rollout),
+		Recorder: rec,
+		Redact:   red,
+		ReadOnly: func() bool { return sessionReadOnly(session) },
+		Context:  ctx,
+		Log:      logger,
+	})
+	rt := &m3Runtime{
+		Policy:   policy,
+		Redact:   red,
+		Log:      rec,
+		Index:    index,
+		Bus:      b,
+		Planners: make(map[string]action.Planner, len(planners)),
+	}
+	for _, np := range planners {
+		if np.planner == nil || np.name == "" {
+			continue
+		}
+		if err := b.Register(np.name, np.planner); err != nil {
+			return nil, err
+		}
+		rt.Planners[np.name] = np.planner
+	}
+	return rt, nil
+}
+
+// rolloutConfig mirrors config's rollout section into the bus's own type.
+func rolloutConfig(r config.RolloutConfig) bus.RolloutConfig {
+	return bus.RolloutConfig{
+		Canary:                  r.Canary,
+		BatchPercent:            r.BatchPercent,
+		BatchMax:                r.BatchMax,
+		FailureThresholdPercent: r.FailureThresholdPercent,
+		TypedConfirmOver:        r.TypedConfirmOver,
+	}
+}
+
+// sessionReadOnly reports the session-level read-only switch the bus consults.
+func sessionReadOnly(s *tui.SessionState) bool {
+	return s != nil && s.ReadOnly
 }
 
 // Close stops the background inventory work and shuts the connection pool down.

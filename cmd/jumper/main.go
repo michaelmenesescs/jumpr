@@ -41,6 +41,7 @@ func run(args []string) int {
 	configDir := fs.String("config-dir", "", "configuration directory (default ~/.config/jumper)")
 	debug := fs.Bool("debug", false, "write a debug log to ~/.cache/jumper/jumper.log")
 	fresh := fs.Bool("fresh", false, "start a fresh session instead of restoring the saved layout")
+	readonly := fs.Bool("readonly", false, "start read-only: every write is denied until :readonly off")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -100,6 +101,7 @@ func run(args []string) int {
 		Home:      home,
 		Debug:     *debug,
 		Fresh:     *fresh,
+		ReadOnly:  *readonly,
 		Version:   version,
 		Env:       nil,
 		Prompter:  newTermPrompter(os.Stdin, os.Stderr),

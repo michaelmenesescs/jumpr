@@ -1021,6 +1021,8 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		}
 		r.routeMux(msg)
 		return Flash(FlashInfo, "window: %s", m.Window.String())
+	case readOnlyChangedMsg:
+		return r.applyReadOnly(m.On)
 	case InvestigationChangedMsg:
 		return r.applyInvestigation(m.Meta)
 	case alertResolvedMsg:

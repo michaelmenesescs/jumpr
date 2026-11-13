@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 060, 061, 062, 063, 064
 - **Parallel group:** — (serial; touches `app`)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Everything from M3 assembled in `app`; the mockup's nginx scenario reproducible in the lab (SPEC W1 without

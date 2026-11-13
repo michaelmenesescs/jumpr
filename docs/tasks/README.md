@@ -130,7 +130,7 @@ only by tasks 001, 098, 105 and 115.
 | [062](062-linux-actions.md) | Linux planner: systemctl verbs and kill | 055, 044 | M3-D | done |
 | [063](063-run-command.md) | `:run`: ad-hoc command through the bus | 057, 048 | M3-D | done |
 | [064](064-synchronized-input.md) | Synchronized input (broadcast line, raw sync) and shell guard rails | 061, 050 | — | done |
-| [065](065-m3-wiring-lab.md) | M3 wiring, read-only flag, lab scenario test | 060, 061, 062, 063, 064 | — | todo |
+| [065](065-m3-wiring-lab.md) | M3 wiring, read-only flag, lab scenario test | 060, 061, 062, 063, 064 | — | done |
 
 ### M4 — Salt core (first fully usable release, v0.5)
 

@@ -45,6 +45,14 @@ type Env struct {
 	// Bus is the only way to perform a write (BUILD-PLAN §4.5). It is nil
 	// before M3 is wired in: an action then flashes instead of planning.
 	Bus bus.Bus
+	// Policy is the guard rail `:policy` shows and `:readonly off` refuses
+	// against. It is the same value the Bus was built with; nil means the
+	// built-in policy applies.
+	Policy *bus.Policy
+	// Knowledge is the index internal/app built once at startup over
+	// knowledge.root. The side panel starts from it, so the first subject
+	// does not wait for a full scan; it rebuilds on reindex. nil = no index.
+	Knowledge *investigation.Index
 	// Planners are the backends that can write, keyed by registration name.
 	// The actions menu asks every one of them for its specs.
 	Planners map[string]action.Planner
