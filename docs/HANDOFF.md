@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 001 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 002 done; M0 in progress)_
 
 ## State
 
@@ -15,10 +15,17 @@ _Last updated: 2026-11-12 (task 001 done; M0 in progress)_
       (`build test lint lab-test check tidy`), `cmd/sitrep/main.go` (version only), `internal/deps/deps.go`
       (blank imports under `//go:build deps`). `make check` green; `./sitrep version` → `sitrep dev`.
 
+- [x] **Task 002 done:** `internal/errs` exactly as BUILD-PLAN §4.1 — `Kind` constants, `Error`
+      (`Kind/Op/Host/Msg/Err`), `New`, `Wrap`, `WithHost` (copy), `KindOf` (`errors.As` → ctx deadline/cancel →
+      `Internal`, `nil` → `""`) and `Is`. `Error()` renders `op: host: msg: cause`, skipping empty parts and their
+      separator; `Wrap(kind, op, nil)` stays non-nil with no cause. Table-driven tests cover formats, `errors.Is`
+      unwrapping, copy semantics, and `KindOf` via direct, `%w`-wrapped and double-wrapped errors.
+
 ## Next task
 
-**`docs/tasks/002-errs.md`**, then continue in numeric order. Tasks that share a parallel group in
-`docs/tasks/README.md` may be done concurrently; everything else is serial.
+**`docs/tasks/003-config.md`** (or any other M0-A task 003/004/008/009, which may run in parallel), then continue
+in numeric order. Tasks that share a parallel group in `docs/tasks/README.md` may be done concurrently; everything
+else is serial.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -94,3 +101,6 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   `internal/deps`), `Makefile`, `cmd/sitrep` (version printing), `.gitignore` additions. `make check` green;
   `go mod tidy` idempotent; `GOARCH=amd64` cross-build OK; `cmd/sitrep-lab` still builds. Choice: `lint` is two
   recipe lines, `test -z "$(gofmt -l .)"` then `go vet ./...`, so unformatted files fail it (task Pitfalls).
+- 2026-11-12 — Task 002: `internal/errs`. Choice: `Is(nil, "")` is `true`, because task requirement 6 defines
+  `Is` as literally `KindOf(err) == kind` and `KindOf(nil)` is `""`; the first test draft assumed otherwise and was
+  corrected, not the code. `make check` green (`internal/errs` tests 1.3 s under `-race`).

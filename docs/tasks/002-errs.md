@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 001
 - **Parallel group:** — (serial; everything imports it)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The `errs` package exactly as written in BUILD-PLAN §4.1.
