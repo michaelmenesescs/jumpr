@@ -11,6 +11,8 @@ const (
 	KindMinion resource.KindName = "salt-minion"
 	KindKey    resource.KindName = "salt-key"
 	KindJobs   resource.KindName = "salt-job"
+	// KindSls is the state tree: one row per sls of every environment.
+	KindSls resource.KindName = "salt-sls"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -23,6 +25,8 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindKey, true
 	case "salt-job", "jobs", "job":
 		return KindJobs, true
+	case "salt-sls", "states", "sls":
+		return KindSls, true
 	default:
 		return "", false
 	}
@@ -78,6 +82,19 @@ func kindSpecs() []resource.KindSpec {
 			// The backend already orders running jobs first, then newest
 			// first; an empty DefaultSort keeps that order.
 			DefaultSort: "",
+		},
+		{
+			Name:    KindSls,
+			Aliases: []string{"states", "sls"},
+			Title:   "Salt states",
+			Scope:   resource.ScopeGlobal,
+			Columns: []resource.Column{
+				{ID: "sls", Title: "SLS", Width: 28},
+				{ID: "env", Title: "ENV", Width: 8},
+				{ID: "path", Title: "PATH", Width: 0},
+				{ID: "assigned", Title: "ASSIGNED", Width: 8, Align: resource.AlignRight, Kind: resource.ColNumber},
+			},
+			DefaultSort: "sls",
 		},
 	}
 }

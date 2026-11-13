@@ -177,7 +177,7 @@ only by tasks 001, 098, 105 and 115.
 
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
-| [092](092-salt-state-tree.md) | Salt state tree browser | 076 | — | todo |
+| [092](092-salt-state-tree.md) | Salt state tree browser | 076 | — | done |
 | [093](093-salt-pillar.md) | Pillar view, redacted by default | 092 | — | todo |
 | [094](094-salt-mine-grains.md) | Mine and grains explorer | 093 | — | todo |
 | [095](095-salt-key-management.md) | Salt key management actions | 076 | M7-B | done |

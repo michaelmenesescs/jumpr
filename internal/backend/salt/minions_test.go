@@ -644,8 +644,8 @@ func TestKinds(t *testing.T) {
 		t.Errorf("Name = %q, want salt", b.Name())
 	}
 	specs := b.Kinds()
-	if len(specs) != 3 {
-		t.Fatalf("kinds = %d, want 3", len(specs))
+	if len(specs) != 4 {
+		t.Fatalf("kinds = %d, want 4", len(specs))
 	}
 	byName := map[resource.KindName]resource.KindSpec{}
 	for _, s := range specs {

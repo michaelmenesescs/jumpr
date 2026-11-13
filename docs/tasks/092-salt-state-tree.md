@@ -3,7 +3,7 @@
 - **Milestone:** M7
 - **Depends on:** 076
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:states` — environments, top file, sls files, and what a minion would get (SPEC §8.6 "States").

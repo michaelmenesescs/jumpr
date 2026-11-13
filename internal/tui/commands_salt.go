@@ -84,7 +84,7 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 	if c == nil {
 		return nil
 	}
-	return c.Register(Command{
+	if err := c.Register(Command{
 		Name:  "salt",
 		Usage: ":salt [state [sls]|target|run <fun> [args…] [k=v…]|ping|<target>]",
 		Help:  "Salt: dry run, targets, module run, ping",
@@ -94,7 +94,33 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 		Complete: func(_ *Env, args string) []string {
 			return filterPrefix([]string{"ping", "run", "state", "target"}, partialWord(args))
 		},
+	}); err != nil {
+		return err
+	}
+	// :states is the state tree browser (SPEC §8.6): envs, sls files, the top
+	// file and the rendered states of one minion.
+	return c.Register(Command{
+		Name:    "states",
+		Aliases: []string{"sls"},
+		Usage:   ":states [env]",
+		Help:    "Salt state tree: envs, sls files, top file, rendered states",
+		Run: func(env *Env, args string) tea.Cmd {
+			return saltStatesCmd(env, strings.TrimSpace(args))
+		},
 	})
+}
+
+// saltStatesCmd opens the state tree browser, narrowed to env when given. The
+// session targets decide which minions the assignment counts cover.
+func saltStatesCmd(env *Env, envName string) tea.Cmd {
+	if _, ok := saltOpsOf(env); !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	q := resource.Query{Kind: salt.KindSls, Hosts: sessionHosts(env)}
+	if envName != "" {
+		q.Args = map[string]string{"env": envName}
+	}
+	return saltViewCmd(env, salt.KindSls, q)
 }
 
 // runSalt dispatches the `:salt` argument text. The verbs come first; anything
