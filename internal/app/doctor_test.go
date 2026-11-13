@@ -283,9 +283,9 @@ func TestDoctorSSHEchoFails(t *testing.T) {
 }
 
 // TestDoctorUsage rejects anything but `doctor ssh <host>` with exit code 2.
+// The bare `jumper doctor` is the full report now, so it is not a usage case.
 func TestDoctorUsage(t *testing.T) {
 	cases := map[string][]string{
-		"no args":   nil,
 		"no host":   {"ssh"},
 		"two hosts": {"ssh", "a", "b"},
 		"other":     {"conn", "https://prom.example.internal"},
@@ -296,7 +296,7 @@ func TestDoctorUsage(t *testing.T) {
 			if code := Doctor(context.Background(), Options{}, args, &out); code != 2 {
 				t.Fatalf("exit code = %d, want 2", code)
 			}
-			if !strings.Contains(out.String(), "usage: jumper doctor ssh") {
+			if !strings.Contains(out.String(), "usage: jumper doctor") {
 				t.Errorf("no usage line: %q", out.String())
 			}
 		})

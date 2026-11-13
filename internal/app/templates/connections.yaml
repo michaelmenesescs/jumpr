@@ -1,0 +1,47 @@
+# Connection profiles — written once by `jumper init` (SPEC §7.2).
+#
+# Every HTTP backend (Prometheus, Alertmanager, Grafana, Elasticsearch) may
+# reference a profile by name in config.yaml (`connection: corp-sso`). A
+# profile centralises the proxy, TLS and authentication an environment needs,
+# so nothing has to be pointed at a bastion twice.
+#
+# Add profiles under `connections:`. The examples are commented out; an empty
+# `connections: {}` is valid and means every backend connects directly.
+
+connections: {}
+# connections:
+#   direct:
+#     proxy:
+#       type: none                 # none | env | http | socks5 | ssh-socks
+#     timeout: 15s
+#     retries: 2                   # idempotent GETs only
+#
+#   corp-sso:
+#     proxy:
+#       type: ssh-socks            # a SOCKS5 tunnel through an SSH host, like ssh -D
+#       via: bastion1.example.internal
+#       # type: http
+#       # url: http://proxy.example.internal:3128
+#     tls:
+#       ca_file: ~/.config/jumper/ca/corp-root.pem
+#       client_cert: ""            # optional mTLS
+#       client_key: ""
+#       insecure_skip_verify: false
+#       server_name: ""            # SNI override
+#     auth:
+#       type: helper               # none | basic | bearer | headers | cookie | helper
+#       helper:
+#         command: ["~/.config/jumper/helpers/sso-login.sh", "{{ .URL }}"]
+#         cache_ttl: 50m
+#         refresh_on: [401, 403, 302-to-login]
+#     headers:
+#       X-Requested-By: jumper
+#     timeout: 15s
+#     retries: 2
+#
+# Secrets are never written here in plain text. Use {{ secret "name" }} and
+# define how to obtain each one:
+#
+# secrets:
+#   proxy-auth:
+#     command: ["security", "find-generic-password", "-w", "-s", "corp-proxy"]

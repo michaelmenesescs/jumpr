@@ -68,9 +68,20 @@ func run(args []string) int {
 		case "version":
 			fmt.Printf("jumper %s\n", version)
 			return 0
+		case "init":
+			dir, code := initArgs(rest[1:], *configDir)
+			if code >= 0 {
+				return code
+			}
+			return app.Init(app.Options{
+				Out:       os.Stdout,
+				ConfigDir: dir,
+				Home:      home,
+			}, os.Stdout)
 		case "doctor":
 			// Both doctor subcommands live here: `ssh <host>` probes a real
-			// host, `conn <profile> <url>` probes an HTTP connection profile.
+			// host, `conn <profile> <url>` probes an HTTP connection profile,
+			// and no argument runs the full report.
 			if len(rest) > 1 && rest[1] == "conn" {
 				return runDoctor(ctx, rest[1:], home, *configDir)
 			}
@@ -85,6 +96,7 @@ func run(args []string) int {
 				Home:      home,
 				Debug:     *debug,
 				Version:   version,
+				Env:       environ(),
 				Prompter:  newTermPrompter(os.Stdin, os.Stderr),
 			}, pos, os.Stdout)
 		default:
@@ -113,10 +125,10 @@ func run(args []string) int {
 	return 0
 }
 
-// doctorConfigDirFlags are the spellings a doctor invocation may use for the
-// configuration directory. They are accepted before or after the positional
-// arguments because the flag package stops at the first non-flag word.
-var doctorConfigDirFlags = []string{"--config-dir", "-config-dir"}
+// configDirFlags are the spellings a subcommand may use for the configuration
+// directory. They are accepted before or after the positional arguments
+// because the flag package stops at the first non-flag word.
+var configDirFlags = []string{"--config-dir", "-config-dir"}
 
 // doctorArgs pulls the flags out of a `jumper doctor …` invocation and returns
 // the positional arguments and the effective configuration directory. code is
@@ -128,10 +140,13 @@ func doctorArgs(args []string, configDir string) (pos []string, dir string, code
 		a := args[i]
 		switch {
 		case a == "-h" || a == "--help":
-			fmt.Print("usage: jumper doctor ssh <host> [--config-dir DIR]\n\n" +
-				"  ssh <host>    resolve, dial, authenticate and run a few read-only probes\n")
+			fmt.Print("usage: jumper doctor [--config-dir DIR]\n" +
+				"       jumper doctor ssh <host> [--config-dir DIR]\n\n" +
+				"  doctor          check the configuration, SSH, agent, bastions, samples,\n" +
+				"                  backends, connection profiles, knowledge root and terminal\n" +
+				"  ssh <host>      resolve, dial, authenticate and run a few read-only probes\n")
 			return nil, dir, 0
-		case matchesFlag(a, doctorConfigDirFlags):
+		case matchesFlag(a, configDirFlags):
 			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "jumper: %s needs a directory\n", a)
 				return nil, dir, 2
@@ -145,6 +160,38 @@ func doctorArgs(args []string, configDir string) (pos []string, dir string, code
 		}
 	}
 	return pos, dir, -1
+}
+
+// initArgs pulls the flags out of a `jumper init` invocation and returns the
+// effective configuration directory. code is -1 when init should run, else the
+// exit code to return: 0 after help, 2 for a bad command line.
+func initArgs(args []string, configDir string) (dir string, code int) {
+	const usage = "usage: jumper init [--config-dir DIR]\n\n" +
+		"  writes a commented config.yaml, connections.yaml, policy.yaml and keymap.yaml\n" +
+		"  plus an empty plugins/ into the configuration directory; never overwrites\n"
+	dir = configDir
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-h" || a == "--help":
+			fmt.Print(usage)
+			return dir, 0
+		case matchesFlag(a, configDirFlags):
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "jumper: %s needs a directory\n", a)
+				return dir, 2
+			}
+			i++
+			dir = args[i]
+		case strings.HasPrefix(a, "--config-dir=") || strings.HasPrefix(a, "-config-dir="):
+			dir = a[strings.IndexByte(a, '=')+1:]
+		default:
+			fmt.Fprintf(os.Stderr, "jumper: init: unexpected argument %q\n", a)
+			fmt.Fprint(os.Stderr, usage)
+			return dir, 2
+		}
+	}
+	return dir, -1
 }
 
 // matchesFlag reports whether a is exactly one of the flags.

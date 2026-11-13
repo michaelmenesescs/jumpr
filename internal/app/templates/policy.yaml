@@ -1,0 +1,40 @@
+# Action policy — written once by `jumper init` (SPEC §11).
+#
+# This is a guard rail against mistakes, not a sandbox: every write, from any
+# backend or plugin, is checked against it before it runs. Edit it to match how
+# much rope you want. Unknown keys are errors.
+
+# Refuse every write. `jumper --readonly` does the same for one run.
+readonly: false
+
+# Refuse an action that targets more than this many hosts. 0 = no limit.
+max_targets: 0
+
+# Hosts whose labels match any of these selectors are protected: they always
+# need the typed target count to confirm, and a raw synchronized shell refuses
+# to include them.
+protected:
+  - protected
+  # - "env=prod role=db"
+
+# Extra deny rules, on top of the built-in ones (never stop sshd, never mkfs,
+# never rm -rf /, never reboot, never dd onto a block device). Either a regexp
+# on the command line (`pattern`) or an action spec (`spec`), optionally
+# restricted to matching targets (`selector`).
+deny:
+  - pattern: 'systemctl\s+restart\s+network'
+    reason: use the network change process
+  # - spec: salt.key.delete
+  #   selector: "env=prod"
+  #   reason: key deletes in prod go through change management
+
+# Allow actions that run as root through the Salt transport.
+allow_root_transport: true
+
+# Allow opening an interactive shell while read-only mode is on.
+shell_in_readonly: false
+
+# Synchronized input across panes: `confirm` asks for a confirmation first,
+# `deny` turns it off entirely.
+sync:
+  raw: confirm

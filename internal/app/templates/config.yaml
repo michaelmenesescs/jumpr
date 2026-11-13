@@ -1,0 +1,95 @@
+# jumper configuration — written once by `jumper init`.
+#
+# Every key is optional. The value shown is the default, and the comment after
+# it says what it does. The file is read from ~/.config/jumper/config.yaml
+# (override the directory with --config-dir or $JUMPER_CONFIG_DIR). Unknown
+# keys are errors, so delete what you do not need rather than renaming it.
+
+ui:
+  # auto | truecolor | 256 | 16
+  color: auto              # 256-colour and truecolor are picked from the terminal when auto
+  # auto | unicode | nerd | ascii   (auto = unicode; nerd needs a Nerd Font)
+  glyphs: auto
+
+mux:
+  prefix: C-a             # the tmux-style prefix key
+  prefix_in_tmux: C-b     # used when jumper runs inside tmux; set equal to prefix to disable
+  scrollback: 10000       # lines kept per terminal pane
+  max_sync_panes: 8       # raw synchronized input limit
+
+ssh:
+  config_files: [~/.ssh/config]  # every ssh_config jumper resolves hosts from
+  known_hosts: []                # empty = from ssh_config, else ~/.ssh/known_hosts
+  concurrency: 64                # fan-out workers
+  max_conns_per_bastion: 4
+  max_channels_per_conn: 8
+  connect_timeout: 10s
+  exec_timeout: 30s
+  idle_timeout: 5m
+  keepalive: 30s
+  max_output: 2097152            # bytes kept per remote command
+  # Route host patterns away from the native client, e.g.
+  # transports:
+  #   - match: '*.legacy.example.internal'
+  #     transport: system-ssh    # native | system-ssh
+
+inventory:
+  cache_ttl: 15m
+  sources:
+    - type: ssh_config           # ssh_config | static | salt | k8s | prom | chef
+      path: ""                   # required for type: static, ignored otherwise
+    # - type: static
+    #   path: ~/.config/jumper/hosts.yaml
+    # - type: salt               # needs salt.master below
+  identity:
+    rewrites: []                 # [{from: '^(.*):9100$', to: '$1'}]
+
+knowledge:
+  root: ~/jumper                 # investigations, notes and the audit log
+
+rollout:
+  canary: 1                      # hosts tried first, per action
+  batch_percent: 10
+  batch_max: 50
+  failure_threshold_percent: 5   # stop a rollout above this failure rate
+  typed_confirm_over: 20         # type the target count to confirm above this many
+
+salt:
+  master: ""                     # inventory ID or ssh alias; empty = Salt unconfigured
+  sudo: true
+  timeout: 60s                   # one salt job
+  poll_interval: 2s
+  list_chunk: 200                # max minions per -L target
+  suggest_over: 200              # suggest the Salt transport above this many targets
+  allow_salt_ssh: false
+
+interact:
+  timeout: 2m                    # how long a prompt (host key, passphrase) waits while detached
+
+# HTTP backends are optional and not written out, because an empty list is the
+# default. Each entry needs a name and a URL; `connection` names a profile in
+# connections.yaml:
+#
+# prometheus:
+#   - name: prom
+#     url: https://prom.example.internal
+#     connection: corp-sso
+# alertmanager:
+#   - name: am
+#     url: https://alertmanager.example.internal
+#     connection: corp-sso
+# grafana:
+#   - name: grafana
+#     url: https://grafana.example.internal
+#     connection: corp-sso
+# elasticsearch:
+#   - name: logs
+#     url: https://es.example.internal
+#     connection: corp-sso
+#     sources:
+#       - name: syslog
+#         index: 'syslog-*'
+#         time_field: '@timestamp'
+#         host_field: host.name
+#         message_field: message
+#         level_field: log.level

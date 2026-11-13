@@ -1,0 +1,32 @@
+# Key bindings — written once by `jumper init` (SPEC §13).
+#
+# Every binding is rebindable. A binding is a list of Bubble Tea key names;
+# control keys are written ctrl+a, named keys enter, esc, up, down, pgup,
+# pgdown, home, end. The values below are the built-in defaults, so this file
+# can be deleted without losing anything. The mux prefix is configured in
+# config.yaml (mux.prefix), not here.
+
+up: [k, up]
+down: [j, down]
+page_up: [pgup, ctrl+u]
+page_down: [pgdown, ctrl+d]
+top: [g, home]
+bottom: [G, end]
+open: [enter]
+back: [esc]
+command: [":"]
+filter: ["/"]
+fuzzy_find: [ctrl+f]
+help: ["?"]
+refresh: [r]
+quit: [q]
+actions: [x]
+note: [n]
+finding: [F]
+knowledge: [K]
+timeline: [T]
+yank: [y]
+follow: [w]
+time_window: [t]
+diff: [d]
+errors: [e]

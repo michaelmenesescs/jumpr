@@ -3,7 +3,7 @@
 - **Milestone:** M12
 - **Depends on:** 076
 - **Parallel group:** M12-A (with 123, 125)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 First-run experience (SPEC §14).
