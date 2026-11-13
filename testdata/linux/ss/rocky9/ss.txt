@@ -1,0 +1,5 @@
+tcp   LISTEN 0      511          0.0.0.0:443        0.0.0.0:*    users:(("nginx",pid=2010,fd=6),("nginx",pid=2014,fd=6))
+tcp   LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=1290,fd=4))
+udp   UNCONN 0      0      127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=612,fd=13))
+tcp   ESTAB  0      0         10.20.4.17:22      10.20.0.5:51122 users:(("sshd",pid=88901,fd=4))
+tcp   LISTEN 0      4096               *:9100             *:*

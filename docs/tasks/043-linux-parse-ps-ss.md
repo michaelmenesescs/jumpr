@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 005
 - **Parallel group:** M2-D (with 039, 040, 041, 042, 049)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Parse `ps` and `ss` output.
