@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 057, 048
 - **Parallel group:** M3-D (with 062)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC W5: `:run 'ss -s'` on the target set — planned, confirmed, rolled out, grouped, recorded.
