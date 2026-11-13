@@ -1,0 +1,4 @@
+[
+  {"dst": "2001:db8::/64", "dev": "eth0", "protocol": "kernel", "metric": 256, "prefsrc": "2001:db8::10"},
+  {"dst": "default", "gateway": "fe80::1", "dev": "eth0", "protocol": "ra", "metric": 1024, "prefsrc": "2001:db8::10", "expires": 1789}
+]

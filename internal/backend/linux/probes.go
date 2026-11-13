@@ -24,6 +24,11 @@ const (
 	secDFInode   = "df-inodes"
 	secLsblk     = "lsblk"
 	secDiskstats = "diskstats"
+	secIPLink    = ipProbeLink
+	secIPAddr    = ipProbeAddr
+	secIPRoute   = ipProbeRoute
+	secIPRoute6  = ipProbeRoute6
+	secIPNeigh   = ipProbeNeigh
 )
 
 // Read-only remote commands. They are plain POSIX sh, run through probe so one
@@ -47,6 +52,13 @@ const (
 	// cmdDiskstats reads two snapshots a second apart inside one section so the
 	// rates come from the same round trip as the device list.
 	cmdDiskstats = "cat /proc/diskstats; sleep 1; cat /proc/diskstats"
+	// Network sections. `ip -j` is available on RHEL 8+ and Ubuntu 20.04+;
+	// `-s` nests the counters under stats64.rx/tx.
+	cmdIPLink   = "ip -j -s link"
+	cmdIPAddr   = "ip -j addr"
+	cmdIPRoute  = "ip -j route show table main"
+	cmdIPRoute6 = "ip -j -6 route"
+	cmdIPNeigh  = "ip -j neigh"
 )
 
 // overviewSections is the host kind's batch: everything the overview row
@@ -87,6 +99,18 @@ func sectionsFor(kind resource.KindName) []probe.Section {
 			{ID: secLsblk, Cmd: cmdLsblk},
 			{ID: secDiskstats, Cmd: cmdDiskstats},
 		}
+	case KindInterface:
+		return []probe.Section{
+			{ID: secIPLink, Cmd: cmdIPLink},
+			{ID: secIPAddr, Cmd: cmdIPAddr},
+		}
+	case KindRoute:
+		return []probe.Section{
+			{ID: secIPRoute, Cmd: cmdIPRoute},
+			{ID: secIPRoute6, Cmd: cmdIPRoute6},
+		}
+	case KindNeigh:
+		return []probe.Section{{ID: secIPNeigh, Cmd: cmdIPNeigh}}
 	default:
 		return nil
 	}

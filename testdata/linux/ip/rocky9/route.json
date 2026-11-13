@@ -1,0 +1,6 @@
+[
+  {"dst": "192.0.2.0/24", "dev": "eth0", "protocol": "kernel", "scope": "link", "prefsrc": "192.0.2.10", "flags": []},
+  {"dst": "default", "gateway": "192.0.2.1", "dev": "eth0", "protocol": "static", "metric": 100, "prefsrc": "192.0.2.10", "flags": []},
+  {"dst": "198.51.100.0/24", "gateway": "192.0.2.1", "dev": "eth0", "protocol": "static", "metric": 50},
+  {"dst": "10.0.0.0/8", "dev": "tun0", "protocol": "static", "metric": 10}
+]

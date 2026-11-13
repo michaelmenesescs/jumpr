@@ -1,0 +1,6 @@
+[
+  {"dst": "192.0.2.1", "dev": "eth0", "lladdr": "52:54:00:aa:bb:cc", "state": ["REACHABLE"]},
+  {"dst": "192.0.2.2", "dev": "eth0", "lladdr": "52:54:00:aa:bb:cd", "state": ["STALE"]},
+  {"dst": "192.0.2.3", "dev": "eth0", "state": ["FAILED"]},
+  {"dst": "192.0.2.4", "dev": "eth0", "state": ["INCOMPLETE"]}
+]

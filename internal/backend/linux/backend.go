@@ -342,6 +342,7 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 			{Label: "journal", Key: "j", To: resource.Query{Kind: KindJournal, Hosts: hosts}},
 			{Label: "mounts", Key: "m", To: resource.Query{Kind: KindMount, Hosts: hosts}},
 			{Label: "disks", Key: "D", To: resource.Query{Kind: KindDisk, Hosts: hosts}},
+			{Label: "interfaces", Key: "i", To: resource.Query{Kind: KindInterface, Hosts: hosts}},
 		}
 	case KindUnit:
 		if r.Ref.Name == "" {

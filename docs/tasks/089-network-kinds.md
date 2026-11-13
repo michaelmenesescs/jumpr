@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 088
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Kinds `interface`, `route`, `neigh` from `ip -j` (SPEC §8.1).

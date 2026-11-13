@@ -1,0 +1,69 @@
+[
+  {
+    "ifindex": 1,
+    "ifname": "lo",
+    "flags": ["LOOPBACK", "UP", "LOWER_UP"],
+    "mtu": 65536,
+    "qdisc": "noqueue",
+    "operstate": "UNKNOWN",
+    "link_type": "loopback",
+    "address": "00:00:00:00:00:00",
+    "stats64": {
+      "rx": {"bytes": 1048576, "packets": 2048, "errors": 0, "dropped": 0, "overrun": 0, "multicast": 0},
+      "tx": {"bytes": 1048576, "packets": 2048, "errors": 0, "dropped": 0, "carrier": 0, "collisions": 0}
+    }
+  },
+  {
+    "ifindex": 2,
+    "ifname": "eth0",
+    "flags": ["BROADCAST", "MULTICAST", "UP", "LOWER_UP"],
+    "mtu": 1500,
+    "master": "br0",
+    "qdisc": "mq",
+    "operstate": "UP",
+    "link_type": "ether",
+    "address": "52:54:00:12:34:56",
+    "stats64": {
+      "rx": {"bytes": 123456789, "packets": 987654, "errors": 0, "dropped": 0, "overrun": 0, "multicast": 12},
+      "tx": {"bytes": 987654321, "packets": 654321, "errors": 0, "dropped": 0, "carrier": 0, "collisions": 0}
+    }
+  },
+  {
+    "ifindex": 3,
+    "ifname": "eth1",
+    "flags": ["BROADCAST", "MULTICAST"],
+    "mtu": 9000,
+    "qdisc": "mq",
+    "operstate": "DOWN",
+    "link_type": "ether",
+    "address": "52:54:00:12:34:57",
+    "stats64": {
+      "rx": {"bytes": 4096, "packets": 32, "errors": 3, "dropped": 12, "overrun": 1, "multicast": 0},
+      "tx": {"bytes": 2048, "packets": 16, "errors": 1, "dropped": 4, "carrier": 2, "collisions": 0}
+    }
+  },
+  {
+    "ifindex": 4,
+    "ifname": "tun0",
+    "flags": ["POINTOPOINT", "NOARP", "MULTICAST"],
+    "mtu": 1420,
+    "qdisc": "noqueue",
+    "operstate": "DOWN",
+    "link_type": "none",
+    "address": "",
+    "stats64": {
+      "rx": {"bytes": 0, "packets": 0, "errors": 0, "dropped": 0},
+      "tx": {"bytes": 0, "packets": 0, "errors": 0, "dropped": 0}
+    }
+  },
+  {
+    "ifindex": 5,
+    "ifname": "br0",
+    "flags": ["BROADCAST", "MULTICAST", "UP", "LOWER_UP"],
+    "mtu": 1500,
+    "qdisc": "noqueue",
+    "operstate": "UP",
+    "link_type": "ether",
+    "address": "52:54:00:12:34:58"
+  }
+]

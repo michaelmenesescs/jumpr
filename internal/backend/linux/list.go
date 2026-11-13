@@ -113,6 +113,12 @@ func (b *Backend) rows(kind resource.KindName, host resource.HostID, q resource.
 		return b.mountRows(host, q, sec, bad, retried)
 	case KindDisk:
 		return b.diskRows(host, q, sec, bad, retried)
+	case KindInterface:
+		return b.interfaceRows(host, sec, bad, retried)
+	case KindRoute:
+		return b.routeRows(host, sec, bad, retried)
+	case KindNeigh:
+		return b.neighRows(host, sec, bad, retried)
 	default:
 		return nil, errs.New(errs.Config, "linux.List", fmt.Sprintf("unknown kind %q", kind))
 	}

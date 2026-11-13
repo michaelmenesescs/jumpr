@@ -19,6 +19,9 @@ const (
 	KindHostOverview resource.KindName = "host-overview"
 	KindMount        resource.KindName = "mount"
 	KindDisk         resource.KindName = "disk"
+	KindInterface    resource.KindName = "interface"
+	KindRoute        resource.KindName = "route"
+	KindNeigh        resource.KindName = "neigh"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -40,6 +43,12 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindMount, true
 	case "disk", "disks", "lsblk":
 		return KindDisk, true
+	case "interface", "interfaces", "if", "ifaces", "ip":
+		return KindInterface, true
+	case "route", "routes":
+		return KindRoute, true
+	case "neigh", "neighs", "arp":
+		return KindNeigh, true
 	default:
 		return "", false
 	}
@@ -181,6 +190,53 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "model", Title: "MODEL", Width: 0},
 			},
 			DefaultSort: "name",
+		},
+		{
+			Name:    KindInterface,
+			Aliases: []string{"interfaces", "if", "ifaces", "ip"},
+			Title:   "Interfaces",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "name", Title: "NAME", Width: 16},
+				{ID: "state", Title: "STATE", Width: 10},
+				{ID: "mtu", Title: "MTU", Width: 6, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "addrs", Title: "ADDRESSES", Width: 0},
+				{ID: "rx", Title: "RX", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "tx", Title: "TX", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "rx_err", Title: "RX-ERR", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "tx_err", Title: "TX-ERR", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "rx_drop", Title: "RX-DROP", Width: 8, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "tx_drop", Title: "TX-DROP", Width: 8, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "master", Title: "MASTER", Width: 10},
+			},
+			DefaultSort: "name",
+		},
+		{
+			Name:    KindRoute,
+			Aliases: []string{"routes"},
+			Title:   "Routes",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "dst", Title: "DESTINATION", Width: 26},
+				{ID: "gateway", Title: "GATEWAY", Width: 20},
+				{ID: "dev", Title: "DEV", Width: 10},
+				{ID: "proto", Title: "PROTO", Width: 8},
+				{ID: "metric", Title: "METRIC", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "src", Title: "SOURCE", Width: 0},
+			},
+		},
+		{
+			Name:    KindNeigh,
+			Aliases: []string{"neighs", "arp"},
+			Title:   "Neighbours",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "ip", Title: "IP", Width: 24},
+				{ID: "mac", Title: "MAC", Width: 18},
+				{ID: "dev", Title: "DEV", Width: 10},
+				{ID: "state", Title: "STATE", Width: 12},
+			},
+			DefaultSort: "ip",
 		},
 	}
 }
