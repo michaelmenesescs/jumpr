@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"jumper/internal/errs"
 )
@@ -35,8 +36,8 @@ func TestGlyphsKnown(t *testing.T) {
 		if len(set.Spark) < 2 {
 			t.Errorf("%s: Spark has %d runes", name, len(set.Spark))
 		}
-		if set.BarFull == 0 || set.BarEmpty == 0 || set.Ellipsis == 0 ||
-			set.StatusOK == 0 || set.StatusWarn == 0 || set.StatusCrit == 0 ||
+		if set.BarFull == 0 || set.BarEmpty == 0 || set.Ellipsis == 0 || set.Empty == 0 ||
+			set.StatusOK == 0 || set.StatusWarn == 0 || set.StatusDegraded == 0 || set.StatusCrit == 0 ||
 			set.StatusNA == 0 || set.StatusUnknown == 0 || set.Separator == 0 || set.Arrow == 0 {
 			t.Errorf("%s: a rune is unset: %+v", name, set)
 		}
@@ -69,10 +70,11 @@ func TestGlyphsExactRunes(t *testing.T) {
 	if unicode.Ellipsis != '…' || unicode.Separator != '·' || unicode.Arrow != '→' {
 		t.Errorf("unicode decorations = %q %q %q", unicode.Ellipsis, unicode.Separator, unicode.Arrow)
 	}
-	if unicode.StatusOK != '●' || unicode.StatusWarn != '●' || unicode.StatusCrit != '●' ||
-		unicode.StatusNA != '○' || unicode.StatusUnknown != '?' {
-		t.Errorf("unicode status markers = %c %c %c %c %c",
-			unicode.StatusOK, unicode.StatusWarn, unicode.StatusCrit, unicode.StatusNA, unicode.StatusUnknown)
+	if unicode.StatusOK != '●' || unicode.StatusWarn != '●' || unicode.StatusDegraded != '◐' ||
+		unicode.StatusCrit != '●' || unicode.StatusNA != '○' || unicode.StatusUnknown != '?' {
+		t.Errorf("unicode status markers = %c %c %c %c %c %c",
+			unicode.StatusOK, unicode.StatusWarn, unicode.StatusDegraded,
+			unicode.StatusCrit, unicode.StatusNA, unicode.StatusUnknown)
 	}
 
 	nerd, err := Glyphs("nerd")
@@ -108,10 +110,11 @@ func TestGlyphsExactRunes(t *testing.T) {
 	if ascii.Ellipsis != '~' || ascii.Separator != '|' || ascii.Arrow != '>' {
 		t.Errorf("ascii decorations = %q %q %q", ascii.Ellipsis, ascii.Separator, ascii.Arrow)
 	}
-	if ascii.StatusOK != '+' || ascii.StatusWarn != '!' || ascii.StatusCrit != 'x' ||
-		ascii.StatusNA != '.' || ascii.StatusUnknown != '?' {
-		t.Errorf("ascii status markers = %c %c %c %c %c",
-			ascii.StatusOK, ascii.StatusWarn, ascii.StatusCrit, ascii.StatusNA, ascii.StatusUnknown)
+	if ascii.StatusOK != '+' || ascii.StatusWarn != '!' || ascii.StatusDegraded != '!' ||
+		ascii.StatusCrit != 'x' || ascii.StatusNA != '.' || ascii.StatusUnknown != '?' {
+		t.Errorf("ascii status markers = %c %c %c %c %c %c",
+			ascii.StatusOK, ascii.StatusWarn, ascii.StatusDegraded,
+			ascii.StatusCrit, ascii.StatusNA, ascii.StatusUnknown)
 	}
 }
 
@@ -167,6 +170,93 @@ func TestGlyphsAuto(t *testing.T) {
 	}
 	if set.Name != "unicode" {
 		t.Errorf("Glyphs(auto).Name = %q, want unicode", set.Name)
+	}
+}
+
+func TestGlyphsEmpty(t *testing.T) {
+	ascii, err := Glyphs("ascii")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ascii.Empty != '-' {
+		t.Errorf("ascii.Empty = %q, want '-'", ascii.Empty)
+	}
+	if !ascii.ASCII() {
+		t.Error("ascii set does not report itself as ASCII")
+	}
+	for _, name := range []string{"unicode", "nerd"} {
+		set, err := Glyphs(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if set.Empty != '—' {
+			t.Errorf("%s.Empty = %q, want —", name, set.Empty)
+		}
+		if set.ASCII() {
+			t.Errorf("%s set reports itself as ASCII", name)
+		}
+	}
+	// The placeholder is part of the set: the ascii one stays printable.
+	for _, r := range string(ascii.Empty) {
+		if r >= 0x80 {
+			t.Errorf("ascii.Empty = %U is not ASCII", r)
+		}
+	}
+}
+
+func TestAgeWith(t *testing.T) {
+	now := time.Date(2026, 11, 12, 15, 30, 0, 0, time.UTC)
+	ascii, err := Glyphs("ascii")
+	if err != nil {
+		t.Fatal(err)
+	}
+	unicode, err := Glyphs("unicode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A zero time renders the set's placeholder.
+	if got := AgeWith(ascii, time.Time{}, now); got != "-" {
+		t.Errorf("AgeWith(ascii, zero) = %q, want \"-\"", got)
+	}
+	if got := AgeWith(unicode, time.Time{}, now); got != "—" {
+		t.Errorf("AgeWith(unicode, zero) = %q, want —", got)
+	}
+	// A zero set still renders the unicode placeholder rather than nothing.
+	if got := AgeWith(GlyphSet{}, time.Time{}, now); got != "—" {
+		t.Errorf("AgeWith(zero set, zero time) = %q, want —", got)
+	}
+	// Everything else is Age unchanged.
+	for _, d := range []time.Duration{0, time.Second, 38*time.Minute + 12*time.Second, 41 * time.Hour} {
+		ts := now.Add(-d)
+		if got, want := AgeWith(ascii, ts, now), Age(ts, now); got != want {
+			t.Errorf("AgeWith(ascii, %s) = %q, want Age = %q", d, got, want)
+		}
+	}
+}
+
+func TestGlyphsFitWithEverySet(t *testing.T) {
+	for _, name := range GlyphNames() {
+		set, err := Glyphs(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := FitWith(set, "line one is much too long for six cells\nshort", 6, 3)
+		lines := strings.Split(got, "\n")
+		if len(lines) != 3 {
+			t.Fatalf("%s: %d lines, want 3", name, len(lines))
+		}
+		for i, line := range lines {
+			if w := Width(line); w != 6 {
+				t.Errorf("%s: line %d = %q is %d cells, want 6", name, i, line, w)
+			}
+			if name == "ascii" {
+				for _, r := range line {
+					if r >= 0x80 {
+						t.Errorf("ascii line %d = %q contains %U", i, line, r)
+					}
+				}
+			}
+		}
 	}
 }
 

@@ -38,19 +38,43 @@ type StatusData struct {
 	Health        []HealthDot
 	ReadOnly      bool
 	Sync          int
+	// Glyphs is the active set; a zero set renders with unicode.
+	Glyphs render.GlyphSet
 }
 
-// healthGlyph returns the dot glyph and its styled form for a state.
+// statusGlyphs returns the set the status line draws with: the one it was
+// handed, or unicode for a zero value.
+func statusGlyphs(d StatusData) render.GlyphSet {
+	if d.Glyphs.Name != "" {
+		return d.Glyphs
+	}
+	set, _ := render.Glyphs("unicode")
+	return set
+}
+
+// healthGlyph returns the dot glyph and its styled form for a state, using the
+// unicode set. RenderStatus passes the active set to healthGlyphWith instead.
 func healthGlyph(t *theme.Theme, s backend.HealthState) (string, string) {
+	set, _ := render.Glyphs("unicode")
+	return healthGlyphWith(set, t, s)
+}
+
+// healthGlyphWith returns the dot glyph and its styled form for a state, taken
+// from set's status markers.
+func healthGlyphWith(set render.GlyphSet, t *theme.Theme, s backend.HealthState) (string, string) {
 	switch s {
 	case backend.HealthOK:
-		return "●", t.OK.Render("●")
+		g := string(set.StatusOK)
+		return g, t.OK.Render(g)
 	case backend.HealthDegraded:
-		return "◐", t.Warn.Render("◐")
+		g := string(set.StatusDegraded)
+		return g, t.Warn.Render(g)
 	case backend.HealthDown:
-		return "●", t.Crit.Render("●")
+		g := string(set.StatusCrit)
+		return g, t.Crit.Render(g)
 	default:
-		return "○", t.Faint.Render("○")
+		g := string(set.StatusNA)
+		return g, t.Faint.Render(g)
 	}
 }
 
@@ -61,8 +85,9 @@ func RenderStatus(t *theme.Theme, d StatusData, w int) string {
 	if w <= 0 {
 		return ""
 	}
+	set := statusGlyphs(d)
 	for level := 0; level <= 4; level++ {
-		left, right := statusParts(t, d, level)
+		left, right := statusParts(set, t, d, level)
 		lw, rw := render.Width(left), render.Width(right)
 		if lw+rw+1 <= w || level == 4 {
 			if lw+rw+1 > w {
@@ -75,7 +100,7 @@ func RenderStatus(t *theme.Theme, d StatusData, w int) string {
 	return strings.Repeat(" ", w)
 }
 
-func statusParts(t *theme.Theme, d StatusData, level int) (string, string) {
+func statusParts(set render.GlyphSet, t *theme.Theme, d StatusData, level int) (string, string) {
 	parts := []string{t.Accent.Bold(true).Render("jumper")}
 	if d.Session != "" {
 		parts = append(parts, t.Bold.Render(d.Session))
@@ -112,14 +137,18 @@ func statusParts(t *theme.Theme, d StatusData, level int) (string, string) {
 		r = append(r, t.Warn.Bold(true).Render("RO"))
 	}
 	if d.Sync > 0 {
-		r = append(r, t.Crit.Bold(true).Render(fmt.Sprintf("SYNC ×%d", d.Sync)))
+		mark := "×"
+		if set.ASCII() {
+			mark = "x"
+		}
+		r = append(r, t.Crit.Bold(true).Render(fmt.Sprintf("SYNC %s%d", mark, d.Sync)))
 	}
 	if d.Prefix != "" {
 		r = append(r, t.Dim.Render(d.Prefix))
 	}
 	var dots []string
 	for _, h := range d.Health {
-		_, g := healthGlyph(t, h.State)
+		_, g := healthGlyphWith(set, t, h.State)
 		if level < 3 {
 			g += t.Dim.Render(h.Name)
 		}

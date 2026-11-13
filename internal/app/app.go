@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"jumper/internal/backend/fake"
 	"jumper/internal/config"
 	"jumper/internal/errs"
+	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/tui"
 	"jumper/internal/tui/keymap"
@@ -58,6 +60,10 @@ func Run(ctx context.Context, o Options) (err error) {
 		return err
 	}
 	theme.SetProfile(cfg.UI.Color)
+	set, err := resolveGlyphs(cfg.UI.Glyphs, os.Getenv("JUMPER_GLYPHS"))
+	if err != nil {
+		return err
+	}
 
 	reg, err := buildRegistry(o)
 	if err != nil {
@@ -73,6 +79,7 @@ func Run(ctx context.Context, o Options) (err error) {
 		Registry:  reg,
 		Session:   &tui.SessionState{Name: "main"},
 		Theme:     theme.Dark(),
+		Glyphs:    set,
 		Keys:      keymap.Default(),
 		Now:       time.Now,
 		Factories: make(map[resource.KindName]tui.Factory),
@@ -99,6 +106,27 @@ func Run(ctx context.Context, o Options) (err error) {
 		return errs.Wrap(errs.Internal, "app.Run", err)
 	}
 	return nil
+}
+
+// resolveGlyphs resolves the active glyph set once, at startup. A non-empty
+// JUMPER_GLYPHS value wins over the config; "auto" and an empty value mean
+// unicode. An unknown value in either place is an errs.Config error naming its
+// source, never a silent fallback. It is the only place the UI's glyph set is
+// read from the environment (BUILD-PLAN §6.1 puts os.Getenv in internal/app).
+func resolveGlyphs(cfg, env string) (render.GlyphSet, error) {
+	name, source := env, "JUMPER_GLYPHS"
+	if name == "" {
+		name, source = cfg, "ui.glyphs"
+	}
+	if name == "" || name == "auto" {
+		name = "unicode"
+	}
+	set, err := render.Glyphs(name)
+	if err != nil {
+		return render.GlyphSet{}, errs.New(errs.Config, "app.resolveGlyphs",
+			fmt.Sprintf("%s: unknown glyph set %q (want auto, unicode, nerd or ascii)", source, name))
+	}
+	return set, nil
 }
 
 // buildRegistry registers the backends for this run. In M0 only the fake

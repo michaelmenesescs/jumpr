@@ -101,7 +101,8 @@ type bannerKey struct {
 
 var _ tui.View = (*Table)(nil)
 
-// NewTable builds the table view for one backend and query.
+// NewTable builds the table view for one backend and query. The glyph set is
+// the active one from env (resolved once at startup); WithGlyphs overrides it.
 func NewTable(env *tui.Env, b backend.Backend, spec resource.KindSpec, q resource.Query) *Table {
 	keys := keymap.Default()
 	if env != nil && env.Keys != nil {
@@ -109,6 +110,9 @@ func NewTable(env *tui.Env, b backend.Backend, spec resource.KindSpec, q resourc
 	}
 	sortID, desc := sortSpec(spec.DefaultSort)
 	glyphs, _ := render.Glyphs("unicode")
+	if env != nil && env.Glyphs.Name != "" {
+		glyphs = env.Glyphs
+	}
 	return &Table{
 		env:      env,
 		b:        b,
@@ -516,7 +520,7 @@ func (t *Table) rowName(row resource.Resource) string {
 		return row.Str("name")
 	}
 	if len(t.spec.Columns) > 0 {
-		return cellText(t.spec.Columns[0], row, t.now(), 0)
+		return cellTextWith(t.glyphs, t.spec.Columns[0], row, t.now(), 0)
 	}
 	return ""
 }

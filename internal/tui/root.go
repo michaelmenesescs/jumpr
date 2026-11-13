@@ -187,6 +187,16 @@ func (r *Root) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// glyphs returns the active set: the one internal/app resolved from config and
+// the environment, or unicode when no set was handed in.
+func (r *Root) glyphs() render.GlyphSet {
+	if r.env != nil && r.env.Glyphs.Name != "" {
+		return r.env.Glyphs
+	}
+	set, _ := render.Glyphs("unicode")
+	return set
+}
+
 // backends returns the registry of the environment, if any.
 func (r *Root) backends() *backend.Registry {
 	if r.env == nil {
@@ -611,7 +621,7 @@ func (r *Root) View() string {
 	b.WriteString("\n")
 	b.WriteString(RenderHints(themeOf(r.env), r.hints(), w))
 
-	out := render.Fit(b.String(), w, h)
+	out := render.FitWith(r.glyphs(), b.String(), w, h)
 	if r.dialog != nil {
 		return RenderDialog(themeOf(r.env), r.dialog, w, h, out)
 	}
@@ -655,7 +665,7 @@ func (r *Root) hints() []KeyHint {
 // statusData builds the status line's contents from the session, the window
 // tabs and the last health results.
 func (r *Root) statusData() StatusData {
-	d := StatusData{Prefix: PrefixDisplay(r.prefix)}
+	d := StatusData{Prefix: PrefixDisplay(r.prefix), Glyphs: r.glyphs()}
 	if sess := r.mux.Session(); sess != nil {
 		d.Session = sess.Name
 		for _, tab := range r.mux.Tabs() {

@@ -26,9 +26,11 @@ type GlyphSet struct {
 	BarFull, BarEmpty rune
 	// Ellipsis replaces text cut by Truncate and marks pending work.
 	Ellipsis rune
-	// StatusOK, StatusWarn, StatusCrit, StatusNA and StatusUnknown are the
-	// one-cell status markers.
-	StatusOK, StatusWarn, StatusCrit, StatusNA, StatusUnknown rune
+	// Empty is the placeholder for a value that is absent or unknown.
+	Empty rune
+	// StatusOK, StatusWarn, StatusDegraded, StatusCrit, StatusNA and
+	// StatusUnknown are the one-cell status markers.
+	StatusOK, StatusWarn, StatusDegraded, StatusCrit, StatusNA, StatusUnknown rune
 	// Separator joins parts of one line; Arrow prefixes a drill-in hint.
 	Separator, Arrow rune
 }
@@ -37,18 +39,20 @@ type GlyphSet struct {
 // dots, which every modern terminal font carries.
 func unicodeGlyphs() GlyphSet {
 	return GlyphSet{
-		Name:          "unicode",
-		Spark:         []rune("▁▂▃▄▅▆▇█"),
-		BarFull:       '█',
-		BarEmpty:      '·',
-		Ellipsis:      '…',
-		StatusOK:      '●',
-		StatusWarn:    '●',
-		StatusCrit:    '●',
-		StatusNA:      '○',
-		StatusUnknown: '?',
-		Separator:     '·',
-		Arrow:         '→',
+		Name:           "unicode",
+		Spark:          []rune("▁▂▃▄▅▆▇█"),
+		BarFull:        '█',
+		BarEmpty:       '·',
+		Ellipsis:       '…',
+		Empty:          '—',
+		StatusOK:       '●',
+		StatusWarn:     '●',
+		StatusDegraded: '◐',
+		StatusCrit:     '●',
+		StatusNA:       '○',
+		StatusUnknown:  '?',
+		Separator:      '·',
+		Arrow:          '→',
 	}
 }
 
@@ -71,18 +75,20 @@ func nerdGlyphs() GlyphSet {
 // ssh connection: every rune is below 0x80.
 func asciiGlyphs() GlyphSet {
 	return GlyphSet{
-		Name:          "ascii",
-		Spark:         []rune("_.,-~+=#"),
-		BarFull:       '#',
-		BarEmpty:      '-',
-		Ellipsis:      '~',
-		StatusOK:      '+',
-		StatusWarn:    '!',
-		StatusCrit:    'x',
-		StatusNA:      '.',
-		StatusUnknown: '?',
-		Separator:     '|',
-		Arrow:         '>',
+		Name:           "ascii",
+		Spark:          []rune("_.,-~+=#"),
+		BarFull:        '#',
+		BarEmpty:       '-',
+		Ellipsis:       '~',
+		Empty:          '-',
+		StatusOK:       '+',
+		StatusWarn:     '!',
+		StatusDegraded: '!',
+		StatusCrit:     'x',
+		StatusNA:       '.',
+		StatusUnknown:  '?',
+		Separator:      '|',
+		Arrow:          '>',
 	}
 }
 
@@ -90,6 +96,13 @@ func asciiGlyphs() GlyphSet {
 // set, so it is not listed.
 func GlyphNames() []string {
 	return []string{"ascii", "nerd", "unicode"}
+}
+
+// ASCII reports whether the set draws only runes below 0x80. The ascii set is
+// the one set for which that holds, and its Empty placeholder is the field
+// every other set fills with a wide rune, so Empty is the discriminator.
+func (g GlyphSet) ASCII() bool {
+	return g.Empty > 0 && g.Empty < 0x80
 }
 
 // Glyphs returns the named set. "auto" and "" resolve to unicode: auto is

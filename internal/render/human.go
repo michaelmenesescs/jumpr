@@ -115,6 +115,18 @@ func Age(t, now time.Time) string {
 	return Duration(now.Sub(t))
 }
 
+// AgeWith is Age with the active set's placeholder: a zero t renders as
+// set.Empty, everything else exactly as Age does.
+func AgeWith(set GlyphSet, t, now time.Time) string {
+	if !t.IsZero() {
+		return Age(t, now)
+	}
+	if set.Empty != 0 {
+		return string(set.Empty)
+	}
+	return Age(t, now)
+}
+
 // Percent renders a percentage: no decimals at 10 and above, one decimal
 // below: 71%, 3.2%.
 func Percent(f float64) string {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"jumper/internal/backend"
+	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/tui/keymap"
 	"jumper/internal/tui/theme"
@@ -18,6 +19,7 @@ type Env struct {
 	Registry  *backend.Registry
 	Session   *SessionState // targets, window, investigation, readonly
 	Theme     *theme.Theme
+	Glyphs    render.GlyphSet // active set, resolved once by internal/app
 	Keys      *keymap.Map
 	Now       func() time.Time
 	Factories map[resource.KindName]Factory

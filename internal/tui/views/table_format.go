@@ -15,15 +15,15 @@ func cellText(c resource.Column, row resource.Resource, now time.Time, width int
 }
 
 // cellTextWith renders one field of row as plain text, following the column's
-// kind, using set for every glyph it draws (the spark ramp and the ellipsis).
-// Missing values render as the set's placeholder; the caller decides the style.
+// kind, using set for every glyph it draws (the spark ramp, the ellipsis and
+// the placeholder for a missing value). The caller decides the style.
 func cellTextWith(set render.GlyphSet, c resource.Column, row resource.Resource, now time.Time, width int) string {
 	if c.Kind == resource.ColStatus {
 		return statusText(row.Status)
 	}
 	v := row.Fields[c.ID]
 	if v == nil {
-		return missingText(set)
+		return string(emptyRune(set))
 	}
 	switch c.Kind {
 	case resource.ColNumber:
@@ -47,7 +47,10 @@ func cellTextWith(set render.GlyphSet, c resource.Column, row resource.Resource,
 		}
 	case resource.ColTime:
 		if ts, ok := v.(time.Time); ok {
-			if !ts.IsZero() && now.Sub(ts) > 24*time.Hour {
+			if ts.IsZero() {
+				return render.AgeWith(set, ts, now)
+			}
+			if now.Sub(ts) > 24*time.Hour {
 				return ts.Format("Jan 02")
 			}
 			return ts.Format("15:04:05")
@@ -60,13 +63,14 @@ func cellTextWith(set render.GlyphSet, c resource.Column, row resource.Resource,
 	return row.Str(c.ID)
 }
 
-// missingText is the placeholder for a missing value: an em dash, or a plain
-// hyphen when the active set must stay inside ASCII.
-func missingText(set render.GlyphSet) string {
-	if set.Ellipsis < 0x80 {
-		return "-"
+// emptyRune is the set's placeholder for a missing value, falling back to the
+// unicode one for a zero set.
+func emptyRune(set render.GlyphSet) rune {
+	if set.Empty != 0 {
+		return set.Empty
 	}
-	return "—"
+	def, _ := render.Glyphs("unicode")
+	return def.Empty
 }
 
 // valueInt reads an integer field value.
