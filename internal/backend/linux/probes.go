@@ -36,9 +36,14 @@ const (
 // Read-only remote commands. They are plain POSIX sh, run through probe so one
 // SSH round trip serves a whole kind.
 const (
-	cmdLoadavg  = "cat /proc/loadavg"
-	cmdMeminfo  = "cat /proc/meminfo"
-	cmdPSI      = `for f in cpu memory io; do echo "== $f"; cat /proc/pressure/$f 2>/dev/null; done`
+	cmdLoadavg = "cat /proc/loadavg"
+	cmdMeminfo = "cat /proc/meminfo"
+	// cmdPSI reads the three /proc/pressure files. The trailing `|| true` is
+	// load-bearing: a kernel built without CONFIG_PSI has no such files, and
+	// without it the section's exit status is 1 (from the last cat), which the
+	// backend reports as a failed section instead of "not available" — found
+	// against a real Ubuntu 24.04 host on an OrbStack kernel (task 144).
+	cmdPSI      = `for f in cpu memory io; do echo "== $f"; cat /proc/pressure/$f 2>/dev/null || true; done`
 	cmdOS       = "cat /etc/os-release"
 	cmdKernel   = "uname -r"
 	cmdUptime   = "cat /proc/uptime"
