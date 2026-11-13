@@ -382,9 +382,19 @@ func (c *Client) SwitchContext(ctx context.Context, name string) (bool, error) {
 			fmt.Sprintf("no context %q in %s", name, c.source))
 	}
 	// The old clients go first: nothing must answer for the old context once
-	// the new one is selected.
+	// the new one is selected. If the new one cannot be built the previous
+	// context is restored — otherwise contextName stays empty, ensureLocked
+	// rebuilds against the kubeconfig's current-context, and the session ends
+	// up quietly talking to a different cluster than the one it reports.
+	prev := c.contextName
 	c.resetLocked()
 	if err := c.connectLocked(name); err != nil {
+		c.resetLocked()
+		if prev != "" && prev != name {
+			if rerr := c.connectLocked(prev); rerr != nil {
+				c.resetLocked()
+			}
+		}
 		c.mu.Unlock()
 		return false, err
 	}

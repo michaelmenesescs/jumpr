@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 106, 061
 - **Parallel group:** M9-B (with 110)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 delete, scale, rollout restart, cordon/uncordon/drain (SPEC §8.2) with plans and previews.

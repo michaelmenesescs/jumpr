@@ -204,7 +204,7 @@ only by tasks 001, 098, 105 and 115.
 | [106](106-k8s-core-kinds.md) | Kubernetes core kinds with informers | 105 | — | done |
 | [107](107-k8s-logs.md) | Pod logs | 106 | M9-A | todo |
 | [108](108-k8s-describe-yaml.md) | Describe and YAML views | 106 | M9-A | todo |
-| [109](109-k8s-actions.md) | Kubernetes actions through the bus | 106, 061 | M9-B | todo |
+| [109](109-k8s-actions.md) | Kubernetes actions through the bus | 106, 061 | M9-B | done |
 | [110](110-k8s-exec-portforward.md) | Pod exec in a terminal pane; port-forward | 106, 050 | M9-B | todo |
 | [111](111-k8s-node-host-pivot.md) | Node ↔ host pivot and the k8s inventory source | 106 | M9-A | todo |
 | [112](112-k8s-crds-lab.md) | Generic resources (CRDs), edit, and M9 lab tests | 107, 108, 109, 110, 111 | — | todo |
