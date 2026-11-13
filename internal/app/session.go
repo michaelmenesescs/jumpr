@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -20,6 +21,7 @@ import (
 	"jumper/internal/inventory"
 	"jumper/internal/investigation"
 	"jumper/internal/resource"
+	"jumper/internal/safe"
 	"jumper/internal/server"
 	"jumper/internal/targets"
 	"jumper/internal/tui"
@@ -115,6 +117,10 @@ type Session struct {
 	// counts the prompts refused while nobody was attached (task 082).
 	switchTo func(name string) error
 	skips    *promptSkips
+
+	// crash is the error a recovered program panic left behind, so a
+	// standalone run can exit non-zero with the crash report's path.
+	crash error
 }
 
 // NewSession builds a session on top of c, named name, and starts its
@@ -138,6 +144,7 @@ func (c *Core) newSession(name string, start bool) (*Session, error) {
 	ctx, cancel := context.WithCancel(c.ctx)
 	s := &Session{name: name, core: c, ctx: ctx, cancel: cancel, created: time.Now(), activity: time.Now()}
 	s.in = NewSwitchReader(s.onInputError)
+	s.in.SetLog(c.log)
 	s.out = NewSwitchWriter(s.onOutputError)
 
 	env, cmds, root, err := c.buildSession(s)
@@ -191,15 +198,72 @@ func (c *Core) newSession(name string, start bool) (*Session, error) {
 	// here on. Messages queued while the core and the model were being built
 	// are delivered by Flush once the event loop runs (see Attach).
 	s.sink = c.bridge.AddSink(s.program.Send)
-	go func() {
+	// The program's own goroutine is where a recovered panic turns into a crash
+	// report: safe.Go is the backstop, Bubble Tea is the one that normally
+	// catches it and restores the terminal (task 126 requirements 1 and 2).
+	safe.Go(c.log, "session program", func() {
 		defer close(s.done)
 		defer c.bridge.RemoveSink(s.sink)
 		_, err := s.program.Run()
-		if err != nil && !errors.Is(err, tea.ErrProgramKilled) && !errors.Is(err, tea.ErrProgramPanic) {
-			c.log.Debug("session program ended", "session", name, "err", err)
+		panicked, report := programEnded(err)
+		switch {
+		case panicked:
+			s.onProgramPanic(report)
+		case report != nil:
+			c.log.Debug("session program ended", "session", name, "err", report)
 		}
-	}()
+	})
 	return s, nil
+}
+
+// onProgramPanic is what a session does when its Bubble Tea program ended in a
+// panic: the layout is saved now (the autosave tick is debounced by a second,
+// so the last change before the panic would otherwise be lost), the crash
+// report is written, the panic is counted and logged, and an attached client is
+// sent EXIT{error} instead of EXIT{ended} (task 126 requirement 2). The
+// terminal itself has already been restored by Bubble Tea.
+func (s *Session) onProgramPanic(cause error) {
+	if s == nil {
+		return
+	}
+	if err := s.save(); err != nil && s.core != nil && s.core.log != nil {
+		s.core.log.Debug("session not saved before the crash report", "session", s.name, "err", err)
+	}
+	var cacheDir string
+	if s.core != nil {
+		cacheDir = s.core.paths.CacheDir
+	}
+	cerr := recordProgramCrash(cacheDir, s.logger(), cause)
+	if s.core != nil {
+		s.core.noteInternalError("session program", cerr)
+	}
+	s.mu.Lock()
+	s.crash = cerr
+	s.mu.Unlock()
+	// An attached client gets EXIT{reason:"error"}; a detached session simply
+	// ends. Detach runs first, so the connection's once-guard sees this reason
+	// before watchSession can report the plain end.
+	s.Detach("error")
+}
+
+// CrashError is the error a recovered program panic left behind: nil unless the
+// session's own program panicked. A standalone run returns it, so a crash is
+// not an exit status of zero.
+func (s *Session) CrashError() error {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.crash
+}
+
+// logger is the core's logger, or nil for a session with no core.
+func (s *Session) logger() *slog.Logger {
+	if s == nil || s.core == nil {
+		return nil
+	}
+	return s.core.log
 }
 
 // buildSession builds the per-session environment, the bus, the command

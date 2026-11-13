@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"jumper/internal/action"
@@ -35,6 +36,7 @@ import (
 	"jumper/internal/redact"
 	"jumper/internal/render"
 	"jumper/internal/resource"
+	"jumper/internal/safe"
 	"jumper/internal/transport"
 	"jumper/internal/transport/httpx"
 	"jumper/internal/transport/ssh"
@@ -556,10 +558,42 @@ type Core struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+	// internalErrors counts the panics this process recovered (task 126
+	// pitfall: a recovered panic is never silent).
+	internalErrors atomic.Int64
 	// closers release what build started and Close does not own otherwise.
 	closers   []func()
 	closeOnce sync.Once
 	closeErr  error
+}
+
+// noteInternalError counts one recovered panic and flashes it in every running
+// session. The log line was already written where the panic was recovered; this
+// is what makes it visible: a flash now and the counter `:health` reads.
+func (c *Core) noteInternalError(name string, err error) {
+	if c == nil {
+		return
+	}
+	c.internalErrors.Add(1)
+	if err == nil || c.bridge == nil {
+		return
+	}
+	c.bridge.Warning(fmt.Sprintf("internal error in %s: %s (recovered)", name, err))
+}
+
+// InternalErrors reports how many panics were recovered since the process
+// started. It is the number `:health` shows as "internal errors".
+func (c *Core) InternalErrors() int {
+	if c == nil {
+		return 0
+	}
+	return int(c.internalErrors.Load())
+}
+
+// panicHook is the reporter safe.GoHook and safe.DoHook call: a panic in a
+// goroutine jumper started is counted and flashed, never dropped.
+func (c *Core) panicHook() func(safe.Panic) {
+	return func(p safe.Panic) { c.noteInternalError(p.Name, p.Err()) }
 }
 
 // NewCore builds the per-process core from cfg. baseEnv is the caller's
@@ -675,6 +709,8 @@ func (c *Core) buildReal(o Options) error {
 	if err != nil {
 		return err
 	}
+	// Every remote command leaves one redacted line in the debug log (§15).
+	ex = ex.logCommands(log, c.Redactor)
 	c.Exec = ex
 	c.Shells = ex
 
@@ -700,10 +736,10 @@ func (c *Core) buildReal(o Options) error {
 		c.refreshInventorySync(c.ctx)
 	} else {
 		c.wg.Add(1)
-		go func() {
+		safe.GoHook(c.log, "inventory refresh", c.panicHook(), func() {
 			defer c.wg.Done()
 			c.refreshInventory(c.ctx)
-		}()
+		})
 	}
 
 	reg := backend.NewRegistry()

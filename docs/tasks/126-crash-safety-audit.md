@@ -3,7 +3,7 @@
 - **Milestone:** M12
 - **Depends on:** 083, 123
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC §15 "Crash safety" and "Logs", verified rather than assumed.

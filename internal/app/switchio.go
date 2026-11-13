@@ -2,7 +2,10 @@ package app
 
 import (
 	"io"
+	"log/slog"
 	"sync"
+
+	"jumper/internal/safe"
 )
 
 // SwitchWriter is the output pipe of a session whose terminal can come and go.
@@ -87,6 +90,9 @@ type SwitchReader struct {
 	wake    chan struct{} // closed and replaced on every state change
 	closed  bool
 	onError func(error)
+	// log is where a panic in the source's reader goroutine is reported. It is
+	// nil for a reader built without one: the panic is still recovered.
+	log *slog.Logger
 
 	data chan []byte // chunks produced by the current source's goroutine
 	pend []byte      // bytes of the last chunk Read did not hand out yet
@@ -99,6 +105,17 @@ func NewSwitchReader(onError func(error)) *SwitchReader {
 		data:    make(chan []byte),
 		onError: onError,
 	}
+}
+
+// SetLog gives the reader the session's logger, so a panic while it is pumping
+// a client's input is recovered and logged instead of ending the process.
+func (s *SwitchReader) SetLog(log *slog.Logger) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.log = log
+	s.mu.Unlock()
 }
 
 // Read blocks until a source is set and returns at most one chunk from it.
@@ -154,11 +171,12 @@ func (s *SwitchReader) Set(r io.Reader) {
 	stop := s.pump
 	close(s.wake)
 	s.wake = make(chan struct{})
+	log := s.log
 	s.mu.Unlock()
 	if old != nil {
 		close(old)
 	}
-	go s.pumpChunks(r, stop)
+	safe.Go(log, "switch reader", func() { s.pumpChunks(r, stop) })
 }
 
 // Clear detaches the source: Read keeps blocking until Set is called again.

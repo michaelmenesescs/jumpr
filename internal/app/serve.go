@@ -9,11 +9,13 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+	"time"
 
 	"jumper/internal/config"
 	"jumper/internal/errs"
 	"jumper/internal/interact"
 	"jumper/internal/mux"
+	"jumper/internal/safe"
 	"jumper/internal/server"
 	"jumper/internal/tui"
 )
@@ -99,35 +101,60 @@ func RunServer(ctx context.Context, o ServerOptions) (err error) {
 
 	sessionsDir := filepath.Join(paths.CacheDir, "sessions")
 	logger.Info("server starting", "socket", socket, "version", o.Version, "foreground", o.Foreground)
-	return server.Serve(ctx, server.Options{
-		SocketPath: socket,
-		LockPath:   filepath.Join(paths.CacheDir, "server.lock"),
-		Version:    o.Version,
-		Log:        logger,
-		NewSession: func(name string) (server.SessionHandle, error) {
-			s, serr := core.NewSession(name)
-			if serr != nil {
-				return nil, serr
-			}
-			s.SetPromptSkips(skips)
-			return newSessionHandle(s), nil
-		},
-		// Saved sessions are dormant: listed by ls and revived on first attach
-		// (task 082 requirement 5). Serve reads this once.
-		SavedSessions: func() []server.SavedSession { return savedSessions(sessionsDir) },
-		// kill-session on a dormant session deletes its file.
-		DeleteSaved: func(name string) error {
-			if !server.ValidSessionName(name) {
-				return errs.New(errs.Config, "app.DeleteSaved", fmt.Sprintf("invalid session name %q", name))
-			}
-			err := os.Remove(filepath.Join(sessionsDir, name+".json"))
-			if err != nil && !os.IsNotExist(err) {
-				return errs.Wrap(errs.Config, "app.DeleteSaved", err)
-			}
-			return nil
-		},
+	// Serve runs in its own goroutine so the shutdown has a bound: task 126
+	// requirement 5 says kill-server and SIGTERM end the process in three
+	// seconds, and a wedged session or client must not hold it open longer.
+	served := make(chan error, 1)
+	safe.GoHook(logger, "session server", func(p safe.Panic) { served <- p.Err() }, func() {
+		served <- server.Serve(ctx, server.Options{
+			SocketPath: socket,
+			LockPath:   filepath.Join(paths.CacheDir, "server.lock"),
+			Version:    o.Version,
+			Log:        logger,
+			NewSession: func(name string) (server.SessionHandle, error) {
+				s, serr := core.NewSession(name)
+				if serr != nil {
+					return nil, serr
+				}
+				s.SetPromptSkips(skips)
+				return newSessionHandle(s), nil
+			},
+			// Saved sessions are dormant: listed by ls and revived on first attach
+			// (task 082 requirement 5). Serve reads this once.
+			SavedSessions: func() []server.SavedSession { return savedSessions(sessionsDir) },
+			// kill-session on a dormant session deletes its file.
+			DeleteSaved: func(name string) error {
+				if !server.ValidSessionName(name) {
+					return errs.New(errs.Config, "app.DeleteSaved", fmt.Sprintf("invalid session name %q", name))
+				}
+				err := os.Remove(filepath.Join(sessionsDir, name+".json"))
+				if err != nil && !os.IsNotExist(err) {
+					return errs.Wrap(errs.Config, "app.DeleteSaved", err)
+				}
+				return nil
+			},
+		})
 	})
+	select {
+	case err := <-served:
+		return err
+	case <-ctx.Done():
+		select {
+		case err := <-served:
+			return err
+		case <-time.After(shutdownTimeout):
+			logger.Warn("shutdown incomplete, exiting", "timeout", shutdownTimeout.String())
+			return errs.New(errs.Timeout, "app.RunServer",
+				"shutdown did not finish within "+shutdownTimeout.String())
+		}
+	}
 }
+
+// shutdownTimeout is how long the process spends ending after SIGTERM or
+// kill-server (task 126 requirement 5). Work that has not stopped by then is
+// left to the process exit: sessions are already killed and every connection
+// closed, so nothing that matters is still running.
+const shutdownTimeout = 3 * time.Second
 
 // savedSessions lists the session files in dir. A file that cannot be read is
 // skipped: a broken layout must not stop the server from starting.
@@ -161,18 +188,18 @@ func savedSessions(dir string) []server.SavedSession {
 	return out
 }
 
-// newServerLogger opens <cache>/server.log for appending. The server always logs
+// newServerLogger opens <cache>/server.log for appending, rotating at 10 MiB and
+// keeping three older files (task 126 requirement 4). The server always logs
 // there: it is a daemon, and the file is the only place it can say what went
 // wrong. A log that cannot be opened degrades to a discard logger.
-func newServerLogger(cacheDir string) (*slog.Logger, *os.File) {
+func newServerLogger(cacheDir string) (*slog.Logger, logCloser) {
 	if cacheDir == "" {
 		return slog.New(slog.DiscardHandler), nil
 	}
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return slog.New(slog.DiscardHandler), nil
 	}
-	f, err := os.OpenFile(filepath.Join(cacheDir, serverLogName),
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	f, err := openRotating(filepath.Join(cacheDir, serverLogName), logRotateBytes, logRotateKeep, 0o600)
 	if err != nil {
 		return slog.New(slog.DiscardHandler), nil
 	}

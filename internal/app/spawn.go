@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"jumper/internal/errs"
+	"jumper/internal/safe"
 )
 
 const (
@@ -87,7 +89,10 @@ func EnsureServer(ctx context.Context, socketPath, exe string, args []string, en
 	// The client does not wait for the server. Somebody still has to reap it,
 	// so the exit is collected here and reported if it comes too early.
 	exited := make(chan error, 1)
-	go func() { exited <- cmd.Wait() }()
+	// The reaper outlives this function, so its logger is the server's own log
+	// file: a panic there is logged where the server's problems belong.
+	reaperLog := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{Level: slog.LevelError}))
+	safe.Go(reaperLog, "server reaper", func() { exited <- cmd.Wait() })
 
 	deadline := time.Now().Add(serverStartTimeout)
 	for {

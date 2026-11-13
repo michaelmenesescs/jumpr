@@ -21,6 +21,7 @@ import (
 	"jumper/internal/mux"
 	"jumper/internal/render"
 	"jumper/internal/resource"
+	"jumper/internal/safe"
 	"jumper/internal/tui"
 	"jumper/internal/tui/views"
 )
@@ -115,7 +116,7 @@ func Run(ctx context.Context, o Options) (err error) {
 		return err
 	}
 	if o.Resizes != nil {
-		go pumpSizes(ctx, sess, o.Resizes)
+		safe.Go(logger, "size pump", func() { pumpSizes(ctx, sess, o.Resizes) })
 	}
 	if o.Ready != nil {
 		close(o.Ready)
@@ -133,7 +134,9 @@ func Run(ctx context.Context, o Options) (err error) {
 	if err := sess.save(); err != nil {
 		logger.Warn("session not saved", "path", sess.path, "err", err)
 	}
-	return nil
+	// A program that recovered a panic already wrote its crash report; the exit
+	// status says so instead of reporting success.
+	return sess.CrashError()
 }
 
 // pumpSizes turns the Options.Resizes channel into tea.WindowSizeMsg values
