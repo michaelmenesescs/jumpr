@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 011
 - **Parallel group:** M0-C (with 012, 013, 015)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:` opens a one-line prompt with history and completion; commands are data.

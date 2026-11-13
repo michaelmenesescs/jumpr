@@ -64,7 +64,7 @@ only by tasks 001, 098, 105 and 115.
 | [011](011-tui-core.md) | TUI core: View, Env, messages, NextBatch, ViewStack | 006, 010 | — | done |
 | [012](012-table-view.md) | Generic table view | 007, 008, 009, 011 | M0-C | done |
 | [013](013-text-view.md) | Text view (scrollable text, key/value detail) | 008, 011 | M0-C | done |
-| [014](014-command-bar.md) | Command bar and command registry | 011 | M0-C | todo |
+| [014](014-command-bar.md) | Command bar and command registry | 011 | M0-C | done |
 | [015](015-statusline-hints-dialogs.md) | Status line, hint bar, flash, dialog frame, help | 011 | M0-C | todo |
 | [016](016-root-app.md) | Root model, `app.Run`, `sitrep --demo` | 003, 007, 012, 013, 014, 015 | — | todo |
 

@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 013 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 014 done; M0 in progress)_
 
 ## State
 
@@ -106,11 +106,24 @@ _Last updated: 2026-11-12 (task 013 done; M0 in progress)_
       Crit `stream ended: <kind>`), `Crumb`/`Hints`/`Subject`/`Capturing`/`CopyLines` (ANSI stripped). Tests: 8
       `TestText…` cases.
 
+- [x] **Task 014 done:** `internal/tui/commands.go` — `Command` verbatim §4.8, `Commands`
+      (`Register`/`Lookup`/`All` sorted/`Exec`), `RegisterBuiltins` (`q`/`quit`, `help` → `HelpRequestedMsg`,
+      `kinds` → `KindsRequestedMsg`, `time`/`t` → `resource.ParseTimeWindow` → `WindowChangedMsg`); a line whose
+      first word is a registered kind or alias becomes `Query{Kind: spec.Name, Selector: ParseSelector(args)}`.
+      `cmdbar.go` — `CmdBar` over `bubbles/textinput` with `Open`/`Active`/`Update`/`View` exactly `w` cells,
+      in-memory history (no consecutive duplicates, max 200) with `History`/`SetHistory`, up/down walking, and tab
+      completion (commands + kinds + aliases for the first word, `Command.Complete` for arguments; one candidate
+      is inserted, several are listed in `Theme.Dim` and further tabs cycle). Tests: 9 `TestCmdBar…`/`TestTab…`
+      and 11 `TestCommands…`/`TestExec…`/`TestTime…` cases.
+
 ## Next task
 
-**`docs/tasks/014-command-bar.md`** and **`docs/tasks/015-statusline-hints-dialogs.md`** are unblocked (both need
-011, done); they are parallel group M0-C and touch disjoint files. With 013 they complete the views M0-C group;
-016 then needs 003, 007, 012, 013, 014, 015.
+**`docs/tasks/015-statusline-hints-dialogs.md`** (needs 011, done) is the last open M0-C task; it touches
+`internal/tui/statusline.go`, `hints.go`, `dialog.go`, `dialog_help.go` and does not overlap with 014. 016 then needs
+003, 007, 012, 013, 014, 015.
+
+Task 016 must build the command bar as `tui.NewCmdBar(env, cmds)` (it needs both for tab completion) and route
+`HelpRequestedMsg`/`KindsRequestedMsg` — both are defined in `internal/tui/commands.go`.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -278,3 +291,17 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   (`matchs`) and `table.go` belongs to task 012; (7) capping uses `append(lines[:0], lines[d:]...)` so the
   backing array is reused, and match indices shift by `d`. `make check` green; views tests 2.67 s under `-race`,
   acceptance suite 8 tests (the 50,000-line cap test is ~0.1 s).
+- 2026-11-12 — Task 014: `internal/tui` command bar and registry. Choices: (1) `HelpRequestedMsg` and
+  `KindsRequestedMsg` are defined in `commands.go`, not `msgs.go`, because the task's Files list allows only the
+  four new files and `commands.go` is what emits them (016 routes them); (2) `NewCmdBar(env, cmds)` is the
+  constructor root will use in 016 — the zero value and nil env/cmds work too (no completion, history still
+  works), so a pane-less bar never panics; (3) `Register` also rejects a nil `Run` and an empty name/alias as
+  `errs.Config`, besides the required duplicate collisions; a command repeating its own name as an alias is not a
+  conflict; (4) tab completes the *last* word: the first word against command names + kind names + aliases
+  (case-insensitive prefix, sorted), later words through `Command.Complete(env, args)` filtered by the partial
+  word; a completed first word gains a trailing space, several candidates are listed after the input in
+  `Theme.Dim` and further tabs cycle the insertion; (5) `View` reserves the candidate list's cells before setting
+  `textinput.Width` (and truncates the input view) — `textinput` pads to `Width`, which otherwise pushed the
+  candidates off the line; (6) `Exec` trims a leading `:` and returns nil for an empty line, and an unknown word
+  with a nil/absent registry flashes `unknown command` rather than panicking. `make check` green; `internal/tui`
+  tests 1.47 s under `-race`, acceptance suite passes.
