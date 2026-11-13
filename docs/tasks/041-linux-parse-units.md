@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 005
 - **Parallel group:** M2-D (with 039, 040, 042, 043, 049)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Parse `systemctl list-units` (plain text) and `systemctl show` (properties).

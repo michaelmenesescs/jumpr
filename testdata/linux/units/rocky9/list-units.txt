@@ -1,0 +1,12 @@
+● nginx.service                loaded    failed    failed    The nginx HTTP and reverse proxy server
+haproxy.service                loaded    active    running   HAProxy Load Balancer
+sshd.service                   loaded    active    running   OpenSSH server daemon
+crond.service                  loaded    active    running   Command Scheduler
+firewalld.service              loaded    active    running   firewalld - dynamic firewall daemon
+chronyd.service                loaded    active    running   NTP client/server
+logrotate.timer                loaded    active    waiting   Daily rotation of log files
+systemd-tmpfiles-clean.timer   loaded    active    waiting   Daily Cleanup of Temporary Directories
+dbus.socket                    loaded    active    running   D-Bus System Message Bus Socket
+display-manager.service        not-found inactive dead      display-manager.service
+apparmor.service               loaded    active    exited    Load AppArmor profiles
+wpa_supplicant.service         loaded    inactive dead      WPA supplicant

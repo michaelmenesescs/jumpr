@@ -1,0 +1,29 @@
+Id=nginx.service
+Names=nginx.service
+Description=The nginx HTTP and reverse proxy server
+LoadState=loaded
+ActiveState=active
+SubState=running
+UnitFileState=enabled
+FragmentPath=/usr/lib/systemd/system/nginx.service
+DropInPaths=/etc/systemd/system/nginx.service.d/override.conf /etc/systemd/system/nginx.service.d/limits.conf
+ActiveEnterTimestamp=Wed 2026-11-12 09:14:02 EST
+InactiveEnterTimestamp=
+ActiveExitTimestamp=
+InactiveExitTimestamp=Wed 2026-11-12 09:14:02 EST
+ExecMainStartTimestamp=Wed 2026-11-12 09:14:02 EST
+ExecMainPID=1842
+MainPID=1842
+NRestarts=0
+ExecMainStatus=0
+Result=success
+TasksCurrent=3
+MemoryCurrent=5242880
+CPUUsageNSec=12345678
+LimitNOFILE=1024
+Environment=NGINX_PORT=8080
+Environment=NGINX_WORKERS=4
+ExecStart={ path=/usr/sbin/nginx ; argv[]=/usr/sbin/nginx -c /etc/nginx/nginx.conf ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
+ExecStartEx={ path=/usr/sbin/nginx ; argv[]=/usr/sbin/nginx -c /etc/nginx/nginx.conf ; flags= ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
+After=network.target remote-fs.target nss-lookup.target
+Wants=network-online.target
