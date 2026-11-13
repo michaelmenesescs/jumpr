@@ -3,7 +3,7 @@
 - **Milestone:** M2 (integration, before any refactor is allowed)
 - **Depends on:** 031, 033, 035, 038, 040, 041, 042, 052
 - **Parallel group:** —
-- **Status:** todo
+- **Status:** done
 
 ## Why
 The user's own targets, already reachable from this laptop:
