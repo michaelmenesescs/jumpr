@@ -239,4 +239,12 @@ only by tasks 001, 098, 105 and 115.
 | [126](126-crash-safety-audit.md) | Crash safety, logging and leak audit | 083, 123 | — | todo |
 | [127](127-release-docs.md) | Keymap file, release build (Go tool), user documentation | 124, 126 | — | todo |
 
-127 tasks; 69 of them sit in 27 parallel groups (the rest are serial).
+
+### M13 — UX parity (fuzzy find, font-safe glyphs)
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [140](140-fuzzy-match.md) | Fuzzy matching (fzf-style) for filter and completion | 012, 014 | — | todo |
+| [141](141-glyph-sets.md) | Glyph sets: unicode / nerd / ascii, `ui.glyphs` | 003, 009, 010 | — | todo |
+
+129 tasks (127 planned + 2 UX-parity tasks added during the MVP build).

@@ -1326,6 +1326,7 @@ optional; defaults shown.
 ```yaml
 ui:
   color: auto              # auto | truecolor | 256 | 16
+  glyphs: auto             # auto | unicode | nerd | ascii  (auto = unicode; nerd is opt-in, needs a Nerd Font)
 mux:
   prefix: C-a
   prefix_in_tmux: C-b      # used when the client runs inside tmux; set equal to prefix to disable
