@@ -17,8 +17,8 @@ import (
 )
 
 // Env is the shared, read-mostly environment handed to every view and command.
-// Packages that do not exist yet (bus, transport, investigation) add their
-// fields in the task that introduces them (BUILD-PLAN §4.8 "Growing structs").
+// Packages that do not exist yet (bus, transport) add their fields in the task
+// that introduces them (BUILD-PLAN §4.8 "Growing structs").
 type Env struct {
 	Registry  *backend.Registry
 	Inventory inventory.Inventory   // nil until the app wires the inventory in
@@ -42,8 +42,9 @@ type Env struct {
 
 // SessionState is the per-session context every pane shares. Only the root model mutates it.
 type SessionState struct {
-	Name     string
-	Targets  targets.Set
-	Window   resource.TimeWindow
-	ReadOnly bool
+	Name          string
+	Targets       targets.Set
+	Window        resource.TimeWindow
+	Investigation *investigation.Meta // nil = none open
+	ReadOnly      bool
 }

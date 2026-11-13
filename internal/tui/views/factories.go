@@ -24,7 +24,15 @@ func Factories() map[resource.KindName]tui.Factory {
 		linux.KindUnitDetail:   unitDetailFactory,
 		salt.KindJobs:          jobsFactory,
 		KindSaltJobDetail:      saltJobFactory,
+		tui.KindTimeline:       timelineFactory,
 	}
+}
+
+// timelineFactory builds the investigation timeline. It is keyed by the
+// synthetic kind tui.KindTimeline, which the root pushes for `:timeline` and
+// `T`; no backend serves it.
+func timelineFactory(env *tui.Env, _ resource.Query) (tui.View, error) {
+	return NewTimeline(env), nil
 }
 
 // journalFactory builds the journal view for a query, resolving the backend

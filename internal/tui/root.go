@@ -12,12 +12,14 @@ import (
 
 	"jumper/internal/backend"
 	"jumper/internal/clip"
+	"jumper/internal/investigation"
 	"jumper/internal/mux"
 	"jumper/internal/mux/termpane"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
 	"jumper/internal/transport"
+	"jumper/internal/tui/keymap"
 	"jumper/internal/tui/theme"
 )
 
@@ -151,6 +153,9 @@ func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Qu
 	// The `:targets` command belongs to the root: it is the only model that
 	// owns SessionState.Targets. A registry that already has it is fine.
 	_ = RegisterTargetsCommands(cmds)
+	// `:inv`, `:note` and `:timeline` drive the session's investigation, which
+	// only the root mutates.
+	_ = RegisterInvestigationCommands(cmds)
 	m := mux.NewModel(mux.NewSession(name), r.paneContent, prefixKey, stylesFor(env))
 	m.SetRootPredicate(IsRootMsg)
 	r.mux = m
@@ -503,7 +508,32 @@ func (r *Root) handleKey(k tea.KeyMsg) tea.Cmd {
 			return tea.Quit
 		}
 	}
+	if b := r.binding(keymapNote); b.Matches(k.String()) {
+		return r.openNotePrompt()
+	}
+	if b := r.binding(keymapTimeline); b.Matches(k.String()) {
+		return r.openTimeline()
+	}
 	return r.routeMux(k)
+}
+
+// Keymap slots the root handles itself, as opposed to the focused view.
+const (
+	keymapNote     = "note"
+	keymapTimeline = "timeline"
+)
+
+// binding returns one named binding of the session key map, the default when
+// the model has none.
+func (r *Root) binding(name string) keymap.Binding {
+	keys := keymap.Default()
+	if r.env != nil && r.env.Keys != nil {
+		keys = r.env.Keys
+	}
+	if name == keymapTimeline {
+		return keys.Timeline
+	}
+	return keys.Note
 }
 
 // muxTakesKey reports whether a key must go to the mux before the root's global
@@ -596,10 +626,20 @@ func (r *Root) openQuery(m OpenQueryMsg) tea.Cmd {
 		return Flash(FlashWarn, "no pane to open %s in", q.Kind)
 	}
 	push := r.toFocused(OpenQueryMsg{Query: q})
-	if setCmd := r.targetsFromHostQuery(q); setCmd != nil {
-		return tea.Batch(setCmd, push)
+	var cmds []tea.Cmd
+	if r.env != nil {
+		if c := r.env.RecordView(q); c != nil {
+			cmds = append(cmds, c)
+		}
 	}
-	return push
+	if setCmd := r.targetsFromHostQuery(q); setCmd != nil {
+		cmds = append(cmds, setCmd)
+	}
+	cmds = append(cmds, push)
+	if len(cmds) == 1 {
+		return push
+	}
+	return tea.Batch(cmds...)
 }
 
 // targetsFromHostQuery resolves the selector of a host list into a target set.
@@ -611,8 +651,11 @@ func (r *Root) targetsFromHostQuery(q resource.Query) tea.Cmd {
 	}
 	env := r.env
 	sel := q.Selector
+	// Read the investigation's hosts here, in the model's goroutine: the
+	// command must not touch mutable session state.
+	invHosts := InvestigationTargets(env)
 	return func() tea.Msg {
-		set, err := targets.Resolve(env.Inventory, env.Sets, sel, nil)
+		set, err := targets.Resolve(env.Inventory, env.Sets, sel, invHosts)
 		if err != nil {
 			return FlashMsg{Level: FlashError, Text: err.Error()}
 		}
@@ -655,7 +698,8 @@ func (r *Root) scoped(q resource.Query) resource.Query {
 // mutates.
 func rootBound(msg tea.Msg) bool {
 	switch msg.(type) {
-	case TargetsChangedMsg:
+	case TargetsChangedMsg, InvestigationChangedMsg, InvestigationAppendedMsg,
+		TimelineRequestedMsg, InvestigationResolveRequestMsg:
 		return true
 	}
 	return false
@@ -836,6 +880,14 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		}
 		r.routeMux(msg)
 		return Flash(FlashInfo, "window: %s", m.Window.String())
+	case InvestigationChangedMsg:
+		return r.applyInvestigation(m.Meta)
+	case InvestigationAppendedMsg:
+		return r.refreshInvestigation()
+	case TimelineRequestedMsg:
+		return r.openTimeline()
+	case InvestigationResolveRequestMsg:
+		return r.openResolvePrompt()
 	case HelpRequestedMsg:
 		return r.openHelp()
 	case KindsRequestedMsg:
@@ -873,6 +925,122 @@ func (r *Root) nextPrompt() Dialog {
 	d := r.pending[0]
 	r.pending = r.pending[1:]
 	return d
+}
+
+// applyInvestigation stores the session's investigation and reports the change.
+// The status line follows SessionState.Investigation, so nothing else has to be
+// told.
+func (r *Root) applyInvestigation(meta *investigation.Meta) tea.Cmd {
+	if r.env != nil && r.env.Session != nil {
+		r.env.Session.Investigation = meta
+	}
+	var flash tea.Cmd
+	switch {
+	case meta == nil:
+		flash = Flash(FlashInfo, "investigation closed")
+	case meta.Status == "resolved":
+		flash = Flash(FlashOK, "investigation %s resolved", meta.ID)
+	default:
+		flash = Flash(FlashOK, "investigation %s", meta.ID)
+	}
+	if refresh := r.refreshInvestigation(); refresh != nil {
+		return tea.Batch(flash, refresh)
+	}
+	return flash
+}
+
+// refreshInvestigation tells every open timeline that the record changed. It is
+// the only place the refresh message is sent.
+func (r *Root) refreshInvestigation() tea.Cmd {
+	if r.mux == nil {
+		return nil
+	}
+	var cmds []tea.Cmd
+	for _, c := range r.mux.Contents() {
+		vp, ok := c.(*ViewPane)
+		if !ok {
+			// Terminals and other contents have no timeline to refresh.
+			continue
+		}
+		if _, cmd := vp.Update(InvestigationRefreshMsg{}); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	switch len(cmds) {
+	case 0:
+		return nil
+	case 1:
+		return cmds[0]
+	}
+	return tea.Batch(cmds...)
+}
+
+// openTimeline pushes the investigation timeline onto the focused pane.
+func (r *Root) openTimeline() tea.Cmd {
+	v, err := r.timelineView()
+	if err != nil {
+		return Flash(FlashError, "%v", err)
+	}
+	return r.pushFocused(v)
+}
+
+// timelineView builds the timeline through the factory registered under
+// KindTimeline; package tui may not import internal/tui/views itself.
+func (r *Root) timelineView() (View, error) {
+	if r.env == nil || r.env.Factories == nil {
+		return nil, fmt.Errorf("no view factories configured")
+	}
+	f := r.env.Factories[KindTimeline]
+	if f == nil {
+		return nil, fmt.Errorf("timeline view unavailable")
+	}
+	v, err := f(r.env, resource.Query{Kind: KindTimeline})
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, fmt.Errorf("timeline view unavailable")
+	}
+	return v, nil
+}
+
+// openNotePrompt asks for one free-text line and appends it as a note.
+func (r *Root) openNotePrompt() tea.Cmd {
+	if r.env == nil || r.env.Recorder == nil {
+		return Flash(FlashWarn, "no investigation log configured")
+	}
+	if _, open := r.env.Recorder.Current(); !open {
+		return Flash(FlashWarn, "no investigation open")
+	}
+	env := r.env
+	r.dialog = NewPromptDialog(themeOf(env), "note", "note:", "", func(text string) tea.Cmd {
+		return env.AppendInvestigation(investigation.EntryNote, strings.TrimSpace(text), "")
+	})
+	return nil
+}
+
+// openResolvePrompt asks for the one-line root cause and resolves the record.
+func (r *Root) openResolvePrompt() tea.Cmd {
+	inv, ok := invLog(r.env)
+	if !ok {
+		return Flash(FlashWarn, "no investigation log configured")
+	}
+	if _, open := r.env.Recorder.Current(); !open {
+		return Flash(FlashWarn, "no investigation open")
+	}
+	r.dialog = NewPromptDialog(themeOf(r.env), "resolve investigation", "root cause:", "", func(text string) tea.Cmd {
+		return func() tea.Msg {
+			if err := inv.Resolve(text); err != nil {
+				return FlashMsg{Level: FlashError, Text: err.Error()}
+			}
+			meta, open := inv.Current()
+			if !open {
+				return InvestigationChangedMsg{Meta: nil}
+			}
+			return InvestigationChangedMsg{Meta: &meta}
+		}
+	})
+	return nil
 }
 
 // pushFocused pushes v onto the focused pane's view stack.
@@ -982,7 +1150,15 @@ func (r *Root) copyKey(k tea.KeyMsg) tea.Cmd {
 		return Flash(FlashWarn, "no clipboard configured")
 	}
 	lines := strings.Count(text, "\n") + 1
-	return func() tea.Msg { return copyDoneMsg{lines: lines, err: c.Copy(text)} }
+	var cmds []tea.Cmd
+	if r.env != nil {
+		// Copy mode is how a selection from anywhere becomes a finding.
+		if f := r.env.RecordFinding(text); f != nil {
+			cmds = append(cmds, f)
+		}
+	}
+	cmds = append(cmds, func() tea.Msg { return copyDoneMsg{lines: lines, err: c.Copy(text)} })
+	return tea.Batch(cmds...)
 }
 
 // copyInterior is the cell area copy mode draws in: the focused pane's interior,
@@ -1259,6 +1435,9 @@ func (r *Root) statusData() StatusData {
 		d.Targets = len(r.env.Session.Targets.Hosts)
 		if !r.env.Session.Window.IsZero() {
 			d.Window = r.env.Session.Window.String()
+		}
+		if inv := r.env.Session.Investigation; inv != nil {
+			d.Investigation = inv.ID
 		}
 	}
 	if r.mux.PrefixArmed() {

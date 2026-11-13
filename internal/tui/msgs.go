@@ -8,6 +8,7 @@ import (
 	"jumper/internal/backend"
 	"jumper/internal/fanout"
 	"jumper/internal/interact"
+	"jumper/internal/investigation"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
 )
@@ -63,6 +64,10 @@ type TargetsChangedMsg struct{ Set targets.Set }
 
 // WindowChangedMsg reports a new time window for the session.
 type WindowChangedMsg struct{ Window resource.TimeWindow }
+
+// InvestigationChangedMsg reports the session's investigation: Meta is the one
+// that is now open, nil means none is. Only the root stores it.
+type InvestigationChangedMsg struct{ Meta *investigation.Meta }
 
 // Health polling (root → status line)
 

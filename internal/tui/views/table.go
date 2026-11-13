@@ -332,6 +332,8 @@ func (t *Table) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 			return t, tui.Flash(tui.FlashInfo, "no errors")
 		}
 		return t, tui.Flash(tui.FlashError, "%v", t.errs[0].err)
+	case t.keys.Finding.Matches(key):
+		return t, t.finding()
 	}
 
 	if link, ok := t.linkForKey(key); ok {
@@ -392,6 +394,15 @@ func (t *Table) filterKey(m tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 	return nil
+}
+
+// finding records the selected row as an investigation finding: the row's text
+// is what the user was looking at when they pressed F.
+func (t *Table) finding() tea.Cmd {
+	if t.cursor < 0 || t.cursor >= len(t.view) {
+		return tui.Flash(tui.FlashInfo, "no rows")
+	}
+	return t.env.RecordFinding(t.rowText(t.view[t.cursor]))
 }
 
 // open drills into the selected row through its first link, or explains why

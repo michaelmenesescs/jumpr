@@ -14,6 +14,7 @@ import (
 	"jumper/internal/backend"
 	"jumper/internal/backend/linux"
 	"jumper/internal/errs"
+	"jumper/internal/investigation"
 	"jumper/internal/render"
 	"jumper/internal/resource"
 	"jumper/internal/tui"
@@ -221,13 +222,62 @@ func (j *Journal) applyBatch(m tui.ListBatchMsg) tea.Cmd {
 	if m.Closed {
 		j.done = true
 		j.elapsed = j.now().Sub(j.started)
+		cmd := j.recordLoaded()
 		if j.wantFollow {
 			j.wantFollow = false
-			return j.startFollow()
+			return tea.Batch(cmd, j.startFollow())
 		}
-		return nil
+		return cmd
 	}
 	return tui.ListBatch(j.seq, j.ch)
+}
+
+// finding records the selected journal line as an investigation finding.
+func (j *Journal) finding() tea.Cmd {
+	if j.cursor < 0 || j.cursor >= len(j.view) {
+		return tui.Flash(tui.FlashInfo, "no lines")
+	}
+	return j.env.RecordFinding(j.rowText(j.view[j.cursor]))
+}
+
+// rowText is the plain text of one row: every rendered cell, untruncated.
+func (j *Journal) rowText(row resource.Resource) string {
+	specCols := j.specColumns()
+	now := j.now()
+	cells := make([]string, len(specCols))
+	for i, c := range specCols {
+		cells[i] = cellText(c, row, now, c.Width)
+	}
+	return strings.Join(cells, "  ")
+}
+
+// recordLoaded appends the automatic `journal` entry for a loaded window. Only
+// the events of the task are recorded, never a refresh of a table.
+func (j *Journal) recordLoaded() tea.Cmd {
+	if j.env == nil || j.env.Recorder == nil {
+		return nil
+	}
+	if _, open := j.env.Recorder.Current(); !open {
+		return nil
+	}
+	unit := j.unit()
+	if unit == "" {
+		unit = "all units"
+	}
+	return j.env.AppendInvestigation(investigation.EntryJournal,
+		fmt.Sprintf("%s on %s (%d lines in window)", unit, j.hostText(), len(j.rows)), "")
+}
+
+// hostText names what the journal is scoped to: one host, N hosts, or the
+// session when the query carried none.
+func (j *Journal) hostText() string {
+	switch len(j.q.Hosts) {
+	case 0:
+		return "no host"
+	case 1:
+		return string(j.q.Hosts[0])
+	}
+	return fmt.Sprintf("%d hosts", len(j.q.Hosts))
 }
 
 // applyFollow appends one live batch. The cursor stays pinned to the end only
@@ -305,6 +355,8 @@ func (j *Journal) handleKey(m tea.KeyMsg) tea.Cmd {
 		return nil
 	case j.keys.Refresh.Matches(key):
 		return j.reload()
+	case j.keys.Finding.Matches(key):
+		return j.finding()
 	}
 
 	// 1–7 set the maximum priority and reload.

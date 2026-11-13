@@ -3,7 +3,7 @@
 - **Milestone:** M3
 - **Depends on:** 058, 046, 055
 - **Parallel group:** — (serial; touches the root)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Open an investigation, have views and actions append to it automatically, add notes and findings, see the
