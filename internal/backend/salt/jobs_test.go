@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -151,9 +155,41 @@ func fastOptions() jobOptions {
 	}
 }
 
-// collect drains the job's results and fails if it does not finish in time.
+// scaledWait stretches a test deadline by the machine's 1-minute load average
+// (up to 5x). These waits only bound a genuine hang, so a busy build box
+// should not turn a scheduling delay into a failure: `go test ./...` runs many
+// packages in parallel, and this repo is built on a shared 10-core Mac mini
+// that also carries the task agents.
+func scaledWait(d time.Duration) time.Duration {
+	var fields []string
+	if raw, err := os.ReadFile("/proc/loadavg"); err == nil {
+		fields = strings.Fields(string(raw))
+	} else if out, err := exec.Command("sysctl", "-n", "vm.loadavg").Output(); err == nil {
+		fields = strings.FieldsFunc(string(out), func(r rune) bool {
+			return r == ' ' || r == '{' || r == '}' || r == '\n' || r == '\t'
+		})
+	}
+	if len(fields) == 0 {
+		return d
+	}
+	load, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return d
+	}
+	per := load / float64(runtime.NumCPU())
+	if per > 1 {
+		per = 1
+	}
+	if per < 0 {
+		per = 0
+	}
+	return time.Duration(float64(d) * (1 + 4*per))
+}
+
+// collectJobs drains the job's results and fails if it does not finish in time.
 func collectJobs(t *testing.T, j *Job, wait time.Duration) []MinionResult {
 	t.Helper()
+	wait = scaledWait(wait)
 	var out []MinionResult
 	deadline := time.After(wait)
 	for {
@@ -199,8 +235,8 @@ func TestJobStartStreamsEachMinionOnce(t *testing.T) {
 		switch poll {
 		case 0: // job cache has nothing yet
 			return jobReply(t, jid, nil)
-		case 1:
-			return jobReply(t, jid, []string{"web-01"}, okMinion("web-01", "ok"))
+		case 1: // the job cache shows both targets but only one return so far
+			return jobReply(t, jid, []string{"web-01", "web-02"}, okMinion("web-01", "ok"))
 		default:
 			return jobReply(t, jid, []string{"web-01", "web-02"},
 				okMinion("web-01", "ok"), okMinion("web-02", "also ok"))
