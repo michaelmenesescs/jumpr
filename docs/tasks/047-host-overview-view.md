@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 044, 045, 013
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `Enter` on a host opens the one-screen summary from the mockup: system facts, pressure bars, memory, failed

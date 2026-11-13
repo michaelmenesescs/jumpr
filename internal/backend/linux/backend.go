@@ -276,8 +276,47 @@ func (b *Backend) Get(ctx context.Context, ref resource.Ref) (resource.Resource,
 	return resource.Resource{}, errs.New(errs.NotAvailable, "linux.Get", "no resource "+ref.String())
 }
 
-// Links returns the pivots from r: a host opens its units, processes, sockets
-// and journal; a unit opens its journal.
+// HostFacts is the typed detail of a host row that the flat Fields map does not
+// carry: full load averages, the pressure lines, the memory breakdown, the
+// processor count and the failed units. Have* is false when that probe section
+// failed to parse; the row then has no value for it.
+//
+// It is the exported face of the host row's Raw payload, so the host overview
+// view (another package) can render it without reaching into an unexported
+// type.
+type HostFacts struct {
+	Load        Load
+	HaveLoad    bool
+	Mem         Mem
+	HaveMem     bool
+	PSI         PSI
+	HavePSI     bool
+	NProc       int
+	FailedUnits []Unit
+}
+
+// HostFactsOf returns the typed detail of a host row. ok is false when r is not
+// a Linux host row.
+func HostFactsOf(r resource.Resource) (HostFacts, bool) {
+	info, ok := r.Raw.(*hostInfo)
+	if !ok || info == nil {
+		return HostFacts{}, false
+	}
+	f := HostFacts{NProc: info.NProc, FailedUnits: append([]Unit(nil), info.FailedUnits...)}
+	if info.Load != nil {
+		f.Load, f.HaveLoad = *info.Load, true
+	}
+	if info.Mem != nil {
+		f.Mem, f.HaveMem = *info.Mem, true
+	}
+	if info.PSI != nil {
+		f.PSI, f.HavePSI = *info.PSI, true
+	}
+	return f, true
+}
+
+// Links returns the pivots from r: a host opens its overview on Enter, then its
+// units, processes, sockets and journal; a unit opens its journal.
 func (b *Backend) Links(r resource.Resource) []resource.Link {
 	kind, ok := normalizeKind(r.Ref.Kind)
 	if !ok {
@@ -296,6 +335,7 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 	switch kind {
 	case KindHost:
 		return []resource.Link{
+			{Label: "overview", Key: "enter", To: resource.Query{Kind: KindHostOverview, Hosts: hosts}},
 			{Label: "units", Key: "u", To: resource.Query{Kind: KindUnit, Hosts: hosts}},
 			{Label: "processes", Key: "p", To: resource.Query{Kind: KindProcess, Hosts: hosts}},
 			{Label: "sockets", Key: "s", To: resource.Query{Kind: KindSocket, Hosts: hosts}},

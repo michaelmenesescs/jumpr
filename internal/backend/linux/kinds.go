@@ -14,13 +14,17 @@ const (
 	KindProcess resource.KindName = "process"
 	KindSocket  resource.KindName = "socket"
 	KindJournal resource.KindName = "journal"
+	// KindHostOverview is the single-row view kind for one host: it is served
+	// by the host kind's own overview batch and always yields the one row.
+	KindHostOverview resource.KindName = "host-overview"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
-// kind. Unknown kinds report false.
+// kind. Unknown kinds report false. The host-overview kind is served by the
+// host batch, so it normalizes onto host.
 func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 	switch strings.ToLower(strings.TrimSpace(string(kind))) {
-	case "host", "hosts", "h":
+	case "host", "hosts", "h", "host-overview", "overview":
 		return KindHost, true
 	case "unit", "units", "u":
 		return KindUnit, true
@@ -58,6 +62,21 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "kernel", Title: "KERNEL", Width: 12},
 				{ID: "uptime", Title: "UPTIME", Width: 8, Align: resource.AlignRight, Kind: resource.ColDuration},
 				{ID: "state", Title: "STATE", Width: 10},
+			},
+			DefaultSort: "host",
+		},
+		{
+			// Single-row view kind for one host. It is served by the host batch
+			// (see normalizeKind) and has a dedicated view, so these columns only
+			// matter to the fallback table and to `:kinds`.
+			Name:    KindHostOverview,
+			Aliases: []string{"overview"},
+			Title:   "Host overview",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "host", Title: "HOST", Width: 0},
+				{ID: "state", Title: "STATE", Width: 10},
+				{ID: "failed", Title: "FAILED", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
 			},
 			DefaultSort: "host",
 		},

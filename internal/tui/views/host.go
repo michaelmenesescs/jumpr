@@ -1,0 +1,634 @@
+package views
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"jumper/internal/backend"
+	"jumper/internal/backend/linux"
+	"jumper/internal/errs"
+	"jumper/internal/render"
+	"jumper/internal/resource"
+	"jumper/internal/tui"
+	"jumper/internal/tui/keymap"
+	"jumper/internal/tui/theme"
+)
+
+// hostLoadTimeout bounds the overview Get a host view runs. BUILD-PLAN §8: exec
+// 30 s; the transport also carries its own deadline.
+const hostLoadTimeout = 30 * time.Second
+
+// hostJournalMax is the most journal entries one batch carries. The list is
+// capped at hostJournalLimit entries by the query anyway.
+const hostJournalMax = 50
+
+// Journal arguments of the overview's error section: priority ≤ 3 (err and
+// worse), the eight most recent entries of the session window.
+const (
+	hostJournalPriority = "3"
+	hostJournalLimit    = "8"
+)
+
+// Layout constants.
+const (
+	hostLabelWidth = 10 // "PRESSURE  "
+	hostBarWidth   = 10 // pressure and memory bars
+	hostPressHint  = "press u"
+	hostWideWidth  = 100 // MEMORY appears at or above this width
+)
+
+// hostMsg is the result of the overview Get, tagged with the load's Seq so a
+// stale refresh is ignored.
+type hostMsg struct {
+	Seq     int
+	Res     resource.Resource
+	Err     error
+	Elapsed time.Duration
+}
+
+// hostJournalMsg is one batch of the overview's journal listing, tagged with
+// the journal stream's Seq.
+type hostJournalMsg struct {
+	Seq     int
+	Results []backend.Result
+	Closed  bool
+}
+
+// Host is the one-screen summary of a single host: system facts, pressure,
+// load and memory, failed units and the recent journal errors. It loads two
+// independent parts — the overview row and the journal — and renders each as
+// soon as it arrives.
+type Host struct {
+	env  *tui.Env
+	b    backend.Backend
+	host resource.HostID
+	keys *keymap.Map
+
+	window resource.TimeWindow
+
+	// overview part
+	hostSeq    int
+	hostCancel context.CancelFunc
+	row        resource.Resource
+	hostErr    error
+	hostDone   bool
+	elapsed    time.Duration
+
+	// journal part
+	journalSeq    int
+	journalCancel context.CancelFunc
+	journalCh     <-chan backend.Result
+	journalRows   []resource.Resource
+	journalErr    error
+	journalDone   bool
+
+	w, h int
+}
+
+var _ tui.View = (*Host)(nil)
+
+// NewHost builds the overview of one host. b is the Linux backend (any backend
+// that answers the host-overview kind works) and env supplies the theme, keys,
+// clock and the session window.
+func NewHost(env *tui.Env, b backend.Backend, host resource.HostID) *Host {
+	keys := keymap.Default()
+	if env != nil && env.Keys != nil {
+		keys = env.Keys
+	}
+	h := &Host{
+		env:  env,
+		b:    b,
+		host: resource.NormalizeHostID(string(host)),
+		keys: keys,
+	}
+	if env != nil && env.Session != nil {
+		h.window = env.Session.Window
+	}
+	return h
+}
+
+// Init starts both parts in parallel. Neither waits for the other.
+func (h *Host) Init() tea.Cmd { return tea.Batch(h.loadHost(), h.loadJournal()) }
+
+// now is the clock handed in by the environment.
+func (h *Host) now() time.Time {
+	if h.env != nil && h.env.Now != nil {
+		return h.env.Now()
+	}
+	return time.Now()
+}
+
+// style returns the theme, falling back to the default palette.
+func (h *Host) style() *theme.Theme {
+	if h.env != nil && h.env.Theme != nil {
+		return h.env.Theme
+	}
+	return theme.Dark()
+}
+
+// loadHost runs the overview Get in a tea.Cmd. A Get is one round trip, so it
+// gets its own cancellable context.
+func (h *Host) loadHost() tea.Cmd {
+	if h.hostCancel != nil {
+		h.hostCancel()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), hostLoadTimeout)
+	h.hostCancel = cancel
+
+	h.hostSeq++
+	seq := h.hostSeq
+	h.row = resource.Resource{}
+	h.hostErr = nil
+	h.hostDone = false
+	h.elapsed = 0
+
+	b, host, started := h.b, h.host, h.now()
+	return func() tea.Msg {
+		res, err := b.Get(ctx, resource.Ref{
+			Backend: "linux",
+			Kind:    linux.KindHostOverview,
+			Host:    host,
+			Name:    string(host),
+		})
+		return hostMsg{Seq: seq, Res: res, Err: err, Elapsed: h.now().Sub(started)}
+	}
+}
+
+// loadJournal starts the journal listing for the current window. List returns
+// as soon as the work is started; the batches arrive through NextBatch.
+func (h *Host) loadJournal() tea.Cmd {
+	if h.journalCancel != nil {
+		h.journalCancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	h.journalCancel = cancel
+
+	h.journalSeq++
+	h.journalCh = nil
+	h.journalRows = nil
+	h.journalErr = nil
+	h.journalDone = false
+
+	q := resource.Query{
+		Kind:   linux.KindJournal,
+		Hosts:  []resource.HostID{h.host},
+		Args:   map[string]string{"priority": hostJournalPriority, "limit": hostJournalLimit},
+		Window: h.window,
+	}
+	ch, err := h.b.List(ctx, q)
+	if err != nil {
+		h.journalDone = true
+		h.journalErr = err
+		return nil
+	}
+	h.journalCh = ch
+	return hostJournalBatches(h.journalSeq, ch)
+}
+
+// hostJournalBatches asks for the next batch of one journal stream.
+func hostJournalBatches(seq int, ch <-chan backend.Result) tea.Cmd {
+	return func() tea.Msg {
+		results, closed := tui.NextBatch(ch, hostJournalMax)
+		return hostJournalMsg{Seq: seq, Results: results, Closed: closed}
+	}
+}
+
+// Update handles the two streams, the session window and the keys. Neither
+// part waits for the other: each renders as soon as its first message arrives.
+func (h *Host) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	switch m := msg.(type) {
+	case hostMsg:
+		if m.Seq != h.hostSeq {
+			return h, nil
+		}
+		h.row, h.hostErr = m.Res, m.Err
+		h.elapsed, h.hostDone = m.Elapsed, true
+		if h.hostCancel != nil {
+			h.hostCancel()
+			h.hostCancel = nil
+		}
+		return h, nil
+	case hostJournalMsg:
+		if m.Seq != h.journalSeq {
+			return h, nil
+		}
+		for _, r := range m.Results {
+			if r.Err != nil {
+				if h.journalErr == nil {
+					h.journalErr = r.Err
+				}
+				continue
+			}
+			h.journalRows = append(h.journalRows, r.Items...)
+		}
+		if m.Closed {
+			h.journalDone = true
+			if h.journalCancel != nil {
+				h.journalCancel()
+				h.journalCancel = nil
+			}
+			return h, nil
+		}
+		return h, hostJournalBatches(m.Seq, h.journalCh)
+	case tui.WindowChangedMsg:
+		h.window = m.Window
+		return h, h.loadJournal()
+	case tea.KeyMsg:
+		return h, h.handleKey(m)
+	}
+	return h, nil
+}
+
+// handleKey routes one key press. The four hrefs open a query for this host;
+// r reloads both parts and esc goes back.
+func (h *Host) handleKey(m tea.KeyMsg) tea.Cmd {
+	key := m.String()
+	switch {
+	case key == "u":
+		return tui.OpenQuery(h.queryFor(linux.KindUnit))
+	case key == "j":
+		return tui.OpenQuery(h.queryFor(linux.KindJournal))
+	case key == "p":
+		return tui.OpenQuery(h.queryFor(linux.KindProcess))
+	case key == "s":
+		return tui.OpenQuery(h.queryFor(linux.KindSocket))
+	case h.keys.Refresh.Matches(key):
+		return tea.Batch(h.loadHost(), h.loadJournal())
+	case h.keys.Back.Matches(key):
+		return tui.Pop()
+	}
+	return nil
+}
+
+// queryFor is the pivot query of one kind on this host.
+func (h *Host) queryFor(kind resource.KindName) resource.Query {
+	return resource.Query{
+		Kind:   kind,
+		Hosts:  []resource.HostID{h.host},
+		Window: h.window,
+	}
+}
+
+// Close cancels both loads. The view stack calls it when the view is popped.
+func (h *Host) Close() error {
+	if h.hostCancel != nil {
+		h.hostCancel()
+		h.hostCancel = nil
+	}
+	if h.journalCancel != nil {
+		h.journalCancel()
+		h.journalCancel = nil
+	}
+	return nil
+}
+
+// facts returns the typed detail of the loaded host row.
+func (h *Host) facts() (linux.HostFacts, bool) {
+	if h.row.Raw == nil {
+		return linux.HostFacts{}, false
+	}
+	return linux.HostFactsOf(h.row)
+}
+
+// shortHost is the host name without its domain.
+func (h *Host) shortHost() string {
+	name := string(h.host)
+	if i := strings.IndexByte(name, '.'); i > 0 {
+		return name[:i]
+	}
+	return name
+}
+
+// firstFailedUnit is the name of the first failed unit, or "".
+func (h *Host) firstFailedUnit() string {
+	f, ok := h.facts()
+	if !ok || len(f.FailedUnits) == 0 {
+		return ""
+	}
+	return f.FailedUnits[0].Name
+}
+
+// sudoDenied reports whether a section failed because `sudo -n` was not
+// permitted; the backend records it as a "sudo" degraded label.
+func (h *Host) sudoDenied() bool {
+	return strings.Contains(h.row.Labels["_degraded"], ": "+string(errs.Sudo))
+}
+
+// sectionLabel styles a section label ("SYSTEM", "PRESSURE", ...).
+func (h *Host) sectionLabel(label string) string {
+	return h.style().Header.Render(render.PadRight(label, hostLabelWidth))
+}
+
+// statusLine is the first line: host, fetch time and sudo state.
+func (h *Host) statusLine() string {
+	st := h.style()
+	dim := " " + st.Dim.Render("·") + " "
+	parts := []string{st.Bold.Render(string(h.host))}
+
+	switch {
+	case h.hostErr != nil:
+		parts = append(parts, st.Crit.Render("fetch failed: "+errorLabel(h.hostErr)))
+	case h.hostDone:
+		parts = append(parts, "fetched in "+fmt.Sprintf("%.1fs", h.elapsed.Seconds()))
+	default:
+		parts = append(parts, st.Dim.Render("loading…"))
+	}
+	if h.sudoDenied() {
+		parts = append(parts, st.Warn.Render("sudo -n ✗ needs-privilege"))
+	} else {
+		parts = append(parts, st.OK.Render("sudo -n ✓"))
+	}
+	return strings.Join(parts, dim)
+}
+
+// systemLine is the SYSTEM line: os, kernel, uptime, systemd state and the
+// failed-unit count.
+func (h *Host) systemLine() string {
+	f, ok := h.facts()
+	if !ok {
+		return h.sectionErrLine("SYSTEM", errs.NotAvailable)
+	}
+	st := h.style()
+	var parts []string
+	if os := h.osName(); os != "" {
+		parts = append(parts, "os "+os)
+	}
+	if kernel := h.kernelName(); kernel != "" {
+		parts = append(parts, "kernel "+kernel)
+	}
+	if d, ok := h.row.Fields["uptime"].(time.Duration); ok && d > 0 {
+		parts = append(parts, "uptime "+render.Duration(d))
+	}
+	state, _ := h.row.Fields["state"].(string)
+	if state != "" {
+		style := st.Base
+		if state != "running" {
+			style = st.Crit
+		}
+		parts = append(parts, "systemd "+style.Render(state))
+	}
+	if n := len(f.FailedUnits); n > 0 {
+		noun := "unit"
+		if n != 1 {
+			noun = "units"
+		}
+		parts = append(parts, st.Crit.Render(fmt.Sprintf("%d failed %s", n, noun)))
+	}
+	if len(parts) == 0 {
+		parts = append(parts, st.Faint.Render("—"))
+	}
+	return h.sectionLabel("SYSTEM") + strings.Join(parts, " "+st.Dim.Render("·")+" ")
+}
+
+// osName is the distribution name without the "(Blue Onyx)" style suffix.
+func (h *Host) osName() string {
+	name, _ := h.row.Fields["os"].(string)
+	if i := strings.Index(name, " ("); i > 0 {
+		name = name[:i]
+	}
+	return strings.TrimSpace(name)
+}
+
+// kernelName shortens a release to its first two dash-separated parts:
+// 5.14.0-427.el9.x86_64 becomes 5.14.0-427.
+func (h *Host) kernelName() string {
+	name, _ := h.row.Fields["kernel"].(string)
+	if name == "" {
+		return ""
+	}
+	if i := strings.IndexByte(name, '-'); i >= 0 {
+		rest := name[i+1:]
+		if j := strings.IndexByte(rest, '-'); j >= 0 {
+			return name[:i+1+j]
+		}
+		if j := strings.IndexByte(rest, '.'); j >= 0 {
+			return name[:i+1+j]
+		}
+	}
+	return name
+}
+
+// pressureLine is the PRESSURE line: three labelled bars for cpu, memory and
+// io, coloured Warn above 2 % and Crit above 10 %.
+func (h *Host) pressureLine() string {
+	f, ok := h.facts()
+	if !ok || !f.HavePSI {
+		return h.sectionErrLine("PRESSURE", errs.NotAvailable)
+	}
+	segs := []string{
+		h.pressureSegment("cpu", f.PSI.CPU),
+		h.pressureSegment("mem", f.PSI.Mem),
+		h.pressureSegment("io", f.PSI.IO),
+	}
+	return h.sectionLabel("PRESSURE") + strings.Join(segs, "   ")
+}
+
+// pressureSegment renders one "name bar percent" pressure segment.
+func (h *Host) pressureSegment(name string, line linux.PSILine) string {
+	st := h.style()
+	if !line.Present {
+		return st.Dim.Render(name+" ") + st.Faint.Render(render.Bar(0, hostBarWidth)+" —")
+	}
+	style := st.Base
+	switch {
+	case line.SomeAvg10 > 10:
+		style = st.Crit
+	case line.SomeAvg10 > 2:
+		style = st.Warn
+	}
+	value := render.Bar(line.SomeAvg10/100, hostBarWidth) + " " + render.Percent(line.SomeAvg10)
+	return st.Dim.Render(name+" ") + style.Render(value)
+}
+
+// loadLine is the LOAD line, with the MEMORY block on terminals at least 100
+// columns wide (the right column is dropped below that).
+func (h *Host) loadLine(w int) string {
+	st := h.style()
+	f, ok := h.facts()
+	left := h.sectionLabel("LOAD")
+	switch {
+	case !ok || !f.HaveLoad:
+		left += st.Faint.Render("—")
+	default:
+		cpu := f.NProc
+		left += fmt.Sprintf("%.2f %.2f %.2f", f.Load.L1, f.Load.L5, f.Load.L15)
+		if cpu > 0 {
+			left += st.Dim.Render(fmt.Sprintf(" (%d cpu)", cpu))
+		}
+	}
+	if w < hostWideWidth || !ok || !f.HaveMem {
+		return left
+	}
+	used := f.Mem.UsedPercent()
+	style := st.Base
+	if used > 90 {
+		style = st.Crit
+	}
+	mem := render.Bar(used/100, hostBarWidth) + " " + render.Percent(used) +
+		" of " + render.Bytes(f.Mem.TotalKB*1024)
+	return render.PadRight(left, 40) + st.Header.Render("MEMORY") + "  " + style.Render(mem)
+}
+
+// failedUnits is the loaded failed-unit list.
+func (h *Host) failedUnits() []linux.Unit {
+	f, ok := h.facts()
+	if !ok {
+		return nil
+	}
+	return f.FailedUnits
+}
+
+// failedHeader is the FAILED UNITS section header.
+func (h *Host) failedHeader() string { return h.style().Header.Render("FAILED UNITS") }
+
+// unitLine renders one failed unit: name, state, and the hint that `u` lists
+// every unit.
+func (h *Host) unitLine(u linux.Unit, w int) string {
+	st := h.style()
+	state := u.Active
+	if state == "" {
+		state = "failed"
+	}
+	body := "  " + render.PadRight(u.Name, 16) + " " + st.Crit.Render(state)
+	if w > len(hostPressHint)+20 {
+		body = render.PadRight(body, w-len(hostPressHint)) + st.Dim.Render(hostPressHint)
+	}
+	return body
+}
+
+// journalHeader labels the journal section, including the error kind when the
+// listing failed.
+func (h *Host) journalHeader() string {
+	st := h.style()
+	if h.journalErr != nil {
+		return st.Header.Render("JOURNAL") + " " + st.Crit.Render(errorLabel(h.journalErr))
+	}
+	return st.Header.Render("JOURNAL") +
+		st.Dim.Render(fmt.Sprintf(" · errors in window (%d shown)", len(h.journalRows)))
+}
+
+// journalLine renders one journal entry as "13:41:07 source: message".
+func (h *Host) journalLine(row resource.Resource, w int) string {
+	st := h.style()
+	text := "  "
+	if t, ok := row.Fields["time"].(time.Time); ok && !t.IsZero() {
+		text += st.Dim.Render(t.Format("15:04:05")) + " "
+	}
+	if source, _ := row.Fields["source"].(string); source != "" {
+		text += st.Accent.Render(source) + ": "
+	}
+	msg, _ := row.Fields["message"].(string)
+	if row.Status == resource.StatusCrit {
+		msg = st.Crit.Render(msg)
+	}
+	return render.Truncate(text+msg, w)
+}
+
+// sectionErrLine is a section whose part failed: the label and the error kind.
+func (h *Host) sectionErrLine(label string, kind errs.Kind) string {
+	return h.sectionLabel(label) + h.style().Crit.Render(string(kind))
+}
+
+// errorLabel renders an error kind for a person: sudo becomes
+// "needs-privilege (sudo)", everything else keeps its kind name.
+func errorLabel(err error) string {
+	kind := errs.KindOf(err)
+	if kind == errs.Sudo {
+		return "needs-privilege (" + string(kind) + ")"
+	}
+	if kind == "" {
+		return "—"
+	}
+	return string(kind)
+}
+
+// Render returns exactly h lines of exactly w cells.
+func (h *Host) Render(w, height int) string {
+	h.w, h.h = w, height
+	if w <= 0 || height <= 0 {
+		return ""
+	}
+	lines := make([]string, 0, height)
+	lines = append(lines, h.statusLine())
+
+	if h.hostErr != nil {
+		lines = append(lines, h.sectionErrLine("SYSTEM", errs.KindOf(h.hostErr)))
+	} else {
+		lines = append(lines, h.systemLine())
+		lines = append(lines, h.pressureLine())
+		lines = append(lines, h.loadLine(w))
+	}
+
+	// Failed units: keep three lines for the journal section below.
+	if units := h.failedUnits(); len(units) > 0 {
+		maxRows := height - len(lines) - 3 // header, journal header, one journal row
+		if maxRows > len(units) {
+			maxRows = len(units)
+		}
+		if maxRows > 0 {
+			lines = append(lines, h.failedHeader())
+			for i := 0; i < maxRows; i++ {
+				lines = append(lines, h.unitLine(units[i], w))
+			}
+		}
+	}
+
+	// Journal section.
+	if rem := height - len(lines); rem > 0 {
+		lines = append(lines, h.journalHeader())
+		rem--
+		switch {
+		case len(h.journalRows) > 0:
+			for i := 0; i < len(h.journalRows) && i < rem; i++ {
+				lines = append(lines, h.journalLine(h.journalRows[i], w))
+			}
+		case h.journalErr == nil && !h.journalDone && rem > 0:
+			// The header already carries an error kind; otherwise say it is
+			// still loading.
+			lines = append(lines, h.style().Faint.Render("  loading…"))
+		}
+	}
+	return render.Fit(strings.Join(lines, "\n"), w, height)
+}
+
+// Crumb is the short host name.
+func (h *Host) Crumb() string { return h.shortHost() }
+
+// Hints lists the pivots, refresh and back.
+func (h *Host) Hints() []tui.KeyHint {
+	return []tui.KeyHint{
+		{Key: "u", Text: "units"},
+		{Key: "j", Text: "journal"},
+		{Key: "p", Text: "processes"},
+		{Key: "s", Text: "sockets"},
+		{Key: firstKey(h.keys.Refresh), Text: "refresh"},
+		{Key: firstKey(h.keys.Back), Text: "back"},
+	}
+}
+
+// Subject is this host, plus its first failed unit when it has one.
+func (h *Host) Subject() tui.Subject {
+	return tui.Subject{
+		Hosts: []resource.HostID{h.host},
+		Unit:  h.firstFailedUnit(),
+		Kind:  linux.KindHostOverview,
+		Ref:   h.row.Ref,
+	}
+}
+
+// Capturing is always false: the overview has no input of its own.
+func (h *Host) Capturing() bool { return false }
+
+// CommandLine is the `:` command line that reopens this screen.
+func (h *Host) CommandLine() string {
+	return "overview --host " + string(h.host)
+}
+
+// CopyLines returns the plain text of the screen.
+func (h *Host) CopyLines() []string {
+	return strings.Split(h.Render(h.w, h.h), "\n")
+}
