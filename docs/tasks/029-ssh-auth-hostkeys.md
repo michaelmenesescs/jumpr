@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 028
 - **Parallel group:** M2-B (with 030, 036, 038)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Build `ssh.ClientConfig` for a `HostSpec`: agent first, then key files; host keys checked against known_hosts with
