@@ -201,7 +201,7 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [105](105-k8s-bootstrap.md) | Kubernetes bootstrap: client-go, contexts, health, size check | 065 | — | done |
-| [106](106-k8s-core-kinds.md) | Kubernetes core kinds with informers | 105 | — | todo |
+| [106](106-k8s-core-kinds.md) | Kubernetes core kinds with informers | 105 | — | done |
 | [107](107-k8s-logs.md) | Pod logs | 106 | M9-A | todo |
 | [108](108-k8s-describe-yaml.md) | Describe and YAML views | 106 | M9-A | todo |
 | [109](109-k8s-actions.md) | Kubernetes actions through the bus | 106, 061 | M9-B | todo |

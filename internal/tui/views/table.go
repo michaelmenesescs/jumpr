@@ -45,12 +45,18 @@ type Table struct {
 	// stream state
 	seq     int
 	cancel  context.CancelFunc
+	ctx     context.Context // the listing's context; the watch derives from it
 	ch      <-chan backend.Result
 	started time.Time
 	elapsed time.Duration
 	done    bool
 	doneN   int // units finished, as reported by the backend
 	total   int // units expected; 0 = unknown
+
+	// watch state: live events of a Watchable kind after the listing closed
+	wseq     int
+	wat      <-chan backend.Event
+	watching bool
 
 	rows []resource.Resource // every row received, in arrival order
 	errs []hostErr           // per-host failures
@@ -93,15 +99,16 @@ type Table struct {
 
 // bannerKey identifies one banner state.
 type bannerKey struct {
-	done    bool
-	doneN   int
-	total   int
-	rows    int
-	errs    int
-	filter  string
-	fuzzy   bool
-	elapsed time.Duration
-	stale   int
+	done     bool
+	doneN    int
+	total    int
+	rows     int
+	errs     int
+	filter   string
+	fuzzy    bool
+	elapsed  time.Duration
+	stale    int
+	watching bool
 }
 
 var _ tui.View = (*Table)(nil)
@@ -182,8 +189,12 @@ func (t *Table) restart() tea.Cmd {
 	}
 	ctx, cancel := context.WithCancel(parent)
 	t.cancel = cancel
+	t.ctx = ctx
 	t.seq++
+	t.wseq++
 	t.ch = nil
+	t.wat = nil
+	t.watching = false
 	t.rows = nil
 	t.errs = nil
 	t.view = nil
@@ -214,6 +225,11 @@ func (t *Table) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			return t, nil
 		}
 		return t, t.applyBatch(m)
+	case watchBatchMsg:
+		if m.seq != t.wseq {
+			return t, nil
+		}
+		return t, t.applyEvents(m)
 	case tui.MarkedTargetsRequestMsg:
 		return t, t.markedTargetsCmd()
 	case tui.RefreshRequestMsg:
@@ -252,9 +268,88 @@ func (t *Table) applyBatch(m tui.ListBatchMsg) tea.Cmd {
 	if m.Closed {
 		t.done = true
 		t.elapsed = t.now().Sub(t.started)
-		return nil
+		return t.startWatch()
 	}
 	return tui.ListBatch(t.seq, t.ch)
+}
+
+// watchBatchMax is the most events one watch message carries.
+const watchBatchMax = 200
+
+// watchBatchMsg is one batch of live events for one listing. It is local to
+// the view: nothing outside this package sends or receives it.
+type watchBatchMsg struct {
+	seq    int
+	events []backend.Event
+	closed bool
+}
+
+// watchBatch reads the next batch of events from ch, or reports the channel
+// closed. It is the watch twin of tui.ListBatch.
+func watchBatch(seq int, ch <-chan backend.Event) tea.Cmd {
+	return func() tea.Msg {
+		events, closed := tui.NextBatch(ch, watchBatchMax)
+		return watchBatchMsg{seq: seq, events: events, closed: closed}
+	}
+}
+
+// startWatch subscribes to the live events of a Watchable kind once the
+// listing has closed. A backend that cannot watch, or a kind that is not
+// watchable, simply leaves the table as it is.
+func (t *Table) startWatch() tea.Cmd {
+	w, ok := t.b.(backend.Watcher)
+	if !ok || !t.spec.Watchable || t.ctx == nil {
+		return nil
+	}
+	ch, err := w.Watch(t.ctx, t.q)
+	if err != nil {
+		return tui.Flash(tui.FlashWarn, "watch: %v", err)
+	}
+	t.wat = ch
+	t.wseq++
+	return watchBatch(t.wseq, ch)
+}
+
+// applyEvents folds a batch of live events into the rows: an add or a modify
+// replaces the row with the same Ref, a delete drops it. The cursor stays on
+// the resource it was on.
+func (t *Table) applyEvents(m watchBatchMsg) tea.Cmd {
+	ref, hadRef := t.currentRef()
+	t.watching = true
+	for _, ev := range m.events {
+		t.applyEvent(ev)
+	}
+	t.refilter()
+	t.staleN = staleCount(t.rows)
+	if hadRef {
+		t.cursorOn(ref)
+	}
+	if m.closed {
+		t.watching = false
+		return nil
+	}
+	return watchBatch(t.wseq, t.wat)
+}
+
+// applyEvent is one add, modify or delete.
+func (t *Table) applyEvent(ev backend.Event) {
+	switch ev.Type {
+	case backend.EventDeleted:
+		for i, r := range t.rows {
+			if r.Ref == ev.Resource.Ref {
+				t.rows = append(t.rows[:i], t.rows[i+1:]...)
+				return
+			}
+		}
+	case backend.EventAdded, backend.EventModified:
+		for i, r := range t.rows {
+			if r.Ref == ev.Resource.Ref {
+				t.rows[i] = ev.Resource
+				return
+			}
+		}
+		t.rows = append(t.rows, ev.Resource)
+	}
 }
 
 // currentRef returns the Ref under the cursor, if there is one.
@@ -781,15 +876,16 @@ func (t *Table) errorLine(he hostErr, widths []int) string {
 // many times per second and the summary only changes when data arrives.
 func (t *Table) banner() string {
 	key := bannerKey{
-		done:    t.done,
-		doneN:   t.doneN,
-		total:   t.total,
-		rows:    len(t.rows),
-		errs:    len(t.errs),
-		filter:  t.filter,
-		fuzzy:   t.fuzzy,
-		elapsed: t.elapsed,
-		stale:   t.staleN,
+		done:     t.done,
+		doneN:    t.doneN,
+		total:    t.total,
+		rows:     len(t.rows),
+		errs:     len(t.errs),
+		filter:   t.filter,
+		fuzzy:    t.fuzzy,
+		elapsed:  t.elapsed,
+		stale:    t.staleN,
+		watching: t.watching,
 	}
 	if key == t.bnKey && t.bncached {
 		return t.bnText
@@ -811,6 +907,9 @@ func (t *Table) banner() string {
 			sep, seconds(t.elapsed))
 		if key.stale > 0 {
 			b.WriteString(sep + "stale")
+		}
+		if key.watching {
+			b.WriteString(sep + "live")
 		}
 	}
 	if t.filter != "" {

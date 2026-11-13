@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 
 	"jumper/internal/backend"
 	"jumper/internal/errs"
@@ -32,15 +36,35 @@ type Options struct {
 	Now func() time.Time
 }
 
-// Backend implements backend.Backend for Kubernetes. It carries the client, the
-// session namespace and the health probe; the kinds arrive in task 106.
+// Backend implements backend.Backend and backend.Watcher for Kubernetes. It
+// carries the client, the session namespace, the health probe and the
+// informers behind every kind.
 type Backend struct {
 	client *Client
 	kinds  []resource.KindSpec
 	now    func() time.Time
+
+	// typed and meta inject the client pair, which is what the tests do
+	// instead of building a kubeconfig client; namespace is the session
+	// namespace then. Empty means "read them from client".
+	typed     kubernetes.Interface
+	meta      metadata.Interface
+	namespace string
+	// syncTimeout shortens the cache-sync wait; 0 uses syncTimeout. The tests
+	// use it so a forbidden kind fails fast.
+	syncTimeout time.Duration
+
+	// mu guards set, the informers of the current context and namespace, and
+	// the hook a context switch calls.
+	mu       sync.Mutex
+	set      *informerSet
+	onSwitch func(context string)
 }
 
-var _ backend.Backend = (*Backend)(nil)
+var (
+	_ backend.Backend = (*Backend)(nil)
+	_ backend.Watcher = (*Backend)(nil)
+)
 
 // New builds a Kubernetes backend over Options.
 func New(o Options) (*Backend, error) {
@@ -65,15 +89,31 @@ func New(o Options) (*Backend, error) {
 // NewWithClient builds a backend around an existing client, which is what the
 // tests use.
 func NewWithClient(c *Client) *Backend {
-	b := &Backend{client: c, now: time.Now}
+	b := &Backend{client: c, kinds: kindSpecs(), now: time.Now}
+	if c != nil {
+		// A context switch must not leave an informer watching the old
+		// cluster (SPEC §8.2).
+		c.SetOnSwitch(b.switched)
+	}
 	return b
+}
+
+// switched runs after a context switch: the informers of the old cluster go
+// first, then the hook internal/app installed.
+func (b *Backend) switched(name string) {
+	b.resetInformers()
+	b.mu.Lock()
+	hook := b.onSwitch
+	b.mu.Unlock()
+	if hook != nil {
+		hook(name)
+	}
 }
 
 // Name returns "k8s".
 func (b *Backend) Name() string { return backendName }
 
-// Kinds returns the kinds the backend serves. It is empty until task 106 adds
-// pods, deployments and the rest.
+// Kinds returns the kinds the backend serves (SPEC §8.2).
 func (b *Backend) Kinds() []resource.KindSpec { return b.kinds }
 
 // Client returns the client the backend holds.
@@ -101,22 +141,34 @@ func (b *Backend) SetNamespace(namespace string) error { return b.client.SetName
 // Protected reports whether a context is listed in contexts_protected.
 func (b *Backend) Protected(name string) bool { return b.client.Protected(name) }
 
-// SetOnSwitch installs the teardown hook a context switch calls; task 106 stops
-// its informer factory there.
-func (b *Backend) SetOnSwitch(fn func(context string)) { b.client.SetOnSwitch(fn) }
-
-// List streams resources of one kind. Until task 106 adds the kinds and their
-// informers there is nothing to list, and saying so is better than an empty
-// table that looks like an empty cluster.
-func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Result, error) {
-	return nil, errs.New(errs.Config, "k8s.List",
-		fmt.Sprintf("k8s does not serve kind %q yet", q.Kind))
+// SetOnSwitch installs the hook a context switch calls, after the informers
+// of the old context have been stopped.
+func (b *Backend) SetOnSwitch(fn func(context string)) {
+	b.mu.Lock()
+	b.onSwitch = fn
+	b.mu.Unlock()
+	if b.client != nil {
+		b.client.SetOnSwitch(b.switched)
+	}
 }
 
-// Get returns one resource. The kinds arrive in task 106.
+// Close stops the informers. internal/app calls it when the backend goes away;
+// the tests call it instead of leaving goroutines behind.
+func (b *Backend) Close() { b.resetInformers() }
+
+// List streams one batch: the informer cache of q.Kind, as it stands.
+func (b *Backend) List(ctx context.Context, q resource.Query) (<-chan backend.Result, error) {
+	return b.list(ctx, q)
+}
+
+// Watch delivers add/modify/delete events of q.Kind until ctx ends.
+func (b *Backend) Watch(ctx context.Context, q resource.Query) (<-chan backend.Event, error) {
+	return b.watch(ctx, q)
+}
+
+// Get returns one resource from the informer cache.
 func (b *Backend) Get(ctx context.Context, ref resource.Ref) (resource.Resource, error) {
-	return resource.Resource{}, errs.New(errs.Config, "k8s.Get",
-		fmt.Sprintf("k8s does not serve kind %q yet", ref.Kind))
+	return b.get(ctx, ref)
 }
 
 // Links returns the pivots from r. The node ↔ host pivot arrives in task 111.

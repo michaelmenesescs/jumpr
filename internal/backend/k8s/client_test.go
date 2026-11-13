@@ -413,20 +413,30 @@ func TestNamespaceDefaultAfterSwitch(t *testing.T) {
 	}
 }
 
-// TestBackendListHasNoKinds: until task 106 adds them, listing says so instead
-// of pretending the cluster is empty.
-func TestBackendListHasNoKinds(t *testing.T) {
+// TestBackendKinds: the backend publishes the core kinds, and a kind it does
+// not serve is refused before anything reaches the network.
+func TestBackendKinds(t *testing.T) {
 	b := NewWithClient(newTestClient(t, ClientOptions{Kubeconfig: testKubeconfig(t)}))
-	if kinds := b.Kinds(); len(kinds) != 0 {
-		t.Fatalf("Kinds = %v, want none until task 106", kinds)
+	kinds := b.Kinds()
+	if len(kinds) == 0 {
+		t.Fatal("Kinds is empty; the core kinds arrive in task 106")
 	}
-	if _, err := b.List(context.Background(), resource.Query{Kind: "pod"}); err == nil {
-		t.Fatal("List must fail while no kind is served")
+	found := false
+	for _, spec := range kinds {
+		if spec.Name == "pod" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Kinds = %v, want a pod kind", kinds)
+	}
+	if _, err := b.List(context.Background(), resource.Query{Kind: "widget"}); err == nil {
+		t.Fatal("List must fail for an unknown kind")
 	} else if got := errs.KindOf(err); got != errs.Config {
 		t.Errorf("kind = %q, want %q", got, errs.Config)
 	}
-	if _, err := b.Get(context.Background(), resource.Ref{Kind: "pod", Name: "web-0"}); err == nil {
-		t.Fatal("Get must fail while no kind is served")
+	if _, err := b.Get(context.Background(), resource.Ref{Kind: "widget", Name: "web-0"}); err == nil {
+		t.Fatal("Get must fail for an unknown kind")
 	}
 	if got := b.Links(resource.Resource{}); got != nil {
 		t.Errorf("Links = %v, want nil", got)

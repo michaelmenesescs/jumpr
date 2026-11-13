@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 105
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 k9s-equivalent live lists for the kinds in SPEC §8.2.
