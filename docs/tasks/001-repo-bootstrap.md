@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** —
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 A Go module that builds a `sitrep` binary printing its version, a Makefile with the standard targets, and every

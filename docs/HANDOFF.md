@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (scoping complete; implementation not started)_
+_Last updated: 2026-11-12 (task 001 done; M0 in progress)_
 
 ## State
 
@@ -11,11 +11,13 @@ _Last updated: 2026-11-12 (scoping complete; implementation not started)_
       contracts**, messages, session-server protocol, errors, concurrency, tests, dependencies, risks)
 - [x] Task breakdown → `docs/tasks/` (one file per task; index and workflow in `docs/tasks/README.md`)
 - [x] Lab controller `cmd/sitrep-lab` and `lab/` (separate track; see `lab/README.md`)
-- [ ] **Implementation: not started.** There is no product Go code yet. `go.mod` exists (module `sitrep`).
+- [x] **Task 001 done:** `go.mod`/`go.sum` with every M0–M7 dependency pinned (BUILD-PLAN §10), `Makefile`
+      (`build test lint lab-test check tidy`), `cmd/sitrep/main.go` (version only), `internal/deps/deps.go`
+      (blank imports under `//go:build deps`). `make check` green; `./sitrep version` → `sitrep dev`.
 
 ## Next task
 
-**`docs/tasks/001-repo-bootstrap.md`**, then continue in numeric order. Tasks that share a parallel group in
+**`docs/tasks/002-errs.md`**, then continue in numeric order. Tasks that share a parallel group in
 `docs/tasks/README.md` may be done concurrently; everything else is serial.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
@@ -88,3 +90,7 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
 
 - 2026-11-12 — Scoping: spec v0.2, build plan, tasks 001–127 written. Dependency set verified to compile
   together with `CGO_ENABLED=0` (Bubble Tea v1.3.10 + `charmbracelet/x/vt` v0.1.0 and the rest of BUILD-PLAN §10).
+- 2026-11-12 — Task 001: repo bootstrap. All 17 pinned M0–M7 modules in `go.mod` (held by the blank imports in
+  `internal/deps`), `Makefile`, `cmd/sitrep` (version printing), `.gitignore` additions. `make check` green;
+  `go mod tidy` idempotent; `GOARCH=amd64` cross-build OK; `cmd/sitrep-lab` still builds. Choice: `lint` is two
+  recipe lines, `test -z "$(gofmt -l .)"` then `go vet ./...`, so unformatted files fail it (task Pitfalls).

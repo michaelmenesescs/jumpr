@@ -51,7 +51,7 @@ only by tasks 001, 098, 105 and 115.
 
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
-| [001](001-repo-bootstrap.md) | Repo bootstrap: module, Makefile, pinned dependencies | — | — | todo |
+| [001](001-repo-bootstrap.md) | Repo bootstrap: module, Makefile, pinned dependencies | — | — | done |
 | [002](002-errs.md) | Error taxonomy (`internal/errs`) | 001 | — | todo |
 | [003](003-config.md) | Config paths, schema, loader, validation | 002 | M0-A | todo |
 | [004](004-selector-timewindow.md) | Selector and time-window parsers | 002 | M0-A | todo |
