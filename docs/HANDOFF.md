@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 005 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 006 done; M0 in progress)_
 
 ## State
 
@@ -39,10 +39,17 @@ _Last updated: 2026-11-12 (task 005 done; M0 in progress)_
       Align, Column, Scope, KindSpec, Query, Link verbatim from §4.2; `Ref.String`, `ParseRef`,
       `NormalizeHostID`, `KindSpec.Column`) and `fields.go` (`Str`, `Int`, `Float`, `Time`, `Compare`).
 
+- [x] **Task 006 done:** `internal/backend` — `backend.go` (HealthState, Health, Result, EventType, Event,
+      Backend, Watcher, LinkProvider verbatim from §4.4; `HealthState.String`) and `registry.go`
+      (`NewRegistry`, `Register`, `Replace`, `Get`, `Backends`, `Lookup`, `Kinds`; one `sync.RWMutex`; kind/alias
+      keys lower-cased; `Register` errors `errs.Config` on nil/empty name, duplicate backend name and any kind or
+      alias already taken; `Replace` releases the old backend's keys, swaps in place and restores them if the new
+      keys collide; `Kinds()` sorted by name; `Backends()` in registration order). Tests use a stub `Backend`.
+
 ## Next task
 
-**`docs/tasks/006-backend-registry.md`** (task 005 is its only dependency). Tasks 008/009 remain available in
-parallel group M0-A. Then continue in numeric order.
+**`docs/tasks/007-fake-backend.md`** (depends on 006, now done). Tasks 008/009 remain available in parallel group
+M0-A. Then continue in numeric order.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -138,3 +145,10 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   for values outside the allowed set; (3) `Int` accepts `float64`/`float32` only when integral and in range
   (no silent truncation), `Compare` orders ints as `int64` and mixed numbers as `float64`, `nil` always last.
   `make check` green (resource tests 1.2 s under `-race`).
+- 2026-11-12 — Task 006: `internal/backend` interface + registry. Choices: (1) `Lookup`/`Get` compare trimmed,
+  lower-cased keys, so kind/alias matching is genuinely case-insensitive; (2) an empty kind name or alias is
+  rejected as `errs.Config` too (not just the three listed cases), because an empty key would make `Lookup("")`
+  resolve; (3) `Replace` deletes the old backend's keys, claims the new ones and re-inserts the old ones on
+  failure, so a rejected Replace leaves the registry untouched — an unregistered name is an `errs.Config` error;
+  (4) `Backend.Name()` is never called while the mutex is held (the registered name is stored in the entries).
+  `make check` green (backend tests 1.2 s under `-race`).

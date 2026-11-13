@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 005
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `internal/backend` exactly as in BUILD-PLAN §4.4.
