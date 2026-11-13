@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 026
 - **Parallel group:** M2-B (with 029, 030, 038)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Run one command on many hosts with bounded concurrency and stream the results.
