@@ -99,7 +99,7 @@ only by tasks 001, 098, 105 and 115.
 | [036](036-fanout-runner.md) | Fan-out runner | 026 | M2-B | done |
 | [037](037-group-diff.md) | Grouping identical outputs, summary headline, unified diff | 005 | M2-A | done |
 | [038](038-probe-batch.md) | Probe batch compiler and section splitter | 026, 027 | M2-B | done |
-| [039](039-inventory-core.md) | Inventory: hosts, sources, merge, identity, cache | 028 | M2-D | todo |
+| [039](039-inventory-core.md) | Inventory: hosts, sources, merge, identity, cache | 028 | M2-D | done |
 | [040](040-linux-parse-overview.md) | Linux parsers: host overview | 005 | M2-D | todo |
 | [041](041-linux-parse-units.md) | Linux parsers: systemd units | 005 | M2-D | todo |
 | [042](042-linux-parse-journal.md) | Linux parser: journal (JSON lines) | 005 | M2-D | todo |

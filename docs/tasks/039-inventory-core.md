@@ -3,7 +3,7 @@
 - **Milestone:** M2
 - **Depends on:** 028
 - **Parallel group:** M2-D (with 040, 041, 042, 043, 049)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 One merged host list from several sources, with stable identities and labels, cached on disk.

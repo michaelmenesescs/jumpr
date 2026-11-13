@@ -1,0 +1,9 @@
+hosts:
+  - name: web-01.lab.example.internal
+    addr: web-01.lab.example.internal
+    aliases: [web-01]
+    labels: {role: web, dc: lab1}
+  - name: db-01.lab.example.internal
+    aliases: [db-01, db-primary]
+    labels: {role: db}
+  - name: bare-01
