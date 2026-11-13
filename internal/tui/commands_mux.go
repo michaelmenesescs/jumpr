@@ -110,6 +110,21 @@ func repeatOp(op, arg string, n int) tea.Cmd {
 }
 
 // dirCompletions are the arguments the focus and resize commands accept.
+// filterPrefix keeps the candidates that start with prefix, preserving order.
+// An empty prefix matches everything (tab on an empty word lists them all).
+func filterPrefix(cands []string, prefix string) []string {
+	if prefix == "" {
+		return cands
+	}
+	out := make([]string, 0, len(cands))
+	for _, c := range cands {
+		if strings.HasPrefix(c, prefix) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 func dirCompletions(extra ...string) []string {
 	return append([]string{"left", "right", "up", "down"}, extra...)
 }
