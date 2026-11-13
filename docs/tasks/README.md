@@ -248,5 +248,5 @@ only by tasks 001, 098, 105 and 115.
 | [141](141-glyph-sets.md) | Glyph sets: unicode / nerd / ascii, `ui.glyphs` | 003, 009, 010 | — | done |
 
 129 tasks (127 planned + 2 UX-parity tasks added during the MVP build).
-| [142](142-glyph-wiring.md) | Wire the glyph set end to end (config → app → views) | 016, 141, 015 | — | todo |
+| [142](142-glyph-wiring.md) | Wire the glyph set end to end (config → app → views) | 016, 141, 015 | — | done |
 

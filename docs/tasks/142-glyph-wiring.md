@@ -3,7 +3,7 @@
 - **Milestone:** M0 (UX parity, follow-up to 141)
 - **Depends on:** 016, 141, 015
 - **Parallel group:** —
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 141 built the mechanism and stopped there: `internal/tui/views/table.go` still hardcodes `render.Glyphs("unicode")`,

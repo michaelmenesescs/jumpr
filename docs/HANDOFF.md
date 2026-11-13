@@ -352,3 +352,10 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   - Tasks 022, 031, 080 had edited `docs/tasks/README.md` against instructions; the index hunk was dropped from each
     commit (`git checkout main -- docs/tasks/README.md`), then rebased and merged. Their task work was unaffected.
 
+- 2026-11-12 — Task 142: glyph wiring. `internal/app.resolveGlyphs` is the only place that reads `JUMPER_GLYPHS`
+  (rule 7); it beats `ui.glyphs`, and `auto` → unicode. The set goes `Env.Glyphs` → root → table/status line/format,
+  via `render.FitWith` and `GlyphSet.Empty`/`AgeWith`. Verified end to end, not just by unit test: `JUMPER_GLYPHS=ascii
+  ./jumper --demo` in a 100x10 PTY renders a frame with **zero** runes above 0x7f (`+fake`, `|` separators, ASCII
+  sparklines), asserted by `TestAsciiFrame` at 120x34. Two rebase conflicts were resolved by hand (root.go against the
+  mux work from 022; a `NewRoot` call-site arity change in a test).
+
