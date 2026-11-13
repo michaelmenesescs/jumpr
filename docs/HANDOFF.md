@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 007 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 008 done; M0 in progress)_
 
 ## State
 
@@ -55,9 +55,15 @@ _Last updated: 2026-11-12 (task 007 done; M0 in progress)_
       (`u` → unit) and `Health` (`ok`/`fake data`) implemented. Tests cover determinism, 504/1,008/1,512 sizes,
       batching, failed hosts (both kinds), cancel, Get/Links/Health and unknown kinds.
 
+- [x] **Task 008 done:** `internal/render` (pure, no lipgloss) — `fit.go` (`Width` via `ansi.StringWidth`,
+      `Truncate` with a `…` tail and a closing reset for cut coloured text, `PadRight`/`PadLeft`, `Fit` returning
+      exactly `h` lines of exactly `w` cells with `h-1` newlines) and `table.go` (`Cell`, `TableColumn`,
+      `ColumnWidths`, `Row`, `Header`). Tests cover wide runes, ANSI colour, truncation narrower than the text, and
+      a 500-case property test on `Fit`.
+
 ## Next task
 
-**`docs/tasks/008-render-fit-table.md`** (depends on 002, done). Then 009 (both M0-A); 010 (M0-B) is independent.
+**`docs/tasks/009-render-spark-human.md`** (depends on 002, done). Then 010 (M0-B) is independent.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -169,3 +175,9 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   labels sorted as `k="v"`, `k="v"`; (5) the `unit` kind applies `Query.Selector` only when `Query.Hosts` is
   empty (Query's "Hosts wins" rule) and filters by `Args["unit"]` when set. `make check` green; full fleet list
   is ~30 ms under `-race`, cancellation stops the producer within one latency tick.
+- 2026-11-12 — Task 008: `internal/render` fit + table. Choices: (1) `Truncate` appends `\x1b[0m` only when the
+  input contained an escape and something was cut, so plain strings stay untouched; (2) `ColumnWidths` shrinks
+  fixed columns strictly from the rightmost one down to 3, and when the total cannot fit every flexible column's
+  minimum of 4 it returns the minimums rather than going below them (the row is then wider than `total`);
+  (3) `Header` uses `Row`, so numeric titles follow `AlignRight`; (4) `Fit` splits on `\n` only (no CRLF
+  normalisation). `make check` green; render tests 1.3 s under `-race`, `Fit` property test 500 random cases.

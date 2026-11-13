@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 002
 - **Parallel group:** M0-A (with 003, 004, 009)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Pure functions that turn rows into exactly-sized text. Every view depends on these being correct about width.
