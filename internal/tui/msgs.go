@@ -107,3 +107,6 @@ func Flash(level FlashLevel, format string, args ...any) tea.Cmd {
 func OpenQuery(q resource.Query) tea.Cmd {
 	return func() tea.Msg { return OpenQueryMsg{Query: q} }
 }
+
+// OpenDialogMsg asks the root to show Dialog modally.
+type OpenDialogMsg struct{ Dialog Dialog }
