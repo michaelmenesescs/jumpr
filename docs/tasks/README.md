@@ -236,7 +236,7 @@ only by tasks 001, 098, 105 and 115.
 | [123](123-scale-test.md) | Scale test: 2,000 hosts | 076 | M12-A | done |
 | [124](124-init-doctor.md) | `jumper init` and full `jumper doctor` | 076 | M12-A | done |
 | [125](125-system-ssh-fallback.md) | system-ssh fallback transport | 052 | M12-A | done |
-| [126](126-crash-safety-audit.md) | Crash safety, logging and leak audit | 083, 123 | — | todo |
+| [126](126-crash-safety-audit.md) | Crash safety, logging and leak audit | 083, 123 | — | done |
 | [127](127-release-docs.md) | Keymap file, release build (Go tool), user documentation | 124, 126 | — | todo |
 
 

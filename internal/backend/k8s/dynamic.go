@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"sort"
@@ -43,6 +44,7 @@ import (
 	"jumper/internal/backend"
 	"jumper/internal/errs"
 	"jumper/internal/resource"
+	"jumper/internal/safe"
 )
 
 const (
@@ -264,6 +266,7 @@ type dynamicCache struct {
 	src tableSource
 	now func() time.Time
 	ttl time.Duration
+	log *slog.Logger
 
 	mu         sync.Mutex
 	loaded     bool
@@ -276,14 +279,14 @@ type dynamicCache struct {
 }
 
 // newDynamicCache builds a cache over src.
-func newDynamicCache(src tableSource, now func() time.Time, ttl time.Duration) *dynamicCache {
+func newDynamicCache(src tableSource, now func() time.Time, ttl time.Duration, log *slog.Logger) *dynamicCache {
 	if now == nil {
 		now = time.Now
 	}
 	if ttl <= 0 {
 		ttl = dynamicTTL
 	}
-	return &dynamicCache{src: src, now: now, ttl: ttl, index: make(map[string]int)}
+	return &dynamicCache{src: src, now: now, ttl: ttl, log: log, index: make(map[string]int)}
 }
 
 // kindSpecs is a copy of the discovered kinds.
@@ -344,11 +347,13 @@ func (c *dynamicCache) refreshInBackground() {
 	}
 	c.refreshing = true
 	c.mu.Unlock()
-	go func() {
+	// safe.Go, not a bare `go`: a discovery panic must be logged, not take the
+	// process down (task 126's audit checks every goroutine in the tree).
+	safe.Go(c.log, "k8s.discover", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), dynamicDiscoverTimeout)
 		defer cancel()
 		_ = c.refresh(ctx)
-	}()
+	})
 }
 
 // refresh runs one discovery pass and swaps the result in. A failure keeps the
@@ -742,7 +747,7 @@ func NewDynamicWithClient(c *Client) *Dynamic {
 
 // newDynamicWithBackend wraps a backend and its discovery cache.
 func newDynamicWithBackend(b *Backend) *Dynamic {
-	d := &Dynamic{Backend: b, cache: newDynamicCache(clientSource{b.client}, b.now, dynamicTTL)}
+	d := &Dynamic{Backend: b, cache: newDynamicCache(clientSource{b.client}, b.now, dynamicTTL, b.log)}
 	return d
 }
 
@@ -770,7 +775,7 @@ func (s clientSource) Table(ctx context.Context, gvr schema.GroupVersionResource
 // SetSource replaces the cache's source. It exists for tests and for a caller
 // that injects its own discovery.
 func (d *Dynamic) SetSource(src tableSource) {
-	d.cache = newDynamicCache(src, d.now, dynamicTTL)
+	d.cache = newDynamicCache(src, d.now, dynamicTTL, d.log)
 	d.cache.loaded = true
 	d.cache.at = d.now()
 }
@@ -855,7 +860,7 @@ func (d *Dynamic) listDynamic(ctx context.Context, q resource.Query, def kindDef
 	f := filter{sel: q.Selector, name: strings.TrimSpace(q.Args["name"])}
 	ns := namespaceFor(q, d.sessionNamespace(), def)
 	ch := make(chan backend.Result, 1)
-	go func() {
+	safe.Go(d.log, "k8s.dynamic.list", func() {
 		defer close(ch)
 		res := backend.Result{Done: 1, Total: 1}
 		rows, err := d.tableRows(ctx, def, ns, q)
@@ -875,7 +880,7 @@ func (d *Dynamic) listDynamic(ctx context.Context, q resource.Query, def kindDef
 		case ch <- res:
 		case <-ctx.Done():
 		}
-	}()
+	})
 	return ch, nil
 }
 

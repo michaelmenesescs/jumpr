@@ -43,6 +43,9 @@ type Backend struct {
 	client *Client
 	kinds  []resource.KindSpec
 	now    func() time.Time
+	// log receives the panic reports of the goroutines this backend starts
+	// (safe.Go); nil means the reports are dropped.
+	log *slog.Logger
 
 	// typed and meta inject the client pair, which is what the tests do
 	// instead of building a kubeconfig client; namespace is the session
@@ -82,6 +85,7 @@ func New(o Options) (*Backend, error) {
 		return nil, err
 	}
 	b := NewWithClient(c)
+	b.log = o.Log
 	b.now = o.Now
 	if b.now == nil {
 		b.now = time.Now
