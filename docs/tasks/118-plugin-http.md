@@ -3,7 +3,7 @@
 - **Milestone:** M10
 - **Depends on:** 116, 099
 - **Parallel group:** M10-B (with 117)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `target: http` and `target: inventory` plugins (SPEC §12 second example, §9 "plugin-defined sources").
