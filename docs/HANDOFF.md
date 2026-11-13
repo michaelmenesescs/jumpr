@@ -359,3 +359,34 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   sparklines), asserted by `TestAsciiFrame` at 120x34. Two rebase conflicts were resolved by hand (root.go against the
   mux work from 022; a `NewRoot` call-site arity change in a test).
 
+
+## Machine handoff (2026-11-12): build moved to the M4 Mac mini
+
+The build now runs on the M4 Mac mini (`ssh mini`), not the laptop. Layout on that machine:
+
+- repo: `~/workspace/sitrep` (same `main`, branch per task under `~/workspace/wt/t<NNN>`)
+- runner: `~/jumper-run/` — `scheduler.py`, `launch.sh`, `supervise.sh`, `status.sh`, `stop.sh`, `state.json`,
+  per-task agent logs in `~/jumper-run/logs/<NNN>.log`, scheduler output in `logs/supervisor.out`
+- tmux session `jumper` runs `supervise.sh` (restarts the scheduler if it dies; state.json makes restarts safe)
+- one Hermes agent per task, its own worktree; the scheduler verifies the **rebased** tree (gofmt/vet/test +
+  forbidden-path check) before an `--ff-only` merge, marks the task done in the index and amends the commit
+
+Provider note: the first launch died on `deepseek-flash` (billing exhausted). The minis
+## Machine handoff (2026-11-12): build moved to the M4 Mac mini
+
+The build now runs on the M4 Mac mini (`ssh mini`), not the laptop. Layout on that machine:
+
+- repo: `~/workspace/sitrep` (same `main`, branch per task under `~/workspace/wt/t<NNN>`)
+- runner: `~/jumper-run/` — `scheduler.py`, `launch.sh`, `supervise.sh`, `status.sh`, `stop.sh`, `state.json`;
+  per-task agent logs in `~/jumper-run/logs/<NNN>.log`, scheduler output in `logs/supervisor.out`
+- tmux session `jumper` runs `supervise.sh` (restarts the scheduler if it dies; `state.json` makes restarts safe)
+- one Hermes agent per task, each in its own worktree; the scheduler verifies the **rebased** tree
+  (gofmt/vet/test plus forbidden-path check) before an `--ff-only` merge, marks the task done in the index and
+  amends that task's commit
+
+Provider note: the first launch on the mini died on `deepseek-flash` (DeepSeek billing exhausted). The mini's
+`~/.hermes/config.yaml` now uses the Nous provider (`deepseek/deepseek-v4.1-flash-1017`, same account as the
+laptop), verified with a one-shot query before the run was restarted.
+
+Capacity: 10 cores, ~11 GB free disk, and two long-lived CPU hogs (a 4-day `ffmpeg`, OrbStack) share the box, so the
+run is capped at `MAX_CONC=8`.
