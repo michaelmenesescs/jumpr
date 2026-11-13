@@ -1,0 +1,16 @@
+salt/job/20261113010101123456/new	{"fun": "state.apply", "arg": ["nginx"], "tgt": "web-01", "jid": "20261113010101123456", "ret": "", "tgt_type": "glob", "user": "root", "_stamp": "2026-11-13T01:01:01.123456"}
+salt/job/20261113010101123456/ret/web-01	{"fun": "state.apply", "fun_args": ["nginx"], "jid": "20261113010101123456", "id": "web-01", "return": {"nginx": {"result": true, "comment": "Service is running"}}, "retcode": 0, "success": true, "_stamp": "2026-11-13T01:01:04.654321"}
+salt/job/20261113010101987654/ret/web-02	{"fun": "state.apply", "fun_args": ["nginx"], "jid": "20261113010101987654", "id": "web-02", "return": {"nginx": {"result": false, "comment": "Package nginx is not installed"}}, "retcode": 1, "success": false, "_stamp": "2026-11-13T01:01:06.000001"}
+salt/auth	{"act": "pend", "id": "web-03", "pub": "-----BEGIN PUBLIC KEY-----", "result": true, "_stamp": "2026-11-13T01:02:00.000000"}
+salt/minion/web-01/start	{"id": "web-01", "cmd": "_minion_start", "_stamp": "2026-11-13T01:02:30.000000"}
+minion_start	{"id": "web-02", "cmd": "_minion_start", "_stamp": "2026-11-13T01:02:31.000000"}
+salt/beacon/web-01/disk/load	{"id": "web-01", "loadavg": 3.4, "_stamp": "2026-11-13T01:03:00.500000"}
+salt/key	{"act": "accept", "id": "web-03", "result": true, "_stamp": "2026-11-13T01:03:10.000000"}
+salt/run/20261113010320123456/new	{"fun": "manage.status", "jid": "20261113010320123456", "user": "root", "_stamp": "2026-11-13T01:03:20.000000"}
+salt/run/20261113010321987654/new	{"fun": "jobs.list_job", "jid": "20261113010321987654", "user": "root", "_stamp": "2026-11-13T01:03:21.000000"}
+salt/job/20261113010322555555/ret/web-01	{"fun": "pillar.items", "fun_args": [], "jid": "20261113010322555555", "id": "web-01", "return": {"db:password": "REDACTED"}, "retcode": 0, "success": true, "_stamp": "2026-11-13T01:03:25.000000"}
+salt/unknown/web-01/thing	{"id": "web-01", "_stamp": "2026-11-13T01:03:30.000000"}
+salt/job/20261113010324555556/new {"fun": "test.ping", "jid": "20261113010324555556", "tgt": "web-01", "_stamp": "2026-11-13T01:03:24.000000"}
+a line that is not an event at all
+salt/job/20261113010325555557/new	{"fun": "test.ping", 
+salt/beacon/web-02/load/1	[1, 2, 3]

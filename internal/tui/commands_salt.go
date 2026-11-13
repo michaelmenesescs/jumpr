@@ -36,6 +36,8 @@ const (
 	// saltGrainsKind is the factory key of the grains explorer (task 094). It
 	// is a view kind, not a registry kind.
 	saltGrainsKind resource.KindName = "salt-grains"
+	// saltEventsKind is the factory key of the event screen (task 096).
+	saltEventsKind resource.KindName = "salt-events"
 
 	// saltProposeTimeout bounds one planning round trip started by `:salt run`.
 	saltProposeTimeout = 30 * time.Second
@@ -154,12 +156,24 @@ func RegisterSaltCommands(c *Commands, b bus.Bus) error {
 	}
 	// :mine is the mine browser (SPEC §8.6 "Mine"): the cached mine functions
 	// and values of the fleet.
-	return c.Register(Command{
+	if err := c.Register(Command{
 		Name:  "mine",
 		Usage: ":mine [filter]",
 		Help:  "Salt mine: cached functions and values per minion",
 		Run: func(env *Env, args string) tea.Cmd {
 			return saltMineCmd(env, strings.TrimSpace(args))
+		},
+	}); err != nil {
+		return err
+	}
+	// :events is the master's live event bus (SPEC §8.6 "Events"), streamed
+	// over the same transport as every other Salt read.
+	return c.Register(Command{
+		Name:  "events",
+		Usage: ":events",
+		Help:  "Salt events: the master's live event bus",
+		Run: func(env *Env, args string) tea.Cmd {
+			return saltEventsCmd(env, strings.TrimSpace(args))
 		},
 	})
 }
@@ -254,6 +268,39 @@ func saltMineCmd(env *Env, filter string) tea.Cmd {
 		q.Args = map[string]string{"filter": filter}
 	}
 	return saltViewCmd(env, salt.KindMine, q)
+}
+
+// SaltEventsOps is what the `:events` command needs from the Salt backend. The
+// salt package implements it; tests use a fake.
+type SaltEventsOps interface {
+	// Events subscribes to the master's event bus.
+	Events(ctx context.Context) (<-chan salt.Event, error)
+}
+
+// saltEventsOf returns the Salt backend as the interface the events command
+// uses.
+func saltEventsOf(env *Env) (SaltEventsOps, bool) {
+	if env == nil || env.Registry == nil {
+		return nil, false
+	}
+	b, ok := env.Registry.Get(saltBackendName)
+	if !ok {
+		return nil, false
+	}
+	ops, ok := b.(SaltEventsOps)
+	return ops, ok
+}
+
+// saltEventsCmd opens the live event bus screen. The view subscribes to the
+// session's one stream and reconnects with `r`.
+func saltEventsCmd(env *Env, args string) tea.Cmd {
+	if args != "" {
+		return Flash(FlashError, "usage: :events")
+	}
+	if _, ok := saltEventsOf(env); !ok {
+		return Flash(FlashError, "salt is not configured: set salt.master in config.yaml")
+	}
+	return saltViewCmd(env, saltEventsKind, resource.Query{Kind: saltEventsKind})
 }
 
 // PillarOps is what the `:pillar` commands need from the Salt backend. The salt

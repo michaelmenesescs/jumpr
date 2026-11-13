@@ -3,7 +3,7 @@
 - **Milestone:** M7
 - **Depends on:** 094, 045
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:events` — the master's event bus live in a pane (SPEC §8.6 "Events").

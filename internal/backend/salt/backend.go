@@ -70,6 +70,12 @@ type Backend struct {
 	accepted   map[string]bool
 	acceptedAt time.Time
 	acceptedOK bool
+
+	// events is the session's one shared `state.event` stream (task 096):
+	// panes subscribe to it instead of each starting their own. eventsMu
+	// guards it.
+	eventsMu sync.Mutex
+	events   *eventHub
 }
 
 var _ backend.Backend = (*Backend)(nil)
