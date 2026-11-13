@@ -140,7 +140,7 @@ only by tasks 001, 098, 105 and 115.
 | [067](067-salt-capture-goldens.md) | Capture Salt golden files from the lab (Go tool) | 053, 066 | — | todo |
 | [068](068-salt-minions-keys.md) | Salt backend skeleton: minions, keys, health | 066, 039 | M4-B | todo |
 | [069](069-salt-grains-inventory.md) | Grains as an inventory source | 066, 039 | M4-B | todo |
-| [070](070-salt-targeting-compiler.md) | Targeting compiler: jumper selectors ↔ Salt targets (pure) | 004, 066 | M4-A | todo |
+| [070](070-salt-targeting-compiler.md) | Targeting compiler: jumper selectors ↔ Salt targets (pure) | 004, 066 | M4-A | done |
 | [071](071-salt-job-engine.md) | Salt job engine: async submit, poll, per-minion results | 066 | M4-B | todo |
 | [072](072-salt-jobs-browser.md) | Jobs browser: live and historical jobs, grouped job detail | 068, 071, 048 | M4-C | todo |
 | [073](073-salt-executor.md) | Salt as an execution transport | 071, 036 | M4-C | todo |

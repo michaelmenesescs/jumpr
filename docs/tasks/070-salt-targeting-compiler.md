@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 004, 066
 - **Parallel group:** M4-A (with 074)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Turn a jumper selector or host list into the best Salt target, and parse a native Salt target typed by the user.
