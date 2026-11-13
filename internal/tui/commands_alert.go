@@ -5,10 +5,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"jumper/internal/backend/k8s"
 	"jumper/internal/backend/prom"
 	"jumper/internal/resource"
 	"jumper/internal/targets"
@@ -113,8 +115,8 @@ func (r *Root) loadAlert(ref resource.Ref) tea.Cmd {
 }
 
 // openAlert applies a resolved alert: any registered opener gets the row first
-// (the k8s pods view, once it exists), then the investigation opens with the
-// alert's window and hosts, the session takes both and the host list is pushed.
+// (the k8s pods view, once it exists), then an alert that names Kubernetes pods
+// takes the pods path, then the built-in alert investigation runs.
 func (r *Root) openAlert(m alertResolvedMsg) tea.Cmd {
 	if r == nil || r.env == nil {
 		return nil
@@ -126,6 +128,23 @@ func (r *Root) openAlert(m alertResolvedMsg) tea.Cmd {
 		if cmd, ok := opener(m.Row); ok {
 			return cmd
 		}
+	}
+	// An alert whose labels name a namespace (and usually a pod) is a
+	// Kubernetes alert: the pods view opens filtered to them and the
+	// investigation targets the nodes those pods run on (task 111, SPEC W3).
+	if q, ok := k8sAlertPods(m.Row); ok {
+		if resolver, ok := r.alertNodeResolver(); ok {
+			return r.openK8sAlert(m, q, resolver)
+		}
+	}
+	return r.applyAlert(m)
+}
+
+// applyAlert is the built-in alert flow: the alert's window and hosts become the
+// session's, the investigation opens and the host list is pushed.
+func (r *Root) applyAlert(m alertResolvedMsg) tea.Cmd {
+	if r == nil || r.env == nil {
+		return nil
 	}
 
 	if r.env.Session != nil {
@@ -170,6 +189,114 @@ func (r *Root) openAlert(m alertResolvedMsg) tea.Cmd {
 	}}))
 	cmds = append(cmds, Flash(FlashOK, "alert on %s", pluralHosts(len(hosts))))
 	return batchCmds(cmds)
+}
+
+// k8sAlertPods is the pods view a Kubernetes alert opens: its namespace label
+// and, when it has one, its pod label (task 111, SPEC W3).
+func k8sAlertPods(row resource.Resource) (resource.Query, bool) {
+	return k8s.AlertPodsQuery(alertLabels(row))
+}
+
+// alertNodeResolver is what the Kubernetes alert flow needs from the k8s
+// backend: the inventory hosts of the nodes the alert's pods run on.
+type alertNodeResolver interface {
+	AlertNodes(ctx context.Context, q resource.Query) ([]resource.HostID, string, error)
+}
+
+// alertNodeResolver finds the registered Kubernetes backend.
+func (r *Root) alertNodeResolver() (alertNodeResolver, bool) {
+	if r == nil || r.env == nil || r.env.Registry == nil {
+		return nil, false
+	}
+	b, ok := r.env.Registry.Get(k8sBackendName)
+	if !ok || b == nil {
+		return nil, false
+	}
+	resolver, ok := b.(alertNodeResolver)
+	return resolver, ok
+}
+
+// openK8sAlert opens a Kubernetes alert: the pods view filtered to the alert's
+// pods, the session targets and the investigation, both on the nodes those pods
+// run on. The pods are read once for both (alertNodeSet).
+func (r *Root) openK8sAlert(m alertResolvedMsg, q resource.Query, resolver alertNodeResolver) tea.Cmd {
+	if r.env.Session != nil {
+		r.env.Session.Window = m.Window
+	}
+	r.routeMux(WindowChangedMsg{Window: m.Window})
+
+	nodes := &alertNodeSet{resolver: resolver, query: q}
+	return batchCmds([]tea.Cmd{
+		r.alertNodeTargetsCmd(m, nodes),
+		r.alertNodeInvestigationCmd(m, nodes),
+		r.openQuery(OpenQueryMsg{Query: q}),
+	})
+}
+
+// alertNodeTargetsCmd resolves the alert's pods to their nodes and makes those
+// hosts the session targets.
+func (r *Root) alertNodeTargetsCmd(m alertResolvedMsg, nodes *alertNodeSet) tea.Cmd {
+	label := alertTargetLabel(m)
+	return func() tea.Msg {
+		hosts, reason, err := nodes.resolve()
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "alert nodes: " + err.Error()}
+		}
+		if len(hosts) == 0 {
+			if reason == "" {
+				reason = "the alert resolves to no node"
+			}
+			return FlashMsg{Level: FlashWarn, Text: reason}
+		}
+		return TargetsChangedMsg{Set: targets.Set{
+			Label: label,
+			Hosts: append([]resource.HostID(nil), hosts...),
+		}}
+	}
+}
+
+// alertNodeInvestigationCmd opens the investigation on the nodes of the alert's
+// pods. It opens even when no node resolves, as the built-in flow does: the
+// record is the evidence that the alert was looked at.
+func (r *Root) alertNodeInvestigationCmd(m alertResolvedMsg, nodes *alertNodeSet) tea.Cmd {
+	inv, ok := invLog(r.env)
+	if !ok {
+		return nil
+	}
+	title, alerts, window := m.Title, m.Alerts, m.Window
+	return func() tea.Msg {
+		hosts, _, err := nodes.resolve()
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: "alert nodes: " + err.Error()}
+		}
+		meta, err := inv.Open(title, window, hosts, alerts)
+		if err != nil {
+			return FlashMsg{Level: FlashError, Text: err.Error()}
+		}
+		return InvestigationChangedMsg{Meta: &meta}
+	}
+}
+
+// alertNodeSet is the one node resolution an alert's two commands share: the
+// session targets and the investigation must see the same hosts, and the pods
+// and nodes are read once.
+type alertNodeSet struct {
+	once     sync.Once
+	resolver alertNodeResolver
+	query    resource.Query
+	hosts    []resource.HostID
+	reason   string
+	err      error
+}
+
+// resolve reads the alert's pods and their nodes, once.
+func (a *alertNodeSet) resolve() ([]resource.HostID, string, error) {
+	a.once.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), alertLoadTimeout)
+		defer cancel()
+		a.hosts, a.reason, a.err = a.resolver.AlertNodes(ctx, a.query)
+	})
+	return a.hosts, a.reason, a.err
 }
 
 // alertTargetLabel is the label the session's target set carries.

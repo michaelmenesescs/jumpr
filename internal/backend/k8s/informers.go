@@ -586,6 +586,9 @@ type filter struct {
 	// client-side because not every API server (nor the fake clientset)
 	// honours a field selector.
 	node string
+	// name is Args["name"]: one object by name, applied client-side. It is how
+	// a pivot narrows a list to the row it came from (task 111).
+	name string
 }
 
 // matches reports whether a row passes the parts of the filter Kubernetes was
@@ -593,6 +596,15 @@ type filter struct {
 func (f filter) matches(r resource.Resource) bool {
 	if f.node != "" {
 		if got, _ := r.Fields["node"].(string); got != f.node {
+			return false
+		}
+	}
+	if f.name != "" {
+		got, _ := r.Fields["name"].(string)
+		if got == "" {
+			got = r.Ref.Name
+		}
+		if got != f.name {
 			return false
 		}
 	}
@@ -617,6 +629,9 @@ func filterFor(q resource.Query, sessionNS string, def kindDef) (filter, error) 
 		return filter{}, err
 	}
 	f := filter{opts: listOptions{namespace: ns, labels: lab}, sel: q.Selector}
+	if name := strings.TrimSpace(q.Args["name"]); name != "" {
+		f.name = name
+	}
 	if node := strings.TrimSpace(q.Args["node"]); node != "" {
 		if !def.nodeArg {
 			return filter{}, errs.New(errs.Config, "k8s.query",

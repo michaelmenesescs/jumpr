@@ -10,6 +10,7 @@ import (
 
 	"jumper/internal/backend"
 	"jumper/internal/backend/elastic"
+	"jumper/internal/backend/k8s"
 	"jumper/internal/backend/linux"
 	"jumper/internal/backend/prom"
 	"jumper/internal/errs"
@@ -36,6 +37,14 @@ const hostMetricSparkWidth = 16
 type hostMetricSource interface {
 	HostColumns() []prom.HostColumn
 	Queriers() []prom.NamedQuerier
+}
+
+// hostNodeSource is a backend that knows the Kubernetes node behind an
+// inventory host. The overview's KUBERNETES line comes from it, and so does the
+// node ↔ host pivot (task 111): the same backend answers both, so a host that
+// is a node shows its cluster state.
+type hostNodeSource interface {
+	NodeStatusOf(ctx context.Context, host resource.HostID) (k8s.NodeStatus, bool, error)
 }
 
 // ruleReader is the part of a Prometheus client that can read rule
@@ -87,6 +96,14 @@ type hostMetricsMsg struct {
 	Err    error
 }
 
+// hostNodeMsg is the Kubernetes part: the node this host is, when it is one.
+type hostNodeMsg struct {
+	Seq    int
+	Status k8s.NodeStatus
+	Node   bool
+	Err    error
+}
+
 // Host is the one-screen summary of a single host: system facts, pressure,
 // load and memory, failed units and the recent journal errors. It loads two
 // independent parts — the overview row and the journal — and renders each as
@@ -124,6 +141,14 @@ type Host struct {
 	metricErr     error
 	metricDone    bool
 
+	// Kubernetes part (a k8s backend registered and this host is a node)
+	nodeSeq    int
+	nodeCancel context.CancelFunc
+	nodeStatus k8s.NodeStatus
+	nodeIsNode bool
+	nodeErr    error
+	nodeDone   bool
+
 	w, h int
 }
 
@@ -150,7 +175,9 @@ func NewHost(env *tui.Env, b backend.Backend, host resource.HostID) *Host {
 }
 
 // Init starts both parts in parallel. Neither waits for the other.
-func (h *Host) Init() tea.Cmd { return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics()) }
+func (h *Host) Init() tea.Cmd {
+	return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics(), h.loadNode())
+}
 
 // now is the clock handed in by the environment.
 func (h *Host) now() time.Time {
@@ -314,6 +341,50 @@ func (h *Host) metricWindow() (time.Time, time.Time) {
 	return h.window.Bounds(now)
 }
 
+// loadNode starts the Kubernetes part: the node this host is, when it is one.
+// It is a no-op unless a registered backend knows the cluster, which is what
+// makes the KUBERNETES line appear only with a k8s backend.
+func (h *Host) loadNode() tea.Cmd {
+	if h.nodeCancel != nil {
+		h.nodeCancel()
+		h.nodeCancel = nil
+	}
+	h.nodeStatus = k8s.NodeStatus{}
+	h.nodeIsNode = false
+	h.nodeErr = nil
+	h.nodeDone = true
+
+	src := h.nodeSource()
+	if src == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), hostLoadTimeout)
+	h.nodeCancel = cancel
+	h.nodeSeq++
+	seq := h.nodeSeq
+	h.nodeDone = false
+
+	host := h.host
+	return func() tea.Msg {
+		status, node, err := src.NodeStatusOf(ctx, host)
+		return hostNodeMsg{Seq: seq, Status: status, Node: node, Err: err}
+	}
+}
+
+// nodeSource finds the registered backend that knows Kubernetes nodes.
+func (h *Host) nodeSource() hostNodeSource {
+	if h.env == nil || h.env.Registry == nil {
+		return nil
+	}
+	for _, b := range h.env.Registry.Backends() {
+		if src, ok := b.(hostNodeSource); ok {
+			return src
+		}
+	}
+	return nil
+}
+
 // alertExpression returns the rule expression of the first open
 // investigation's alert that the rule list knows, or "".
 func alertExpression(ctx context.Context, q prom.Querier, alerts []string) string {
@@ -392,9 +463,20 @@ func (h *Host) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			h.metricsCancel = nil
 		}
 		return h, nil
+	case hostNodeMsg:
+		if m.Seq != h.nodeSeq {
+			return h, nil
+		}
+		h.nodeStatus, h.nodeIsNode, h.nodeErr = m.Status, m.Node, m.Err
+		h.nodeDone = true
+		if h.nodeCancel != nil {
+			h.nodeCancel()
+			h.nodeCancel = nil
+		}
+		return h, nil
 	case tui.WindowChangedMsg:
 		h.window = m.Window
-		return h, tea.Batch(h.loadJournal(), h.loadMetrics())
+		return h, tea.Batch(h.loadJournal(), h.loadMetrics(), h.loadNode())
 	case tea.KeyMsg:
 		return h, h.handleKey(m)
 	}
@@ -420,7 +502,7 @@ func (h *Host) handleKey(m tea.KeyMsg) tea.Cmd {
 		// shows instead of an empty table.
 		return tui.OpenQuery(h.queryFor(elastic.KindLog))
 	case h.keys.Refresh.Matches(key):
-		return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics())
+		return tea.Batch(h.loadHost(), h.loadJournal(), h.loadMetrics(), h.loadNode())
 	case h.keys.Back.Matches(key):
 		return tui.Pop()
 	}
@@ -449,6 +531,10 @@ func (h *Host) Close() error {
 	if h.metricsCancel != nil {
 		h.metricsCancel()
 		h.metricsCancel = nil
+	}
+	if h.nodeCancel != nil {
+		h.nodeCancel()
+		h.nodeCancel = nil
 	}
 	return nil
 }
@@ -668,6 +754,39 @@ func (h *Host) alertExprLine(w int) string {
 	return render.Truncate(line+st.Dim.Render(h.metricAlert), w)
 }
 
+// kubernetesLine is the KUBERNETES section: the node's ready state, the pods it
+// runs and how many of them are not ready (task 111, SPEC W3).
+func (h *Host) kubernetesLine() string {
+	if !h.nodeIsNode && h.nodeErr == nil {
+		return ""
+	}
+	st := h.style()
+	if h.nodeErr != nil {
+		return h.sectionLabel("KUBERNETES") + st.Crit.Render(errorLabel(h.nodeErr))
+	}
+	s := h.nodeStatus
+	state := s.Status
+	if state == "" {
+		state = "Unknown"
+	}
+	style := st.OK
+	if !s.Ready {
+		style = st.Crit
+	}
+	segs := []string{style.Render(state)}
+	nouns := "pods"
+	if s.Pods == 1 {
+		nouns = "pod"
+	}
+	segs = append(segs, fmt.Sprintf("%d %s", s.Pods, nouns))
+	if s.NotReadyPods > 0 {
+		segs = append(segs, st.Crit.Render(fmt.Sprintf("%d not ready", s.NotReadyPods)))
+	} else {
+		segs = append(segs, st.Dim.Render("all ready"))
+	}
+	return h.sectionLabel("KUBERNETES") + strings.Join(segs, " "+st.Dim.Render("·")+" ")
+}
+
 // loadLine is the LOAD line, with the MEMORY block on terminals at least 100
 // columns wide (the right column is dropped below that).
 func (h *Host) loadLine(w int) string {
@@ -789,6 +908,9 @@ func (h *Host) Render(w, height int) string {
 			lines = append(lines, line)
 		}
 		if line := h.alertExprLine(w); line != "" {
+			lines = append(lines, line)
+		}
+		if line := h.kubernetesLine(); line != "" {
 			lines = append(lines, line)
 		}
 	}

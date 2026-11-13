@@ -436,6 +436,14 @@ func (t *Table) handleKey(m tea.KeyMsg) (tui.View, tea.Cmd) {
 	}
 
 	if link, ok := t.linkForKey(key); ok {
+		if refuser, ok := t.b.(linkRefuser); ok {
+			// A pivot that cannot be taken (a node the inventory does not
+			// know, task 111) explains itself instead of opening a view that
+			// would fail to dial.
+			if msg := refuser.RefuseLink(t.view[t.cursor], key); msg != "" {
+				return t, tui.Flash(tui.FlashWarn, "%s", msg)
+			}
+		}
 		return t, tui.OpenQuery(link.To)
 	}
 	switch key {
@@ -515,6 +523,12 @@ func (t *Table) open() tea.Cmd {
 		return tui.Flash(tui.FlashInfo, "no drill-in for %s", t.spec.Name)
 	}
 	return tui.OpenQuery(links[0].To)
+}
+
+// linkRefuser is a backend that explains why a row's pivot cannot be taken.
+// The table flashes the text instead of opening the link's (empty) query.
+type linkRefuser interface {
+	RefuseLink(r resource.Resource, key string) string
 }
 
 // linkForKey finds the link of the selected row bound to key.

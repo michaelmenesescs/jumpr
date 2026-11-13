@@ -54,11 +54,14 @@ type Backend struct {
 	// use it so a forbidden kind fails fast.
 	syncTimeout time.Duration
 
-	// mu guards set, the informers of the current context and namespace, and
-	// the hook a context switch calls.
+	// mu guards set, the informers of the current context and namespace, the
+	// hook a context switch calls, and the node ↔ host pivot.
 	mu       sync.Mutex
 	set      *informerSet
 	onSwitch func(context string)
+	// pivot is the node ↔ host configuration (task 111); the zero value leaves
+	// every node unmatched.
+	pivot pivotState
 }
 
 var (
@@ -171,8 +174,14 @@ func (b *Backend) Get(ctx context.Context, ref resource.Ref) (resource.Resource,
 	return b.get(ctx, ref)
 }
 
-// Links returns the pivots from r. The node ↔ host pivot arrives in task 111.
-func (b *Backend) Links(r resource.Resource) []resource.Link { return nil }
+// Links returns the pivots from r: a pod or a node row opens the host overview
+// of the node it is on, the units on that host and its journal (task 111).
+func (b *Backend) Links(r resource.Resource) []resource.Link { return b.links(r) }
+
+// ExtraLinks returns the pivots a host row has when it is a Kubernetes node
+// (task 111): a backend.LinkProvider, so the root and the Linux backend can
+// ask without importing this package.
+func (b *Backend) ExtraLinks(r resource.Resource) []resource.Link { return b.extraLinks(r) }
 
 // Health probes GET /version with a 5 s timeout (SPEC §8.2). A missing
 // kubeconfig is unconfigured, not broken; an authentication failure, including

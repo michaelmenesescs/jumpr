@@ -3,7 +3,7 @@
 - **Milestone:** M9
 - **Depends on:** 106
 - **Parallel group:** M9-A (with 107, 108)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 SPEC W3: from a pod to its node as an SSH host and back.

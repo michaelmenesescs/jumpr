@@ -494,6 +494,74 @@ func TestTableCommandLine(t *testing.T) {
 	}
 }
 
+// refuserBackend is a backend whose rows have an `h` pivot it may refuse.
+type refuserBackend struct {
+	backend.Backend
+	msg string
+}
+
+func (b refuserBackend) Links(resource.Resource) []resource.Link {
+	return []resource.Link{{Label: "host", Key: "h"}}
+}
+
+func (b refuserBackend) RefuseLink(r resource.Resource, key string) string {
+	if key == "h" {
+		return b.msg
+	}
+	return ""
+}
+
+// TestTableRefusedLinkFlashes: a pivot the backend refuses flashes its reason
+// instead of opening an empty query (task 111: a node the inventory does not
+// know).
+func TestTableRefusedLinkFlashes(t *testing.T) {
+	inner := fake.New(fake.Options{Now: func() time.Time { return fixedNow }})
+	spec := hostKind(t, inner)
+	tbl := NewTable(testEnv(), refuserBackend{Backend: inner, msg: "node k3s-1 is not in the inventory"},
+		spec, resource.Query{Kind: "host", Hosts: []resource.HostID{"web-ewr-001"}})
+	cmd := tbl.Init()
+	for cmd != nil {
+		view, next := tbl.Update(cmd())
+		var ok bool
+		if tbl, ok = view.(*Table); !ok {
+			t.Fatalf("Update returned %T, want *Table", view)
+		}
+		cmd = next
+	}
+
+	_, flash := tbl.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	if flash == nil {
+		t.Fatal("pressing the refused key returned no command")
+	}
+	msg, ok := flash().(tui.FlashMsg)
+	if !ok {
+		t.Fatalf("pressing the refused key produced %T, want tui.FlashMsg", flash())
+	}
+	if !strings.Contains(msg.Text, "node k3s-1 is not in the inventory") {
+		t.Fatalf("flash = %q, want the refusal reason", msg.Text)
+	}
+
+	// The same pivot opens when the backend does not refuse it.
+	open := NewTable(testEnv(), refuserBackend{Backend: inner},
+		spec, resource.Query{Kind: "host", Hosts: []resource.HostID{"web-ewr-001"}})
+	cmd = open.Init()
+	for cmd != nil {
+		view, next := open.Update(cmd())
+		var ok bool
+		if open, ok = view.(*Table); !ok {
+			t.Fatalf("Update returned %T, want *Table", view)
+		}
+		cmd = next
+	}
+	_, nav := open.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	if nav == nil {
+		t.Fatal("pressing an accepted key returned no command")
+	}
+	if _, ok := nav().(tui.OpenQueryMsg); !ok {
+		t.Fatalf("accepted pivot produced %T, want tui.OpenQueryMsg", nav())
+	}
+}
+
 // TestTableSetContextStopsStream checks that a cancelled pane context stops the
 // list instead of streaming to the end.
 func TestTableSetContextStopsStream(t *testing.T) {
