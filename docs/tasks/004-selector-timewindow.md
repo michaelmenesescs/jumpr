@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 002
 - **Parallel group:** M0-A (with 003, 008, 009)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `resource.Selector` and `resource.TimeWindow` with parsers, exactly as in BUILD-PLAN §4.2.

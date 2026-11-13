@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 003 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 004 done; M0 in progress)_
 
 ## State
 
@@ -28,11 +28,17 @@ _Last updated: 2026-11-12 (task 003 done; M0 in progress)_
       naming the file) and `Validate()` (prefix regex, positive limits/timeouts, `ui.color` set, source types,
       static needs `path`, rewrites must compile). Testdata: `full.yaml`, `bad-prefix.yaml`.
 
+- [x] **Task 004 done:** `internal/resource` — `Selector`/`Term`/`Op` exactly as §4.2 with the quote-aware
+      tokenizer, earliest-operator split (`!=`/`!~` before `=`/`~`), key validation, regexes compiled once into
+      an unexported `Term.re`, `Matches` (AND, missing keys satisfy the negated forms, sets ignored),
+      canonical `String()` that round-trips, and `ParseSelector` (empty → zero, errors `errs.Config` naming the
+      token). `TimeWindow` with relative offsets (`s m h d w`), ranges (`now`, relative, RFC 3339,
+      `2006-01-02 15:04`, `2006-01-02T15:04`, `15:04` today in `now`'s location), `Bounds`, `IsZero`, `String`.
+
 ## Next task
 
-**`docs/tasks/004-selector-timewindow.md`** (or another M0-A task 008/009, which may run in parallel), then
-continue in numeric order. Tasks that share a parallel group in `docs/tasks/README.md` may be done concurrently;
-everything else is serial.
+**`docs/tasks/005-resource-types.md`** (task 004 is its only dependency). Tasks 008/009 remain available in
+parallel group M0-A. Then continue in numeric order.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -115,3 +121,10 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   value fails at load time with the file path attached; (2) `ssh.known_hosts` is `[]string` because §11's default
   is `[]`; (3) `MarshalYAML` emits the canonical `time.Duration.String()` form (`5m` → `5m0s`), so the round-trip
   test compares parsed durations, not source text. `make check` green (config tests 1.2 s under `-race`).
+- 2026-11-12 — Task 004: `internal/resource` selector and time window. Choices: (1) term operators are found at
+  the earliest position with two-character ops winning ties, so `label~^a=b` stays a regex value while `a!=b`
+  never parses as key `a!` (the task's ordering rule, satisfied without scanning every operator form first);
+  (2) inside quotes only `\"` is special, other backslashes are kept so quoted RE2 values survive (the spec says
+  "backslash escapes a quote", not "escapes everything"); (3) `ParseSelector(s.String())` equality is checked on
+  terms/sets, since `Raw` necessarily differs after canonicalisation. `make check` green (resource tests 1.3 s
+  under `-race`).
