@@ -111,7 +111,7 @@ journal for the window, top processes, sockets, disk/mem pressure, and a Prometh
 expression. Pivot to `salt` drift for those hosts and the pods on those nodes. Restart the unit with a confirmation.
 Every step is appended to `investigations/<date>-<slug>.md`, and related knowledge notes are shown in a side panel.
 
-**W2 — Fleet sweep.** `:hosts role=web` (≈1,500 hosts), then run the `failed-units` probe. Results are grouped by
+**W2 — Fleet sweep.** `:hosts role=web` (≈1,500 hosts), then `:probe failed-units`. Results are grouped by
 identical output: "1,481 identical · 19 differ". Open the 19 and compare them.
 
 **W3 — Kubernetes debugging.** A k9s-equivalent for pods, deployments, nodes, events and logs. A pod's node can be
@@ -354,14 +354,57 @@ Actions: `systemctl start|stop|restart|reload|enable|disable|mask|unmask`, `kill
 
 ### 8.6 Salt (over SSH to the master)
 
-- Configured with `salt.master: saltmaster.example.internal`. Commands run with `sudo -n` if configured.
-- Reads: `salt-run manage.status`, `salt '<tgt>' grains.items --out=json --static`,
-  `salt-run jobs.list_jobs` / `jobs.lookup_jid`, `state.apply test=True --out=json` (drift = changes in dry run).
-- Targeting: the sitrep target set compiles to `-L host1,host2,…` (chunked) or the user supplies a native target
-  expression (`-C 'G@role:web and …'`).
-- Actions: `state.apply` (with mandatory dry-run preview), `state.sls`, `service.restart`, `cmd.run`. Batch mode
-  (`-b`) maps to sitrep's rolling-batch setting.
-- Grains can be used as an inventory source (§9).
+Salt is the second-deepest backend after Linux. sitrep drives the **existing** `salt`, `salt-run` and `salt-key`
+CLIs on the master over one SSH connection (`salt.master: saltmaster.example.internal`, `sudo -n` if configured).
+It does not use salt-api, does not install anything, and does not reimplement state logic.
+
+**Job engine (everything sits on this).** Commands are submitted with `salt --async … --out=json`, which returns a
+job id (jid) immediately. sitrep then polls `salt-run jobs.list_job <jid> --out=json` (expected minions + returns
+so far) until every expected minion has returned or the timeout passes. Minions that never answer are reported as
+`no return`, never silently dropped. Small, fast reads (`test.ping`, `grains.get`) may use the synchronous form
+with `--static -t <timeout>`.
+
+| Area | Kinds / commands in sitrep | Salt CLI used |
+|---|---|---|
+| **Minions and keys** | `:minions` (id, up/down, key state, os, role, salt version, last seen), `:keys` (accepted / pending / rejected / denied with fingerprints) | `salt-run manage.status`, `salt-run manage.versions`, `salt-key -L --out=json`, `salt-key -F --out=json` |
+| **Key management** | accept / reject / delete as actions; accept shows the fingerprint; delete needs a typed confirmation | `salt-key -a|-r|-d <id> -y` |
+| **Grains** | inventory source (labels `salt.role`, `salt.dc`, `salt.os`, …) read from the master's cache without touching minions; grains explorer per minion | `salt-run cache.grains tgt='*' --out=json`, `salt <tgt> grains.items` |
+| **Targeting compiler** | sitrep selector → Salt target and back. `role=web dc~ewr|lax !maint` compiles to `-C 'G@role:web and G@dc:ewr\|lax and not G@maint:*'` when every key is a known grain; otherwise the selector is resolved on the client and sent as a chunked `-L` list. Pillar (`I@`), nodegroups (`N@name`, also usable as `@salt:name`), PCRE (`E@`) and globs are understood. A native expression can be typed directly (`:salt -C '…'`); `--preview-target` resolves it to hosts so it becomes a normal sitrep target set. The compiled target is always shown in the plan | `salt -C '…' --preview-target`, `salt-run config.get nodegroups` |
+| **Jobs browser** | `:jobs` — running (`jobs.active`) and history (window-bound). Job detail groups returns per minion like a fan-out: "41 identical · 2 differ · 1 no return"; pivot from a minion to its host | `salt-run jobs.active`, `salt-run jobs.list_jobs start_time=… end_time=…`, `salt-run jobs.list_job <jid>`, `salt-run jobs.kill_job`-equivalent (`saltutil.kill_job`) as an action |
+| **States** | `:salt state [sls]` — `state.apply test=True` on the target set, normalized and **grouped by identical diff**; per-state rows (id, function, result, changes, comment); `:states` — state tree browser (envs, top file, sls files, rendered `show_sls`/`show_highstate` for a minion) | `state.apply test=True`, `state.show_top`, `state.show_sls`, `state.show_highstate`, `salt-run fileserver.envs`, `salt-run fileserver.file_list` |
+| **Pillar** | `:pillar <minion>` — keys and structure visible, **values redacted by default**; reveal one value on demand; pillar values are never written to investigations or logs | `pillar.items`, `pillar.get` |
+| **Mine** | `:mine` — mine functions and cached values per minion | `salt-run cache.mine tgt='*'`, `mine.get` |
+| **Events** | `:events` — live event bus (job new/return, minion start, auth, beacons) streamed over the same SSH connection, filterable by tag | `salt-run state.event pretty=False` (long-running; cancelled when the pane closes) |
+| **Beacons and schedules** | per-minion lists | `beacons.list`, `schedule.list` (`return_yaml=False`) |
+| **Actions** | `state.apply` / `state.sls` (dry-run preview is mandatory in the plan), `service.restart`, `cmd.run`, `saltutil.refresh_pillar`, `saltutil.sync_all`, kill job | through the action bus; sitrep's canary and rolling batches are implemented by submitting one job per batch (Salt's own `-b` is not used, so abort and thresholds behave like every other action) |
+
+**Salt as an execution transport.** For fleets, `:run --via salt` and probes can execute through the master
+(`cmd.run_all`) instead of SSH fan-out. It implements the same `Executor` contract, so grouping, the bus and
+recording are identical.
+
+| | SSH fan-out | Salt transport |
+|---|---|---|
+| Connections | one per host (through bastions) | one, to the master |
+| Speed at 1,000+ hosts | bounded by concurrency (64) | one publish; returns in seconds |
+| Works when | SSH reaches the node | the minion is healthy and connected |
+| Runs as | your user, `sudo -n` when asked | **root, always** (shown in the plan; policy can forbid it) |
+| Good for debugging Salt itself | yes | no (it depends on what is broken) |
+| Side effects | none | command and output are kept in the **master's job cache** like any Salt job (shown as a warning on first use) |
+| Streaming output | yes | no (result arrives when the minion returns) |
+
+Default is SSH. sitrep suggests Salt when the target set is larger than `salt.suggest_over` (default 200) and the
+master is healthy. Scripts are passed base64-encoded so no quoting layer can alter them.
+
+**salt-ssh awareness.** If the master has a roster, it can be read as an inventory source. sitrep does **not**
+execute through `salt-ssh` unless `salt.allow_salt_ssh: true`, because salt-ssh copies a thin runtime to the
+target (`/var/tmp`), which breaks the zero-footprint rule; when enabled, the plan says so.
+
+**`salt-call` local mode.** When the master is unreachable or restricted, a single host's view can run
+`sudo -n salt-call --local grains.items` / `salt-call state.apply test=True --out=json` over SSH on the minion
+itself.
+
+**Health dot:** green when `salt-run manage.status` answers in time; half when some accepted minions are down;
+red when the master or `sudo -n salt` fails.
 
 ### 8.7 Chef (over SSH to a workstation)
 
@@ -479,6 +522,26 @@ Every write, from any backend, plugin, or (future) agent, goes through the **Act
 Policy (`policy.yaml`): deny patterns (e.g. never `systemctl stop sshd`), protected label selectors, a max targets
 per action, and a read-only mode switch (`--readonly`, or per context such as `prod`).
 
+### 11.1 Interactive shells and synchronized input
+
+An interactive shell in a terminal pane is a deliberate escape hatch: what you type there is not planned or
+confirmed, exactly like a plain `ssh` session. Opening one is recorded (`shell opened on web-01`), is refused in
+read-only mode unless `policy.shell_in_readonly: true`, and the pane border shows the host and a `protected` mark.
+
+Typing into several shells at once is where accidents happen, so it is guarded:
+
+- **Broadcast line (default, `prefix B` or `:sync`).** A prompt collects one full line. On Enter it becomes an
+  action on the bus: the plan lists the panes/hosts and the exact line, confirmation scales with the count, the
+  line is sent to a **canary pane first**, then to the rest. Deny patterns apply to the line. The line is recorded.
+- **Raw synchronized input (`:sync raw`, opt-in).** Every keystroke goes to all terminal panes in the window, like
+  tmux `synchronize-panes`. Turning it on is itself a confirmed action; it is limited to `mux.max_sync_panes`
+  (default 8), refused when any pane's host is `protected` or the session is read-only, shown as a red
+  `SYNC ×N` badge, switched off automatically after 5 minutes idle, and each completed line is recorded
+  best-effort. Deny patterns are checked on Enter and block the Enter key; this is a seat belt, not a security
+  boundary (shell history and editors bypass it), and the UI says so.
+- Target sets larger than the pane limit do not use shells at all: use `:run`, which is the same idea with proper
+  grouping and rollout.
+
 ## 12. YAML plugins
 
 Location: `~/.config/sitrep/plugins/*.yaml`. Hot-reloaded. Validated on load with clear errors.
@@ -545,9 +608,13 @@ Go backends are compiled in, using the `Backend` interface (§8). No Go `plugin`
 └───────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+The frame above is one pane filling the window. With splits, the status line (top) and the command/hint bar
+(bottom) stay global; each pane gets a border whose title carries its breadcrumbs and filter; the focused pane's
+border is highlighted. See §21 for windows, panes and the prefix key.
+
 - **Navigation:** k9s-style `:kind [selector]` with fuzzy autocomplete, `/` filter (substring, regex, or
-  `jq:` prefix), `Enter` drill-in, `Esc` back, a breadcrumb stack, `Tab` to cycle panes, and `?` for help on every
-  view.
+  `jq:` prefix), `Enter` drill-in, `Esc` back, a breadcrumb stack per pane, and `?` for help on every view. Every
+  multiplexer function is also a `:` command (`:split`, `:vsplit`, `:window`, `:zoom`, `:detach`).
 - **Status line:** a health dot per backend (green ok, half degraded, red down, grey unconfigured).
 - **Time:** `t` sets the window (`-1h`, `2026-11-12 13:00..14:00`, `alert`), and every pane respects it.
 - **Fan-out view:** groups identical outputs, then `Enter` on a group shows its members, and `d` diffs two groups.
@@ -615,22 +682,36 @@ Go backends are compiled in, using the `Backend` interface (§8). No Go `plugin`
   SOCKS), helper refresh on 401, and TLS CA.
 - **TUI:** `teatest` snapshot tests for key views.
 - **Scale test:** a fake transport simulating 2,000 hosts with latency and failure injection (CI benchmark).
-- **Lab (optional):** a Lima/OrbStack VM set on the laptop for end-to-end tests.
+- **Session server:** client and server in one test process over a temporary socket, plus one end-to-end test that
+  drives a real client through a local PTY.
+- **Lab:** the OrbStack lab in §22 is the end-to-end target. Lab tests carry the build tag `lab`
+  (`make lab-test`); `go test ./...` never needs it. Golden parser inputs are captured from the lab's three
+  distros with the Go dev tool.
+- **Tooling rule:** every helper is Go — the lab controller (`cmd/sitrep-lab`), fault injection, the mock SSO
+  proxy, the example auth helper, capture/sanitize (`cmd/sitrep-dev`), golden updates (`go test -update`) and
+  release. No bash or Python helper scripts; the Makefile only calls `go`.
 
 ## 19. Build plan (phases)
 
-| Phase | Scope | Exit criteria |
-|---|---|---|
-| **0. Skeleton** (wk 1) | repo, CI (lint/test/build), config loader, TUI shell (command bar, view stack, status line, help), resource model, fake backend | `sitrep` runs, navigates fake data, `go test ./...` green |
-| **1. SSH + Linux** (wk 2–4) | SSH pool with ProxyJump/agent/known_hosts, bastion mux, batch exec, sudo -n; inventory from ssh_config + static file; host, unit, journal, process, socket, disk, net views; `:run`; fan-out grouping | W2 + W5 working against a lab VM and real hosts |
-| **2. Actions + Investigations** (wk 5–6) | Action Bus, policy, canary/rolling, audit; investigation Markdown, notes, findings, knowledge index + panel; time window | W1 minus metrics; every action logged |
-| **3. HTTP layer + Prometheus/Alertmanager** (wk 7–8) | connection profiles, proxies, TLS, auth helpers, `doctor conn`; alerts view, PromQL, sparklines, silences; alert → hosts identity resolution | W1 complete with metrics |
-| **4. Kubernetes** (wk 9–11) | client-go, core kinds, logs, describe/YAML, actions, exec, port-forward, node↔host pivot | W3 parity with daily k9s use |
-| **5. Grafana + Elasticsearch** (wk 12–13) | dashboard browse + in-TUI panel rendering via `/api/ds/query`; ES log sources, search, tail | dashboards and ES logs inside investigations |
-| **6. Salt + Chef + plugins** (wk 14–16) | salt/knife over SSH, drift views, state.apply/chef-client with dry-run; YAML plugin engine + 5 example plugins | W4 + W6; custom plugin authored in < 10 min |
-| **7. Hardening** (ongoing) | scale test 2k hosts, crash safety, docs, `sitrep init/doctor`, signed release build | daily-driver ready |
+Detailed milestones, demo scripts and the task list are in `BUILD-PLAN.md` §2 and `docs/tasks/README.md`.
 
-Each phase ends with a usable tool, not a half-built layer.
+| Milestone | Scope | Exit criteria |
+|---|---|---|
+| **M0 Skeleton** | repo, Makefile, config loader, error taxonomy, resource model, selectors, fake backend, TUI shell (command bar, view stack, status line with health dots, help) | `sitrep --demo` navigates fake data; `make check` green |
+| **M1 Multiplexer** | layout tree, panes, windows, prefix key, zoom/resize, copy mode, layout persistence; the app proven to run over a plain byte stream (no TTY) | W7 minus shells and detach, on fake data |
+| **M2 SSH + Linux core** | ssh_config, agent, known_hosts, bastion pool, exec, batch probes, `sudo -n`; inventory (ssh_config + static); host, unit, journal, process, socket views; read-only fleet probes with grouping; SSH shell in a terminal pane | W2 against the lab; shell pane on a lab host |
+| **M3 Actions + investigations** | action bus, policy, confirm levels, canary/rolling, audit; investigation Markdown, notes, findings, knowledge panel; time window; `:run`; guarded synchronized input | W1 minus metrics, W5, W6, W9; every write recorded |
+| **M4 Salt core** | master runner, minions/keys, grains inventory, targeting compiler, job engine + jobs browser, state dry-run grouped by diff, Salt transport, Salt actions | W4 (Salt) + W8. **First fully usable release (v0.5)** |
+| **M5 Session server** | protocol, server, client, auto-start, detach/reattach, env refresh, autosave/restore, behaviour inside tmux | W7 complete |
+| **M6 systemd + Linux depth** | isd parity (§8.1.1), disks, network, cgroups, kernel log, files, packages, `/proc` drill-in | isd no longer needed day to day |
+| **M7 Salt depth** | state tree browser, pillar (redacted), mine, key management, events, nodegroups, beacons/schedules, salt-ssh awareness, `salt-call` local | §8.6 complete |
+| **M8 HTTP + Prometheus/Alertmanager** | connection profiles, proxies, TLS, auth helpers, `doctor conn`; alerts, PromQL, sparklines, silences; alert → hosts | W1 complete with metrics |
+| **M9 Kubernetes** | client-go, core kinds, logs, describe/YAML, actions, exec in a pane, port-forward, node↔host pivot | W3 parity with daily k9s use |
+| **M10 Chef + plugins** | knife over SSH, drift, `chef-client --why-run` through the bus; YAML plugin engine + 5 example plugins | W4 (Chef); custom plugin authored in < 10 min |
+| **M11 Grafana + Elasticsearch** | dashboard browse + in-TUI panels via `/api/ds/query`; ES log sources, search, tail | dashboards and ES logs inside investigations |
+| **M12 Hardening** | 2k-host scale test, crash safety, `sitrep init/doctor`, system-ssh fallback, release build, user docs | daily-driver ready |
+
+Each milestone ends with a usable tool and a demo script against the lab, not a half-built layer.
 
 ## 20. Decisions & open questions
 
@@ -643,6 +724,13 @@ Each phase ends with a usable tool, not a half-built layer.
 - Kubernetes via the local kubeconfig.
 - Plain Markdown for investigations, knowledge, and audit.
 - Full read/write with blast-radius guards.
+- (v0.2) tmux-style multiplexer; the session process renders, the client is a byte pump; detach via a per-user
+  session server on the laptop (§21). Bubble Tea v1 line.
+- (v0.2) Terminal panes use an in-process VT emulator; nothing interactive ever takes over the whole TTY.
+- (v0.2) Salt runs as async jobs polled by jid; Salt can be an execution transport; salt-ssh execution is off by
+  default.
+- (v0.2) `systemctl list-units` is parsed from plain text on all distros.
+- (v0.2) Module path `sitrep` for now (renameable). All helper tooling in Go.
 
 **Open**
 1. Final name (working: `sitrep`).
@@ -650,3 +738,146 @@ Each phase ends with a usable tool, not a half-built layer.
 3. Is a Chef run-status source available (reporting / run-status attribute), or only ohai time?
 4. Do any Salt masters restrict `sudo salt` for your user (it affects whether `salt-call`-style local reads are needed)?
 5. Is Elasticsearch read-only, or do you want saved searches written back?
+6. **Prefix key.** Proposed: `C-a`, and `C-b` automatically when sitrep runs inside tmux (your tmux prefix is
+   `C-a`, so it would never reach sitrep). Alternative: one fixed key that never collides (`C-b` everywhere, or
+   `C-g`).
+7. **Drop-in edits.** v1 previews a systemd drop-in but does not write it, because that is a file write on the
+   node. Allow it as an explicit, recorded action (written with `sudo tee` + `daemon-reload`)?
+8. **Salt transport and the job cache.** Running `:run --via salt` leaves the command and its output in the
+   master's job cache. Acceptable as a labelled trade-off, or should the Salt transport be limited to read-only
+   probes?
+9. **Raw synchronized input.** Keep the opt-in raw mode (§11.1), or ship only the broadcast-line mode?
+10. **Local shell panes.** Should a pane be allowed to run a local shell on the laptop (handy for `git`,
+    `kubectl`), or keep panes strictly for sitrep views and remote shells?
+
+## 21. Multiplexer and sessions ("it should work like tmux")
+
+### 21.1 Model
+
+```
+server (one per user, on the laptop)
+└─ session "main"                 named; owns targets, time window, investigation, read-only flag
+   ├─ window 0 "hosts"            a full-screen layout; shown in the status line like tmux: 0:hosts* 1:salt-
+   │  ├─ pane %1  view stack      :hosts role=web › web-01 › units
+   │  ├─ pane %2  view stack      journal -u nginx (following)
+   │  └─ pane %3  terminal        ssh web-01   (PTY on the node, emulated locally)
+   └─ window 1 "salt"
+      └─ pane %4  view stack      :jobs › 20261112135501
+```
+
+- A **pane** hosts exactly one of:
+  - a **view stack** — everything in §13 (tables, journal, fan-out, timeline), with its own breadcrumbs and filter;
+  - a **terminal** — an interactive PTY: an SSH shell on a host (M2), a pod exec (M9), or a local shell (open
+    question 10). The remote byte stream is fed to an in-process terminal emulator and drawn inside the pane, so
+    full-screen programs (`top`, `less`, `vim`, `journalctl` pager) work inside a split.
+- Targets, the time window and the open investigation belong to the **session**, so every pane agrees on "which
+  hosts, which time range, which incident". A pane can pin its own host (a host drill-in).
+- Layout is a binary split tree, as in tmux. Minimum pane size 10×3.
+
+### 21.2 Keys
+
+Prefix: `C-a` by default; `C-b` when sitrep is started inside tmux (`mux.prefix`, `mux.prefix_in_tmux`). The status
+line shows the active prefix. Pressing the prefix twice sends it through to the focused terminal pane. All
+bindings are rebindable in `keymap.yaml`, and each has a `:` command.
+
+| Keys (after prefix) | Action | Command |
+|---|---|---|
+| `%` / `"` (also `\|` / `-`) | split right / split below | `:vsplit`, `:split` |
+| arrows or `h j k l` | focus pane in that direction | `:focus left\|right\|up\|down` |
+| `o` / `;` | next pane / last pane | |
+| `H J K L` (repeatable) | resize by 2 cells | `:resize <dir> <n>` |
+| `z` | zoom / unzoom the pane | `:zoom` |
+| `x` | close pane (confirm if it holds a live shell or a running rollout) | `:kill-pane` |
+| `{` / `}` / `Space` | swap panes / next preset layout (even-h, even-v, main-left) | `:layout <name>` |
+| `c` / `&` | new window / close window | `:window new\|kill` |
+| `n` / `p` / `0`–`9` / `w` | next / previous / by number / window list | `:window <n>` |
+| `,` / `$` | rename window / session | `:rename …` |
+| `s` | session list (switch) | `:sessions` |
+| `S` | open an SSH shell pane to a host (prompt with completion; defaults to the selected host) | `:ssh <host>` |
+| `[` | copy mode | `:copy` |
+| `B` | broadcast a line to the terminal panes of this window (§11.1) | `:sync` |
+| `:` | command bar (works from a terminal pane too) | |
+| `d` | detach | `:detach` |
+| `?` | key help | `:help` |
+
+Inside a view pane, k9s-style keys work without the prefix (§13). Inside a terminal pane every key goes to the
+remote side except the prefix.
+
+### 21.3 Copy mode
+
+`prefix [` freezes the pane and shows its text with scrollback (terminal panes keep `mux.scrollback` lines,
+default 10,000; view panes expose their full content, not only the visible rows). vi keys: `h j k l`, `g`/`G`,
+`C-u`/`C-d`, `/` search, `v` select, `V` line select, `y` yank, `q`/`Esc` leave. Yank goes to the macOS clipboard
+(`pbcopy`) and, as a fallback and when nested in tmux or SSH, via OSC 52. `F` in copy mode marks the selection as
+a finding in the open investigation.
+
+### 21.4 Sessions, detach and reattach
+
+```
+$ sitrep                    # attach to the last session, or create "main"; starts the server if needed
+$ sitrep new -s db-incident # new named session
+$ sitrep attach -t main     # reattach
+$ sitrep ls                 # sessions, windows, attached?, last activity
+$ sitrep kill-session -t x  ·  sitrep kill-server
+$ sitrep --standalone       # no server: one process, exits when you quit (also the only mode before M5)
+```
+
+- **Architecture.** One per-user **session server** on the laptop, started on demand, listening on a unix socket
+  (`~/.cache/sitrep/sitrep.sock`, mode 0600 in a 0700 directory). The server owns sessions, SSH connections,
+  backends, the action bus and the investigation log, and it **renders**: each session is one long-lived TUI
+  program that writes terminal bytes. The client only puts the local terminal in raw mode and pumps bytes and
+  resize events over the socket. This is tmux's own design; it means there is one code path for standalone and
+  server mode, no state to synchronize, and a client small enough to be obviously correct. Wire protocol:
+  `BUILD-PLAN.md` §6.
+- **What survives a detach:** everything in the session — followed journals, running fan-outs, Salt job polling,
+  open shells, a rollout paused at its canary (it stays paused; it never proceeds without a human).
+- **What survives a server restart or reboot:** the layout and each pane's command history (autosaved to
+  `~/.cache/sitrep/sessions/<name>.json`), the investigation files, and the audit log. Live connections do not;
+  terminal panes come back as "disconnected — press r to reconnect".
+- **Prompts** (unknown host key, key passphrase) are shown in the TUI. If nobody is attached, the operation waits
+  briefly and then fails with `needs-interaction`.
+- **ssh-agent:** each attach refreshes `SSH_AUTH_SOCK` from the attaching client, as tmux's `update-environment`
+  does.
+- **Inside tmux:** supported. The prefix switches to `C-b`, OSC 52 is used for the clipboard, and the terminal
+  title is set to `sitrep: <session>`. Running sitrep's own client inside a sitrep terminal pane is refused
+  (`$SITREP` is set in local panes).
+- **Security:** the socket is reachable only by the same user. The server holds no credentials beyond what the
+  process would hold standalone (agent access, in-memory auth-helper tokens). `sitrep kill-server` drops
+  everything. Nothing is listening on the network, and nothing runs on any node.
+- **Limits (v1):** one client per session at a time (a second attach takes over); one colour profile per server.
+
+### 21.5 Build order
+
+The multiplexer is built in-process first (M1) and is fully usable standalone. From the first commit the code
+follows the detach-safety rules (`BUILD-PLAN.md` §6.1: no direct stdin/stdout, no TTY takeover, sizes only from
+messages), and an early test runs the whole app over an in-memory pipe. M5 then adds only the socket, the client
+and process management.
+
+## 22. Test lab
+
+A small, real environment on the laptop (OrbStack machines, arm64) so every workflow in §5 can be exercised end to
+end. It is controlled by a Go command, `cmd/sitrep-lab` (`up | down | status | fault list | fault <name> [--undo]`);
+provisioning snippets that run inside lab machines are embedded in that binary. sitrep itself is used against the
+lab exactly as against production: over SSH through the bastion, nothing installed by sitrep.
+
+| Host (`*.lab.example.internal`) | OS | Role |
+|---|---|---|
+| `bastion` | Ubuntu 24.04 | sshd only; every other host is reached with ProxyJump through it |
+| `salt` | Rocky 9 | salt-master and its own minion; state tree (`common`, `nginx`, `haproxy`, `postgres`), pillar including a fake secret, nodegroups `webs` and `k8s` |
+| `chef` | Ubuntu 22.04 | chef-zero / cinc with a knife workstation |
+| `web-01`, `web-02` | Rocky 9 | salt minions (grains `role`, `dc`), nginx, node_exporter |
+| `web-03` | Ubuntu 24.04 | same role on a second distro |
+| `db-01` | Ubuntu 22.04 | postgres, third distro |
+| `k3s-1`, `k3s-2` | Ubuntu 24.04 | k3s server and agent; also SSH hosts and salt minions (node ↔ host pivot); kubeconfig context `sitrep-lab` |
+| observability (containers, later) | — | Prometheus, Alertmanager, Grafana, Elasticsearch behind a mock SSO proxy that requires a cookie (exercises connection profiles and auth helpers) |
+
+- User `sre` with passwordless sudo on every machine; a lab-only SSH key; `lab/ssh_config` is generated.
+- **Fault injection** (`sitrep-lab fault <name>`, undone with `--undo`) reproduces the mockup's scenarios: nginx
+  cannot bind :443 because haproxy took it, `/var` filling up, a crash-looping OOM pod, a stopped minion, a pending
+  minion key, a failing state.
+- **How tests use it:** lab tests are ordinary Go tests behind the build tag `lab`. They read `lab/ssh_config`
+  (and `lab/.keys/kubeconfig`), skip with a clear message when the lab is down, inject a fault, drive sitrep's packages
+  (not the TUI) against real hosts, assert, and reset in cleanup. Each milestone has one demo script (manual,
+  `BUILD-PLAN.md` §2) and at least one `TestLab…` test. Parser goldens are captured from the lab's three distros.
+- The lab is a development aid only. Nothing in the product depends on it, and no lab hostnames or keys are
+  secrets (the key is generated locally and git-ignored).

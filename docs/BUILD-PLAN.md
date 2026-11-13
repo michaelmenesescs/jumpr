@@ -37,8 +37,8 @@ SPEC §22; all lab commands assume `go run ./cmd/sitrep-lab up` has run and `lab
 |---|---|---|---|---|
 | M0 | Skeleton | 001–016 | Navigate fake data in a k9s-style shell: `:kind selector`, `/` filter, breadcrumbs, health dots, help. | `make build && ./sitrep --demo` → `:hosts role=web` → `/ewr-00` → `Enter` → `Esc` → `?` → `:q` |
 | M1 | Multiplexer (in-process) | 017–025 | Split panes, windows, prefix key, zoom, resize, copy mode; layout survives restart. | `./sitrep --demo` → `C-a %` → `:alerts` in the new pane → `C-a c` → `C-a 0` → `C-a z` → `C-a [` select, `y` → quit and restart: layout is back |
-| M2 | SSH + Linux core | 026–053 | Reach lab hosts through the bastion; hosts/units/journal/procs/sockets views; fleet probes grouped by identical output; an interactive SSH shell in a pane. | `./sitrep --config lab/sitrep/config.yaml` → `:hosts` → `Enter` on `web-01` → `u` → `j` → `:probe failed-units` → `C-a %` → `:ssh web-02` |
-| M3 | Actions + investigations | 054–065 | Restart a unit with plan → confirm → canary → rolling; policy deny; everything recorded in Markdown; knowledge panel; `:run`; guarded synchronized input. | Run `go run ./cmd/sitrep-lab fault nginx-443-conflict`, then follow SPEC W1 without metrics: `:hosts role=web` → `:inv open nginx-443` → `u` → `x` restart nginx (fails) → `s` sockets → `F` → stop haproxy → restart nginx → `T` |
+| M2 | SSH + Linux core | 026–053 | Reach lab hosts through the bastion; hosts/units/journal/procs/sockets views; fleet probes grouped by identical output; an interactive SSH shell in a pane. | `./sitrep --config-dir lab/sitrep` → `:hosts` → `Enter` on `web-01` → `u` → `j` → `:probe failed-units` → `C-a %` → `:ssh web-02` |
+| M3 | Actions + investigations | 054–065 | Restart a unit with plan → confirm → canary → rolling; policy deny; everything recorded in Markdown; knowledge panel; `:run`; guarded synchronized input. | Run `go run ./cmd/sitrep-lab fault haproxy-443`, then follow SPEC W1 without metrics: `:hosts role=web` → `:inv open nginx 443` → `:probe failed-units` → open the differing host → `u` → `x` restart nginx (fails at the canary) → `s` sockets → `F` → `x` stop haproxy → restart nginx → `T`; then `go run ./cmd/sitrep-lab fault haproxy-443 --undo` |
 | M4 | Salt core | 066–076 | Minions and keys, grains inventory, selector ↔ Salt target, live and historical jobs grouped per minion, `state.apply test=True` grouped by identical diff, Salt as fan-out transport, Salt actions through the bus. **First fully usable release (v0.5).** | `:minions` → `:jobs` → `:hosts role=web` → `:salt state` (dry run, grouped) → `x` apply → `:run --via salt 'uptime'` |
 | M5 | Session server | 077–083 | Detach and reattach; sessions survive closing the terminal; works inside tmux. | `./sitrep` → open panes, start `journal` follow → `C-a d` → close terminal → new terminal → `./sitrep attach` → follow kept running. `./sitrep ls` |
 | M6 | systemd + Linux depth | 084–091 | isd parity: unit status/show/cat, dependencies, timers, drop-in preview, unit-file diff across hosts; disks, network, cgroups, dmesg, files, packages, `/proc` drill-in. | `:units` on `web-01` → `Enter` nginx → tabs; `:hosts role=web` → `:unitdiff nginx.service` |
@@ -84,6 +84,10 @@ internal/inventory/            Host, Source, merge, identity, cache; sources in 
 internal/targets/              current target set, saved sets
 internal/bus/                  bus, policy, confirm level, rollout engine
 internal/redact/               secret redaction
+internal/safe/                  safe.Go: panic-recovering goroutine starter (task 126)
+internal/labtest/               helpers for //go:build lab tests (task 035)
+internal/devtools/              logic behind cmd/sitrep-dev (capture, sanitize, release)
+internal/bus/generic/           the `:run` planner (task 063)
 internal/investigation/        investigation file, audit file, timeline, recorder, knowledge index
 internal/plugin/               YAML plugins (M10)
 internal/mux/                  layout tree, pane, window, session state, prefix machine, copy mode, persistence
@@ -91,6 +95,7 @@ internal/mux/vt/               terminal emulator adapter
 internal/mux/termpane/         terminal pane content (uses vt + transport.Shell)
 internal/server/               protocol codec, server, client attach, daemon start (M5)
 internal/clip/                 clipboard (pbcopy, OSC 52)
+internal/interact/             Prompt, Answer, Prompter: how non-UI code asks the user something
 internal/render/               table, fit, sparkline, bar, diff colouring
 internal/tui/                  root App model, Env, View interface, view stack, command bar, status line, dialogs
 internal/tui/theme/            colours and styles
@@ -109,7 +114,7 @@ cmd → app → tui → mux → (mux/termpane, mux/vt)
             tui → bus → action, investigation, redact
             tui → backend(s) → transport, probe, fanout, group, inventory, resource, action, errs
        app → server
-leaf packages (import nothing internal except errs): errs, resource, shq, redact, render, clip, config
+leaf packages (import nothing internal except errs): errs, resource, shq, redact, render, clip, config, interact
 ```
 
 `backend/*` must not import `tui`, `mux`, `bus`, `server` or `app`. `tui/views` may import backends only for
@@ -118,6 +123,9 @@ their typed `Raw` payloads; prefer `resource.Resource.Fields`.
 ## 4. Core interfaces (the contract)
 
 Signatures and doc comments below are normative. Private fields, helpers and constructors are up to the task.
+A task file may add a method, field, constructor or small optional interface **by name** (for example `Run.Results()`
+in task 057, `Env.Redact` in task 072); such additions are part of the contract once that task is done. Nothing
+listed here may be removed, renamed or re-typed.
 `tea` is `github.com/charmbracelet/bubbletea`.
 
 ### 4.1 `internal/errs`
@@ -381,6 +389,19 @@ type PTYRequest struct {
 	Command string // empty = login shell
 }
 
+// HostResult is one host's outcome in a multi-host run.
+type HostResult struct {
+	Host   resource.HostID
+	Result ExecResult
+	Err    error // *errs.Error for transport failures
+}
+
+// BatchExecutor is optional: executors that can run one command on many hosts as a single operation
+// (Salt). fanout.Run uses it when present. Every host yields exactly one HostResult; the channel is closed.
+type BatchExecutor interface {
+	ExecBatch(ctx context.Context, hosts []resource.HostID, cmd Command) <-chan HostResult
+}
+
 // ShellOpener opens an interactive PTY session on a host.
 type ShellOpener interface {
 	OpenShell(ctx context.Context, host resource.HostID, req PTYRequest) (Shell, error)
@@ -460,9 +481,17 @@ type Registry struct{ /* private */ }
 
 func NewRegistry() *Registry
 func (r *Registry) Register(b Backend) error                          // error on duplicate kind name or alias
+func (r *Registry) Replace(b Backend) error                           // swap a backend of the same name (plugin reload, task 117)
+func (r *Registry) Get(name string) (Backend, bool)                   // by backend name
 func (r *Registry) Backends() []Backend                               // registration order
 func (r *Registry) Lookup(kindOrAlias string) (Backend, resource.KindSpec, bool)
 func (r *Registry) Kinds() []resource.KindSpec                        // sorted by name
+
+// LinkProvider is optional: extra pivots for rows of *other* backends (host → salt minion, pod → host).
+// The root asks every registered backend, so backends never import each other.
+type LinkProvider interface {
+	ExtraLinks(r resource.Resource) []resource.Link
+}
 ```
 
 Writes are **not** on `Backend`. A backend that can write also implements `action.Planner` (§4.5).
@@ -646,15 +675,13 @@ type Options struct {
 	Concurrency int // max hosts in flight; 0 = 64
 }
 
-type HostResult struct {
-	Host   resource.HostID
-	Result transport.ExecResult
-	Err    error // *errs.Error for transport failures
-}
+// HostResult is an alias so callers can keep writing fanout.HostResult.
+type HostResult = transport.HostResult
 
 // Run executes cmd on every host with bounded concurrency. Results arrive in completion order.
 // The channel is closed when all hosts are done or ctx is canceled; every host yields exactly one HostResult
-// (hosts not started before cancellation yield Err with Kind Canceled).
+// (hosts not started before cancellation yield Err with Kind Canceled). Duplicate hosts run once.
+// If ex implements transport.BatchExecutor, Run delegates to it. Callers must drain the channel.
 func Run(ctx context.Context, ex transport.Executor, hosts []resource.HostID, cmd transport.Command, opt Options) <-chan HostResult
 ```
 
@@ -792,6 +819,15 @@ type Env struct {
 	Now       func() time.Time
 }
 
+// SessionState is the per-session context every pane shares. Only the root model mutates it.
+type SessionState struct {
+	Name          string
+	Targets       targets.Set
+	Window        resource.TimeWindow
+	Investigation *investigation.Meta // nil = none open
+	ReadOnly      bool
+}
+
 // Factory builds the view for a query. Registered per kind; kinds without one get the generic table view.
 type Factory func(env *Env, q resource.Query) (View, error)
 
@@ -805,6 +841,45 @@ type Command struct {
 	Run func(env *Env, args string) tea.Cmd
 	// Complete returns candidates for the argument text; may be nil.
 	Complete func(env *Env, args string) []string
+}
+```
+
+**Growing structs.** `Env`, `SessionState` and the message list in §5 mention packages that do not exist in early
+milestones (`inventory`, `targets`, `bus`, `investigation`, `fanout`, `transport`). The task that introduces a
+package adds the fields and messages that reference it; until then they are simply absent. Names and shapes are
+fixed here; do not invent alternatives.
+
+### 4.8.1 `internal/interact`
+
+```go
+package interact
+
+type Kind int
+
+const (
+	HostKeyUnknown Kind = iota // Body holds host, key type and SHA256 fingerprint; Choices: "once", "always", "reject"
+	Passphrase                 // Secret = true; Answer.Text is the passphrase
+	Confirm                    // Choices: "yes", "no"
+)
+
+type Prompt struct {
+	Kind    Kind
+	Title   string
+	Body    string
+	Secret  bool
+	Choices []string
+}
+
+type Answer struct {
+	Choice   string
+	Text     string
+	Canceled bool
+}
+
+// Prompter asks the user. Implementations must return errs.Interaction when nobody can answer
+// (no UI, detached past the timeout). Safe for concurrent use; prompts are shown one at a time.
+type Prompter interface {
+	Ask(ctx context.Context, p Prompt) (Answer, error)
 }
 ```
 
@@ -945,6 +1020,15 @@ type PaneMsg struct {
 }
 
 func ForPane(id PaneID, cmd tea.Cmd) tea.Cmd
+
+// OpMsg asks the multiplexer to do something. Op names are constants in mux/ops.go (task 018):
+// "split-h", "split-v", "kill-pane", "zoom", "focus", "resize", "swap", "layout-next", "new-window",
+// "kill-window", "select-window", "next-window", "prev-window", "window-list", "rename-window",
+// "rename-session", "session-list", "ssh", "copy-mode", "sync", "command", "detach", "help", "send-prefix".
+type OpMsg struct {
+	Op  string
+	Arg string
+}
 ```
 
 ```go
@@ -1009,16 +1093,12 @@ type RunEventsMsg struct {
 	Closed bool
 }
 
-// Mux requests (emitted by `:` commands and the prefix table; handled by the root)
-type MuxMsg struct {
-	Op  string // "split-h","split-v","kill-pane","zoom","focus","resize","new-window","kill-window",
-	           // "select-window","next-window","prev-window","rename-window","copy-mode","sync","detach","even"
-	Arg string
-}
+// Mux requests are mux.OpMsg (package mux, see below): emitted by `:` commands and the prefix table,
+// executed by mux.Model, or handed to the root when the mux cannot do them itself (detach, command bar, help).
 
 // Interaction requests from non-UI code (host key, passphrase). The root shows a dialog and replies.
 type PromptMsg struct {
-	Prompt interact.Prompt       // package internal/tui/interact
+	Prompt interact.Prompt       // package internal/interact
 	Reply  chan<- interact.Answer
 }
 ```
@@ -1066,7 +1146,7 @@ The view's `Update` handles the batch message and returns another `NextBatch` co
   started the server). Documented limitation.
 - **Prompts while detached** (host key, key passphrase) wait up to `interact.timeout` (default 2 min) for a client,
   then fail with `errs.Interaction`.
-- **Persistence:** every session autosaves its layout (`mux.SessionState`, §task 024) to
+- **Persistence:** every session autosaves its layout (`mux.SessionFile`, task 024) to
   `~/.cache/sitrep/sessions/<name>.json` on change (debounced 1 s). When the server starts it restores saved
   sessions lazily on first attach. Terminal panes come back as "disconnected — press r to reconnect".
 - **Standalone mode** (`sitrep --standalone`, and the only mode before M5): same `app.Run`, wired to the real TTY.
@@ -1285,6 +1365,7 @@ salt:
   timeout: 60s
   poll_interval: 2s
   list_chunk: 200          # max minions per -L target
+  suggest_over: 200        # suggest the Salt transport above this many targets
   allow_salt_ssh: false
 interact:
   timeout: 2m
@@ -1297,13 +1378,13 @@ loaded by their own tasks.
 
 | Risk | Why it is risky | De-risk |
 |---|---|---|
-| **Native SSH through a bastion at fan-out scale** | `x/crypto/ssh` has no built-in ProxyJump, pooling or limits. sshd `MaxSessions` (default 10) caps session channels per connection; `MaxStartups` (default 10:30:100) drops bursts of unauthenticated connections; one TCP connection to the bastion carries every forwarded channel. | Tasks 030–033 build an in-process server that enforces a channel limit, and the pool is tested against it. Task 034 runs a 9-host × 5-round fan-out through the lab bastion with `MaxSessions 10`. `max_conns_per_bastion` and `max_channels_per_conn` are config, not constants. Connect bursts are smoothed by the per-bastion semaphore. |
+| **Native SSH through a bastion at fan-out scale** | `x/crypto/ssh` has no built-in ProxyJump, pooling or limits. sshd `MaxSessions` (default 10) caps session channels per connection; `MaxStartups` (default 10:30:100) drops bursts of unauthenticated connections; one TCP connection to the bastion carries every forwarded channel. | Tasks 030–033 build an in-process server that enforces a channel limit, and the pool is tested against it. Task 035 runs a 9-host × 5-round fan-out through the lab bastion with `MaxSessions 10`. `max_conns_per_bastion` and `max_channels_per_conn` are config, not constants. Connect bursts are smoothed by the per-bastion semaphore. |
 | **known_hosts with several key types** | Plain `x/crypto/ssh/knownhosts` fails with "key mismatch" when the server offers a key type other than the one stored. | Use `skeema/knownhosts` to set `HostKeyAlgorithms` (task 029). Test with an ed25519-only entry against a server that also has RSA. |
-| **Terminal panes (VT emulator)** | `charmbracelet/x/vt` is v0.1.0; the emulator must have its response pipe drained or writes block; full-screen programs (vim, top, less) stress it. | Task 048 is a spike with a hard go/no-go test list behind our own `vt.Emulator` interface. Fallback: `github.com/vito/midterm` behind the same interface (ask before switching). |
+| **Terminal panes (VT emulator)** | `charmbracelet/x/vt` is v0.1.0; the emulator must have its response pipe drained or writes block; full-screen programs (vim, top, less) stress it. | Task 049 is a spike with a hard go/no-go test list behind our own `vt.Emulator` interface. Fallback: `github.com/vito/midterm` behind the same interface (ask before switching). |
 | **Detach/reattach** | Running Bubble Tea without a real TTY: no raw mode, no size, no colour detection; repaint after reattach. | Task 025 (M1) runs the full app over `io.Pipe` with injected size and asserts frames. The detach-safety rules (§6.1) apply from task 001. M5 then adds only the socket. |
 | **Bubble Tea message floods** | 1,500 results as 1,500 messages freeze the UI. | `NextBatch` is the only streaming pattern (task 011) and the scale test (123) enforces it. |
-| **Salt CLI output variability** | Minions that do not return, mixed stderr noise, non-JSON lines, state returns that are a list of error strings instead of a dict, version differences. | Async job engine (task 070) so "no return" is explicit. Tolerant decoder (task 066). Real captures from the lab in `testdata/salt/` (task 067) before the parsers that depend on them. |
-| **Salt argument parsing** | The Salt CLI YAML-parses arguments; `a=b` words become kwargs; quoting through SSH + sudo + salt is three layers. | Salt-as-transport sends the script base64-encoded: `cmd.run_all cmd='echo <b64> \| base64 -d \| sh' python_shell=True` (task 072), with a round-trip test of hostile strings. |
+| **Salt CLI output variability** | Minions that do not return, mixed stderr noise, non-JSON lines, state returns that are a list of error strings instead of a dict, version differences. | Async job engine (task 071) so "no return" is explicit. Tolerant decoder (task 066). Real captures from the lab in `testdata/salt/` (task 067) before the parsers that depend on them. |
+| **Salt argument parsing** | The Salt CLI YAML-parses arguments; `a=b` words become kwargs; quoting through SSH + sudo + salt is three layers. | Salt-as-transport sends the script base64-encoded: `cmd.run_all cmd='echo <b64> \| base64 -d \| sh' python_shell=True` (task 073), with a round-trip test of hostile strings. |
 | **Shell quoting / injection** | User text and labels flow into remote command lines. | One package (`internal/shq`, task 027) with fuzz-style tests; nothing else builds command strings by concatenation. |
 | **client-go size and build time** | Adds ~30–40 MB and slow builds. | Isolated in `internal/backend/k8s`; task 105 records the binary size before/after and fails if > 80 MB. Accepted in the spec. |
 | **A fast implementer drifting from the design** | Small local "fixes" that change contracts. | Contracts are in this file; tasks name exact files; AGENTS.md says stop-and-ask; every task has runnable acceptance commands. |
