@@ -340,6 +340,8 @@ func (b *Backend) Links(r resource.Resource) []resource.Link {
 			{Label: "processes", Key: "p", To: resource.Query{Kind: KindProcess, Hosts: hosts}},
 			{Label: "sockets", Key: "s", To: resource.Query{Kind: KindSocket, Hosts: hosts}},
 			{Label: "journal", Key: "j", To: resource.Query{Kind: KindJournal, Hosts: hosts}},
+			{Label: "mounts", Key: "m", To: resource.Query{Kind: KindMount, Hosts: hosts}},
+			{Label: "disks", Key: "D", To: resource.Query{Kind: KindDisk, Hosts: hosts}},
 		}
 	case KindUnit:
 		if r.Ref.Name == "" {

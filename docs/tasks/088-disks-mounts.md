@@ -3,7 +3,7 @@
 - **Milestone:** M6
 - **Depends on:** 044
 - **Parallel group:** M6-A (with 084)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 Kinds `disk` and `mount` (SPEC §8.1).

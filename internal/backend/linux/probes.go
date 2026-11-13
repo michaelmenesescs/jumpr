@@ -8,18 +8,22 @@ import (
 // Section IDs. They are also the Op of a section-level error and the left half
 // of a "_degraded" label ("psi: parse").
 const (
-	secLoadavg  = "loadavg"
-	secMeminfo  = "meminfo"
-	secPSI      = "psi"
-	secOS       = "os"
-	secKernel   = "kernel"
-	secUptime   = "uptime"
-	secNproc    = "nproc"
-	secSysState = "sysstate"
-	secFailed   = "failed"
-	secUnits    = "units"
-	secProcs    = "procs"
-	secSockets  = "sockets"
+	secLoadavg   = "loadavg"
+	secMeminfo   = "meminfo"
+	secPSI       = "psi"
+	secOS        = "os"
+	secKernel    = "kernel"
+	secUptime    = "uptime"
+	secNproc     = "nproc"
+	secSysState  = "sysstate"
+	secFailed    = "failed"
+	secUnits     = "units"
+	secProcs     = "procs"
+	secSockets   = "sockets"
+	secDF        = "df"
+	secDFInode   = "df-inodes"
+	secLsblk     = "lsblk"
+	secDiskstats = "diskstats"
 )
 
 // Read-only remote commands. They are plain POSIX sh, run through probe so one
@@ -37,6 +41,12 @@ const (
 	cmdUnits    = "systemctl list-units --all --plain --no-legend --no-pager"
 	cmdProcs    = "ps -eo pid=,ppid=,user:32=,stat=,pcpu=,pmem=,rss=,etimes=,args="
 	cmdSockets  = "ss -H -tuanp"
+	cmdDF       = "df -PTk"
+	cmdDFInode  = "df -Pi"
+	cmdLsblk    = "lsblk -J -b -o NAME,TYPE,SIZE,FSTYPE,MOUNTPOINT,ROTA,RO,MODEL"
+	// cmdDiskstats reads two snapshots a second apart inside one section so the
+	// rates come from the same round trip as the device list.
+	cmdDiskstats = "cat /proc/diskstats; sleep 1; cat /proc/diskstats"
 )
 
 // overviewSections is the host kind's batch: everything the overview row
@@ -67,6 +77,16 @@ func sectionsFor(kind resource.KindName) []probe.Section {
 	case KindSocket:
 		// Every socket should show its process, which needs root.
 		return []probe.Section{{ID: secSockets, Cmd: cmdSockets, Sudo: true}}
+	case KindMount:
+		return []probe.Section{
+			{ID: secDF, Cmd: cmdDF},
+			{ID: secDFInode, Cmd: cmdDFInode},
+		}
+	case KindDisk:
+		return []probe.Section{
+			{ID: secLsblk, Cmd: cmdLsblk},
+			{ID: secDiskstats, Cmd: cmdDiskstats},
+		}
 	default:
 		return nil
 	}

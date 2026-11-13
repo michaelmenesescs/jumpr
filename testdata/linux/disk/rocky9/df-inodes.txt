@@ -1,0 +1,7 @@
+Filesystem             Inodes  IUsed  IFree IUse% Mounted on
+/dev/mapper/rl-root    1048576 123456 925120   12% /
+/dev/sda2                524288  12345 511943    3% /boot
+/dev/mapper/rl-data    6553600 6422528 131072   98% /data
+tmpfs                   2030864       1 2030863    1% /run
+overlay                33554432  335544  33218888    1% /var/lib/containers/storage/overlay
+/dev/sdb1             13107200 1048576 12058624    8% /mnt/backup disk

@@ -1,0 +1,16 @@
+{
+   "blockdevices": [
+      {"name":"sda", "type":"disk", "size":214748364800, "fstype":null, "mountpoint":null, "rota":true, "ro":false, "model":"ST2000DM008-2FR1",
+         "children": [
+            {"name":"sda1", "type":"part", "size":"1073741824", "fstype":"xfs", "mountpoint":"/boot", "rota":true, "ro":false, "model":null},
+            {"name":"sda2", "type":"part", "size":"213674622976", "fstype":"xfs", "mountpoints":["/", "/data"], "rota":true, "ro":false, "model":null}
+         ]
+      },
+      {"name":"nvme0n1", "type":"disk", "size":"500107862016", "fstype":null, "mountpoint":null, "rota":false, "ro":false, "model":"Samsung SSD 980 PRO 500GB",
+         "children": [
+            {"name":"nvme0n1p1", "type":"part", "size":536870912, "fstype":"vfat", "mountpoint":"/boot/efi", "rota":false, "ro":false, "model":null}
+         ]
+      },
+      {"name":"sr0", "type":"rom", "size":1073741312, "fstype":null, "mountpoint":null, "rota":true, "ro":true, "model":"QEMU DVD-ROM"}
+   ]
+}

@@ -1,0 +1,7 @@
+Filesystem              Type     1K-blocks     Used Available Capacity Mounted on
+/dev/mapper/rl-root     xfs       41943040 20971520  20971520      50% /
+/dev/sda2               xfs        1038336   312000    726336      31% /boot
+/dev/mapper/rl-data     ext4      104857600 99614720   5242880      95% /data
+tmpfs                   tmpfs       8123456        0   8123456       0% /run
+overlay                 overlay   104857600 10485760  94371840      10% /var/lib/containers/storage/overlay
+/dev/sdb1               ext4      209715200 188743680  20971520      90% /mnt/backup disk

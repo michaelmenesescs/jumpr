@@ -17,6 +17,8 @@ const (
 	// KindHostOverview is the single-row view kind for one host: it is served
 	// by the host kind's own overview batch and always yields the one row.
 	KindHostOverview resource.KindName = "host-overview"
+	KindMount        resource.KindName = "mount"
+	KindDisk         resource.KindName = "disk"
 )
 
 // normalizeKind maps a canonical name or one of its aliases onto the canonical
@@ -34,6 +36,10 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindSocket, true
 	case "journal", "journals", "j", "logs":
 		return KindJournal, true
+	case "mount", "mounts", "df":
+		return KindMount, true
+	case "disk", "disks", "lsblk":
+		return KindDisk, true
 	default:
 		return "", false
 	}
@@ -138,6 +144,43 @@ func kindSpecs() []resource.KindSpec {
 				{ID: "source", Title: "SOURCE", Width: 16},
 				{ID: "message", Title: "MESSAGE", Width: 0},
 			},
+		},
+		{
+			Name:    KindMount,
+			Aliases: []string{"mounts", "df"},
+			Title:   "Mounts",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "mount", Title: "MOUNT", Width: 26},
+				{ID: "fstype", Title: "FSTYPE", Width: 8},
+				{ID: "size", Title: "SIZE", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "used", Title: "USED", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "avail", Title: "AVAIL", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "use", Title: "USE%", Width: 6, Align: resource.AlignRight, Kind: resource.ColPercent},
+				{ID: "iuse", Title: "IUSE%", Width: 6, Align: resource.AlignRight, Kind: resource.ColPercent},
+				{ID: "source", Title: "SOURCE", Width: 0},
+			},
+			DefaultSort: "mount",
+		},
+		{
+			Name:    KindDisk,
+			Aliases: []string{"disks", "lsblk"},
+			Title:   "Disks",
+			Scope:   resource.ScopeHost,
+			Columns: []resource.Column{
+				{ID: "name", Title: "NAME", Width: 20},
+				{ID: "type", Title: "TYPE", Width: 8},
+				{ID: "size", Title: "SIZE", Width: 9, Align: resource.AlignRight, Kind: resource.ColBytes},
+				{ID: "fstype", Title: "FSTYPE", Width: 8},
+				{ID: "mount", Title: "MOUNT", Width: 22},
+				{ID: "r/s", Title: "R/S", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "w/s", Title: "W/S", Width: 7, Align: resource.AlignRight, Kind: resource.ColNumber},
+				{ID: "util", Title: "UTIL%", Width: 6, Align: resource.AlignRight, Kind: resource.ColPercent},
+				{ID: "rota", Title: "ROTA", Width: 5},
+				{ID: "ro", Title: "RO", Width: 3},
+				{ID: "model", Title: "MODEL", Width: 0},
+			},
+			DefaultSort: "name",
 		},
 	}
 }
