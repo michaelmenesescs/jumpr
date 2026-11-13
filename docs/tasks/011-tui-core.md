@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 006, 010
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The small set of types every view and command is written against.

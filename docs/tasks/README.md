@@ -61,7 +61,7 @@ only by tasks 001, 098, 105 and 115.
 | [008](008-render-fit-table.md) | Rendering primitives: fit and table | 002 | M0-A | done |
 | [009](009-render-spark-human.md) | Sparklines, bars, human-readable numbers | 002 | M0-A | done |
 | [010](010-theme-keymap.md) | Theme and keymap | 005 | M0-B | done |
-| [011](011-tui-core.md) | TUI core: View, Env, messages, NextBatch, ViewStack | 006, 010 | — | todo |
+| [011](011-tui-core.md) | TUI core: View, Env, messages, NextBatch, ViewStack | 006, 010 | — | done |
 | [012](012-table-view.md) | Generic table view | 007, 008, 009, 011 | M0-C | todo |
 | [013](013-text-view.md) | Text view (scrollable text, key/value detail) | 008, 011 | M0-C | todo |
 | [014](014-command-bar.md) | Command bar and command registry | 011 | M0-C | todo |

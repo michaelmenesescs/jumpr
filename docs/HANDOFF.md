@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 010 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 011 done; M0 in progress)_
 
 ## State
 
@@ -78,9 +78,20 @@ _Last updated: 2026-11-12 (task 010 done; M0 in progress)_
       256/16/none, every status, the full prefix table, matching, a ctrl-key display round-trip and the default
       key table.
 
+- [x] **Task 011 done:** `internal/tui` core — `view.go` (`Subject`, `KeyHint`, `View`, `Factory` verbatim §4.8),
+      `env.go` (`Env` with `Registry/Session/Theme/Keys/Now/Factories/Log`, `SessionState` with
+      `Name/Window/ReadOnly`), `msgs.go` (navigation, flash + 4 levels, close-dialog, run-command, window-changed,
+      health, list-batch and lines messages; `Push`/`Pop`/`Flash`/`OpenQuery` command constructors), `stream.go`
+      (`NextBatch[T]` — first item blocks, then drains to `max` or 50 ms, returning `closed` together with the
+      last items; `ListBatch(seq, ch)`, 200 results per message) and `stack.go` (`Stack`: `NewStack`, `Top`, `Len`,
+      `Crumbs`, `Push`, `Pop` never the root, `Replace`, `Update` handling the three navigation messages and
+      routing everything else to the top view, `Render` through `render.Fit`). Tests: 7 NextBatch/ListBatch cases
+      and 7 Stack cases.
+
 ## Next task
 
-**`docs/tasks/011-tui-core.md`** (depends on 006 and 010, both done).
+**`docs/tasks/012-table-view.md`** (depends on 007, 008, 009, 011, all done). 013 and 014 are also unblocked
+(013 needs 008 + 011, 014 needs 011); 012/013/014 are parallel group M0-C.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
 
@@ -213,3 +224,13 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   anything outside the set; (3) `ParsePrefix` accepts exactly the control keys Bubble Tea has names for (`a`–`z`,
   `@`, `\`, `]`, `^`, `_`) and rejects `C-[` because the key arrives as `esc`, so it could never match. `make
   check` green; the new tests take 1.2 s under `-race`.
+- 2026-11-12 — Task 011: `internal/tui` core (`view.go`, `env.go`, `msgs.go`, `stream.go`, `stack.go`). Choices:
+  (1) `NextBatch` starts its 50 ms window after the first item and waits inside that window for more, so a sparse
+  stream costs up to one 50 ms tick per message — that is exactly the "~20 batches/s per stream" cap of §8, and
+  the trickle test returns in 50 ms; `max < 1` is treated as 1 so the loop cannot spin; (2) `Push`/`Replace` ignore
+  a nil `View` (no panic, no stack corruption), `Replace` may replace the root; `Update` ignores a nil view returned
+  by a top view instead of storing it; (3) `OpenDialogMsg` and `Command` are **not** defined yet — the task's
+  message list omits `OpenDialogMsg` (it needs `Dialog`, task 015) and the task's `view.go` list omits `Command`
+  (task 014 owns the command registry); both are added by those tasks; (4) `Flash` does not run `Sprintf` when
+  there are no args, so a format containing `%` is shown literally. `make check` green; tui tests 1.35 s under
+  `-race`.
