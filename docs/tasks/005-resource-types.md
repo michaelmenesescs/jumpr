@@ -3,7 +3,7 @@
 - **Milestone:** M0
 - **Depends on:** 004
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 The remaining types of `internal/resource` from BUILD-PLAN §4.2, plus small helpers for reading fields.

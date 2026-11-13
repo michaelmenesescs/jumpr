@@ -1,6 +1,6 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 004 done; M0 in progress)_
+_Last updated: 2026-11-12 (task 005 done; M0 in progress)_
 
 ## State
 
@@ -35,9 +35,13 @@ _Last updated: 2026-11-12 (task 004 done; M0 in progress)_
       token). `TimeWindow` with relative offsets (`s m h d w`), ranges (`now`, relative, RFC 3339,
       `2006-01-02 15:04`, `2006-01-02T15:04`, `15:04` today in `now`'s location), `Bounds`, `IsZero`, `String`.
 
+- [x] **Task 005 done:** `internal/resource` `resource.go` (HostID, KindName, Ref, Status, Resource, ColumnKind,
+      Align, Column, Scope, KindSpec, Query, Link verbatim from §4.2; `Ref.String`, `ParseRef`,
+      `NormalizeHostID`, `KindSpec.Column`) and `fields.go` (`Str`, `Int`, `Float`, `Time`, `Compare`).
+
 ## Next task
 
-**`docs/tasks/005-resource-types.md`** (task 004 is its only dependency). Tasks 008/009 remain available in
+**`docs/tasks/006-backend-registry.md`** (task 005 is its only dependency). Tasks 008/009 remain available in
 parallel group M0-A. Then continue in numeric order.
 
 Workflow per task: see `docs/tasks/README.md` ("Workflow"). Rules: `AGENTS.md`.
@@ -128,3 +132,9 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   "backslash escapes a quote", not "escapes everything"); (3) `ParseSelector(s.String())` equality is checked on
   terms/sets, since `Raw` necessarily differs after canonicalisation. `make check` green (resource tests 1.3 s
   under `-race`).
+- 2026-11-12 — Task 005: `internal/resource` model types and field helpers. Choices: (1) `ParseRef` validates
+  only the part count (exactly 5, empty parts allowed), because `Ref.String` deliberately keeps empty parts;
+  (2) `Str` renders `time.Time` as RFC 3339 nano and sparklines comma-separated, and falls back to `fmt.Sprint`
+  for values outside the allowed set; (3) `Int` accepts `float64`/`float32` only when integral and in range
+  (no silent truncation), `Compare` orders ints as `int64` and mixed numbers as `float64`, `nil` always last.
+  `make check` green (resource tests 1.2 s under `-race`).
