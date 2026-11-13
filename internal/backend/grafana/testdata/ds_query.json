@@ -1,0 +1,20 @@
+{
+  "results": {
+    "A": {
+      "status": 200,
+      "frames": [
+        {
+          "schema": {
+            "refId": "A",
+            "fields": [{"name": "instance", "type": "string"}]
+          },
+          "data": {
+            "values": [
+              ["web-01.example.internal", "web-02.example.internal", "db-01.example.internal"]
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

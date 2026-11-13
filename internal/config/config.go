@@ -32,6 +32,15 @@ type AlertmanagerConfig struct {
 	Connection string `yaml:"connection"`
 }
 
+// GrafanaConfig is one Grafana jumper may browse and query (SPEC §8.4). It has
+// the same shape as a Prometheus entry: `connection` names an entry of
+// connections.yaml, empty means a direct, unauthenticated connection.
+type GrafanaConfig struct {
+	Name       string `yaml:"name"`
+	URL        string `yaml:"url"`
+	Connection string `yaml:"connection"`
+}
+
 // Config is the whole of config.yaml (BUILD-PLAN §11). Every key is optional.
 type Config struct {
 	UI           UIConfig             `yaml:"ui"`
@@ -43,6 +52,7 @@ type Config struct {
 	Salt         SaltConfig           `yaml:"salt"`
 	Prometheus   []PrometheusConfig   `yaml:"prometheus"`
 	Alertmanager []AlertmanagerConfig `yaml:"alertmanager"`
+	Grafana      []GrafanaConfig      `yaml:"grafana"`
 	Interact     InteractConfig       `yaml:"interact"`
 }
 
@@ -310,6 +320,22 @@ func (c *Config) Validate() error {
 		u, err := url.Parse(strings.TrimSpace(a.URL))
 		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 			return invalidf("alertmanager[%d].url: %q is not an http(s) URL", i, a.URL)
+		}
+	}
+
+	grafanaNames := make(map[string]bool, len(c.Grafana))
+	for i, g := range c.Grafana {
+		name := strings.TrimSpace(g.Name)
+		if name == "" {
+			return invalidf("grafana[%d].name: a server needs a name", i)
+		}
+		if grafanaNames[name] {
+			return invalidf("grafana[%d].name: %q is configured twice", i, name)
+		}
+		grafanaNames[name] = true
+		u, err := url.Parse(strings.TrimSpace(g.URL))
+		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return invalidf("grafana[%d].url: %q is not an http(s) URL", i, g.URL)
 		}
 	}
 

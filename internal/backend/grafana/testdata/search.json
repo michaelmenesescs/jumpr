@@ -1,0 +1,28 @@
+[
+  {
+    "id": 1,
+    "uid": "a1b2c3",
+    "title": "Node overview",
+    "uri": "db/node-overview",
+    "url": "/d/a1b2c3/node-overview",
+    "slug": "node-overview",
+    "type": "dash-db",
+    "tags": ["linux", "node"],
+    "isStarred": false,
+    "folderId": 2,
+    "folderUid": "f-linux",
+    "folderTitle": "Linux",
+    "folderUrl": "/dashboards/f/f-linux/linux"
+  },
+  {
+    "id": 2,
+    "uid": "d4e5f6",
+    "title": "HAProxy",
+    "uri": "db/haproxy",
+    "url": "/d/d4e5f6/haproxy",
+    "slug": "haproxy",
+    "type": "dash-db",
+    "tags": [],
+    "folder": {"uid": "f-net", "title": "Network"}
+  }
+]

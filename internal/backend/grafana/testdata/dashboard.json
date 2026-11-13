@@ -1,0 +1,109 @@
+{
+  "meta": {
+    "slug": "node-overview",
+    "url": "/d/a1b2c3/node-overview",
+    "folderTitle": "Linux",
+    "canSave": false
+  },
+  "dashboard": {
+    "uid": "a1b2c3",
+    "title": "Node overview",
+    "tags": ["linux", "node"],
+    "time": {"from": "now-6h", "to": "now", "refresh": "1m"},
+    "templating": {
+      "list": [
+        {
+          "name": "host",
+          "type": "query",
+          "datasource": {"type": "prometheus", "uid": "prom-1"},
+          "query": "label_values(node_load1, instance)",
+          "current": {"text": "web-01.example.internal", "value": "web-01.example.internal"},
+          "options": [{"text": "All", "value": "$__all", "selected": false}]
+        },
+        {
+          "name": "instance",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": {"query": "label_values(node_load1, instance)", "refId": "StandardVariableQuery"},
+          "current": {"text": ["web-01.example.internal"], "value": ["web-01.example.internal"]},
+          "options": ["web-01.example.internal", "web-02.example.internal"]
+        },
+        {
+          "name": "env",
+          "type": "custom",
+          "query": "prod,staging",
+          "current": {"text": "prod", "value": "prod"},
+          "options": [
+            {"text": "prod", "value": "prod", "selected": true},
+            {"text": "staging", "value": "staging"}
+          ]
+        },
+        {
+          "name": "node",
+          "type": "query",
+          "query": "label_values(up, instance)"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 100,
+        "type": "row",
+        "title": "CPU",
+        "collapsed": false,
+        "panels": [
+          {
+            "id": 1,
+            "type": "timeseries",
+            "title": "CPU busy",
+            "datasource": {"type": "prometheus", "uid": "prom-1"},
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+            "targets": [
+              {
+                "refId": "A",
+                "expr": "100 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=~\"$instance\"}[5m])) * 100",
+                "datasource": {"type": "prometheus", "uid": "prom-1"}
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "type": "gauge",
+            "title": "Load",
+            "datasource": "Prometheus",
+            "targets": [{"refId": "A", "expr": "node_load1{instance=~\"$instance\"}"}]
+          }
+        ]
+      },
+      {
+        "id": 101,
+        "type": "row",
+        "title": "Network",
+        "collapsed": true,
+        "panels": [
+          {
+            "id": 3,
+            "type": "table",
+            "title": "Interfaces",
+            "targets": [{"refId": "B", "query": "rate(node_network_receive_bytes_total[5m])"}]
+          },
+          {
+            "id": 4,
+            "type": "stat",
+            "title": "Uptime",
+            "targets": [{"refId": "A", "expr": "node_time_seconds - node_boot_time_seconds"}]
+          }
+        ]
+      },
+      {"id": 5, "type": "text", "title": "Notes", "targets": []},
+      {
+        "id": 6,
+        "type": "row",
+        "title": "Nested",
+        "panels": [
+          {"id": 7, "type": "graph", "title": "Legacy graph", "targets": []}
+        ]
+      }
+    ]
+  }
+}

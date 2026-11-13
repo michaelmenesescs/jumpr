@@ -3,7 +3,7 @@
 - **Milestone:** M11
 - **Depends on:** 103
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `:dash` browse and open dashboards; variables become selectors (SPEC §8.4).

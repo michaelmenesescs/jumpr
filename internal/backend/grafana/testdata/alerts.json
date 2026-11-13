@@ -1,0 +1,30 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "NodeDown",
+          "severity": "critical",
+          "instance": "web-01.example.internal",
+          "grafana_folder": "Linux"
+        },
+        "annotations": {"summary": "node down"},
+        "state": "firing",
+        "activeAt": "2026-11-12T21:00:00Z",
+        "value": "1e+00"
+      },
+      {
+        "labels": {
+          "alertname": "HighLoad",
+          "severity": "warning",
+          "instance": "web-02.example.internal"
+        },
+        "annotations": {},
+        "state": "pending",
+        "activeAt": "2026-11-12T22:15:30Z",
+        "value": "7.5e+00"
+      }
+    ]
+  }
+}

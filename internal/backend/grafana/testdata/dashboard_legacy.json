@@ -1,0 +1,15 @@
+{
+  "meta": {"slug": "legacy", "url": "/d/legacy01/legacy"},
+  "dashboard": {
+    "uid": "legacy01",
+    "title": "Legacy",
+    "rows": [
+      {
+        "title": "Row A",
+        "panels": [
+          {"id": 1, "type": "graph", "title": "Old graph", "targets": [{"refId": "A", "expr": "up"}]}
+        ]
+      }
+    ]
+  }
+}

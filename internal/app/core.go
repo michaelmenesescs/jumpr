@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"jumper/internal/backend/grafana"
 	"jumper/internal/backend/prom"
+	"jumper/internal/clip"
 	"jumper/internal/config"
 	"jumper/internal/errs"
 	"jumper/internal/transport"
@@ -67,6 +69,75 @@ func PrometheusBackend(cfg config.Config, profiles map[string]*httpx.Profile, de
 		servers = append(servers, prom.Server{Name: name, Client: client})
 	}
 	return prom.New(prom.Options{Servers: servers, Log: log}), nil
+}
+
+// GrafanaHooks are the app-supplied effects a Grafana dashboard needs. `o` on a
+// dashboard or a panel calls Open with the browser URL; when Open is nil the
+// backend's default applies and the URL is copied to Clipboard instead
+// (BUILD-PLAN §6.1 rule 6).
+type GrafanaHooks struct {
+	Open      func(url string) error
+	Clipboard clip.Clipboard
+}
+
+// GrafanaBackend builds the Grafana backend from cfg's `grafana:` section
+// (SPEC §8.4).
+//
+// One backend serves every configured server: the kinds are global, so two
+// backends would collide in the registry. Each entry names a connection profile
+// in connections.yaml through `connection`; an entry without one gets a plain
+// client. It returns nil when no server is configured, so callers can skip
+// registration.
+//
+// The wiring lives here rather than in app.go because app.buildRegistry is
+// still the M0 version; the task that owns app.go calls this function to add
+// the backend to the registry.
+func GrafanaBackend(cfg config.Config, profiles map[string]*httpx.Profile, deps httpx.Deps, hooks GrafanaHooks, log *slog.Logger) (*grafana.Backend, error) {
+	if len(cfg.Grafana) == 0 {
+		return nil, nil
+	}
+	servers := make([]grafana.Server, 0, len(cfg.Grafana))
+	seen := make(map[string]bool, len(cfg.Grafana))
+
+	for i, entry := range cfg.Grafana {
+		name := entry.Name
+		if seen[name] {
+			return nil, errs.New(errs.Config, "app.GrafanaBackend",
+				fmt.Sprintf("grafana[%d]: %q is configured twice", i, name))
+		}
+		seen[name] = true
+
+		profile, err := profileFor("grafana", name, entry.Connection, profiles)
+		if err != nil {
+			return nil, err
+		}
+		hc, err := profile.Client(deps)
+		if err != nil {
+			return nil, errs.Wrap(errs.Config, "app.GrafanaBackend", err).WithHost(name)
+		}
+		for _, warning := range hc.Warnings() {
+			if log != nil {
+				log.Warn("grafana client warning", "server", name, "warning", warning)
+			}
+		}
+
+		client, err := grafana.NewClient(grafana.ClientOptions{
+			URL:    entry.URL,
+			Name:   name,
+			Client: hc,
+			Warn:   warnFunc("grafana", log, name),
+		})
+		if err != nil {
+			return nil, err
+		}
+		servers = append(servers, grafana.Server{Name: name, Client: client})
+	}
+	return grafana.New(grafana.Options{
+		Servers:   servers,
+		Log:       log,
+		Open:      hooks.Open,
+		Clipboard: hooks.Clipboard,
+	}), nil
 }
 
 // Alertmanager builds the Alertmanager backend and its silence planner from
