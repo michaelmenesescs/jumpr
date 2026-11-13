@@ -104,7 +104,7 @@ only by tasks 001, 098, 105 and 115.
 | [041](041-linux-parse-units.md) | Linux parsers: systemd units | 005 | M2-D | done |
 | [042](042-linux-parse-journal.md) | Linux parser: journal (JSON lines) | 005 | M2-D | done |
 | [043](043-linux-parse-ps-ss.md) | Linux parsers: processes and sockets | 005 | M2-D | done |
-| [044](044-linux-backend.md) | Linux backend: host, unit, process, socket kinds | 036, 038, 039, 040, 041, 043 | — | todo |
+| [044](044-linux-backend.md) | Linux backend: host, unit, process, socket kinds | 036, 038, 039, 040, 041, 043 | — | done |
 | [045](045-journal-kind-view.md) | Journal: windowed query, follow, view | 042, 044, 013 | M2-E | todo |
 | [046](046-targets.md) | Target sets: current set, saved sets, selection | 039, 022 | M2-E | todo |
 | [047](047-host-overview-view.md) | Host overview view | 044, 045, 013 | — | todo |

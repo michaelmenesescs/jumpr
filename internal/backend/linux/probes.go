@@ -1,0 +1,89 @@
+package linux
+
+import (
+	"jumper/internal/probe"
+	"jumper/internal/resource"
+)
+
+// Section IDs. They are also the Op of a section-level error and the left half
+// of a "_degraded" label ("psi: parse").
+const (
+	secLoadavg  = "loadavg"
+	secMeminfo  = "meminfo"
+	secPSI      = "psi"
+	secOS       = "os"
+	secKernel   = "kernel"
+	secUptime   = "uptime"
+	secNproc    = "nproc"
+	secSysState = "sysstate"
+	secFailed   = "failed"
+	secUnits    = "units"
+	secProcs    = "procs"
+	secSockets  = "sockets"
+)
+
+// Read-only remote commands. They are plain POSIX sh, run through probe so one
+// SSH round trip serves a whole kind.
+const (
+	cmdLoadavg  = "cat /proc/loadavg"
+	cmdMeminfo  = "cat /proc/meminfo"
+	cmdPSI      = `for f in cpu memory io; do echo "== $f"; cat /proc/pressure/$f 2>/dev/null; done`
+	cmdOS       = "cat /etc/os-release"
+	cmdKernel   = "uname -r"
+	cmdUptime   = "cat /proc/uptime"
+	cmdNproc    = "nproc"
+	cmdSysState = "systemctl is-system-running"
+	cmdFailed   = "systemctl list-units --state=failed --plain --no-legend --no-pager"
+	cmdUnits    = "systemctl list-units --all --plain --no-legend --no-pager"
+	cmdProcs    = "ps -eo pid=,ppid=,user:32=,stat=,pcpu=,pmem=,rss=,etimes=,args="
+	cmdSockets  = "ss -H -tuanp"
+)
+
+// overviewSections is the host kind's batch: everything the overview row
+// needs, in one round trip.
+func overviewSections() []probe.Section {
+	return []probe.Section{
+		{ID: secLoadavg, Cmd: cmdLoadavg},
+		{ID: secMeminfo, Cmd: cmdMeminfo},
+		{ID: secPSI, Cmd: cmdPSI},
+		{ID: secOS, Cmd: cmdOS},
+		{ID: secKernel, Cmd: cmdKernel},
+		{ID: secUptime, Cmd: cmdUptime},
+		{ID: secNproc, Cmd: cmdNproc},
+		{ID: secSysState, Cmd: cmdSysState},
+		{ID: secFailed, Cmd: cmdFailed},
+	}
+}
+
+// sectionsFor returns the batch sections of one canonical kind.
+func sectionsFor(kind resource.KindName) []probe.Section {
+	switch kind {
+	case KindHost:
+		return overviewSections()
+	case KindUnit:
+		return []probe.Section{{ID: secUnits, Cmd: cmdUnits}}
+	case KindProcess:
+		return []probe.Section{{ID: secProcs, Cmd: cmdProcs}}
+	case KindSocket:
+		// Every socket should show its process, which needs root.
+		return []probe.Section{{ID: secSockets, Cmd: cmdSockets, Sudo: true}}
+	default:
+		return nil
+	}
+}
+
+// newBatch compiles the kind's sections under one nonce.
+func newBatch(nonce string, kind resource.KindName) (probe.Batch, error) {
+	return probe.NewBatch(nonce, sectionsFor(kind)...)
+}
+
+// socketRetryBatch is the unprivileged fallback for a host where `sudo -n`
+// failed: the list is still useful, only the process column is lost.
+func socketRetryBatch(nonce string) (probe.Batch, error) {
+	return probe.NewBatch(nonce, probe.Section{ID: secSockets, Cmd: cmdSockets})
+}
+
+// toleratesNonZero reports whether a section's non-zero exit code is normal.
+// `systemctl is-system-running` exits 1 for "degraded", which is a state, not a
+// failure.
+func toleratesNonZero(id string) bool { return id == secSysState }
