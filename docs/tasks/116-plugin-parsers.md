@@ -3,7 +3,7 @@
 - **Milestone:** M10
 - **Depends on:** 115
 - **Parallel group:** — (serial)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `parse.type`: `json | jq | regex | columns | kv | lines | raw` → rows (SPEC §12).
