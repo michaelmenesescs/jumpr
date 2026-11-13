@@ -3,7 +3,7 @@
 - **Milestone:** M4
 - **Depends on:** 066, 039
 - **Parallel group:** M4-B (with 069, 071)
-- **Status:** todo
+- **Status:** done
 
 ## Goal
 `backend.Backend` named `salt` with the read-only kinds `salt-minion` and `salt-key`, and the health dot.
