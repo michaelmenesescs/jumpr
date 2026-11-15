@@ -9,8 +9,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
 )
 
 const (

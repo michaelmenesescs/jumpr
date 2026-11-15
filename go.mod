@@ -1,4 +1,4 @@
-module jumper
+module jumpr
 
 go 1.27.2
 

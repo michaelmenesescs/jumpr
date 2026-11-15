@@ -15,8 +15,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	xknownhosts "golang.org/x/crypto/ssh/knownhosts"
 
-	"jumper/internal/errs"
-	"jumper/internal/interact"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
 )
 
 // HostKeyOptions configures HostKeyConfig.

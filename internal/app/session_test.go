@@ -14,15 +14,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/config"
-	"jumper/internal/interact"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/config"
+	"jumpr/internal/interact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/theme"
 )
 
 // testCore builds a core over a static inventory of names and, when ex is not
@@ -237,7 +237,7 @@ func TestSessionResizeAfterAttach(t *testing.T) {
 	sess.Resize(Size{Cols: 80, Rows: 24})
 	waitForFrame(t, c.out, off, "an 80-column status line", func(lines []string) bool {
 		for _, l := range lines {
-			if strings.HasPrefix(l, "jumper") && ansi.StringWidth(l) == 80 {
+			if strings.HasPrefix(l, "jumpr") && ansi.StringWidth(l) == 80 {
 				return true
 			}
 		}
@@ -412,7 +412,7 @@ func TestSessionPausedRolloutStaysPausedAcrossDetach(t *testing.T) {
 	theme.SetProfile("none")
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
-	for _, d := range []string{home, filepath.Join(home, ".config", "jumper")} {
+	for _, d := range []string{home, filepath.Join(home, ".config", "jumpr")} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", d, err)
 		}
@@ -430,7 +430,7 @@ func TestSessionPausedRolloutStaysPausedAcrossDetach(t *testing.T) {
 	core.Planners["fake"] = &fakePlanner{spec: action.Spec{ID: "fake.write", Title: "write", Risk: action.RiskNormal}}
 
 	sess := testSession(t, core)
-	attach(t, sess, "jumper")
+	attach(t, sess, "jumpr")
 
 	proposal, err := sess.env.Bus.Propose(context.Background(), action.Request{
 		SpecID: "fake.write",
@@ -500,14 +500,14 @@ func waitForPhase(t *testing.T, events <-chan bus.Event, phase bus.Phase) {
 }
 
 // TestSessionTitleOnAttach is requirement 4's third clause: the attach preamble
-// names the session in the terminal's title bar, ESC ] 2 ; jumper: <session> BEL,
+// names the session in the terminal's title bar, ESC ] 2 ; jumpr: <session> BEL,
 // after the alt-screen preamble that existing tests already match.
 func TestSessionTitleOnAttach(t *testing.T) {
 	core := testCore(t, []string{"web-01"}, nil)
 	sess := testSession(t, core)
 	c := attach(t, sess, "web-01")
 
-	want := "\x1b]2;jumper: " + sess.Name() + "\a"
+	want := "\x1b]2;jumpr: " + sess.Name() + "\a"
 	if !strings.Contains(c.out.String(), want) {
 		t.Fatalf("attach output has no title sequence %q", want)
 	}

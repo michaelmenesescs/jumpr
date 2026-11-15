@@ -22,7 +22,7 @@
    `minion-start`; `salt/beacon/<minion>/<name>/…` → `beacon`; `salt/key` → `key`; `salt/run/…` → `runner`;
    else `other`.
 2. View: follow list (time, kind coloured, minion, summary: `state.apply ret ok` / `rc=1` / `auth pend`),
-   filter by text, `1`–`6` toggle kinds, jumper's own polling runners hidden by default (`h` toggles), pause with
+   filter by text, `1`–`6` toggle kinds, jumpr's own polling runners hidden by default (`h` toggles), pause with
    `space` (buffer keeps filling up to 10,000), `enter` on a job event → job detail (072), on a minion → host.
    Returns of `pillar.*` are hidden as in task 093.
 3. The stream is tied to the pane context; it survives detach; if it ends (master restart) the view shows

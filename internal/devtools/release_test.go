@@ -61,7 +61,7 @@ func repo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	files := map[string]string{
-		"README.md":                               "# jumper\n",
+		"README.md":                               "# jumpr\n",
 		"docs/USER-GUIDE.md":                      "# user guide\n",
 		"docs/KEYS.md":                            "# key bindings\n",
 		"internal/app/templates/config.yaml":      "ui:\n  color: auto\n",
@@ -130,10 +130,10 @@ func TestReleaseWritesArchivesAndSums(t *testing.T) {
 	}
 	dist := filepath.Join(o.RepoDir, "dist")
 	for _, arch := range []string{"arm64", "amd64"} {
-		path := filepath.Join(dist, "jumper-v1.2.3-darwin-"+arch+".tar.gz")
+		path := filepath.Join(dist, "jumpr-v1.2.3-darwin-"+arch+".tar.gz")
 		entries := archiveEntries(t, path)
 		want := []string{
-			"jumper", "README.md", "docs/USER-GUIDE.md", "docs/KEYS.md",
+			"jumpr", "README.md", "docs/USER-GUIDE.md", "docs/KEYS.md",
 			"examples/config.yaml", "examples/connections.yaml",
 			"examples/policy.yaml", "examples/keymap.yaml",
 			"examples/plugins/nginx-status.yaml", "examples/plugins/ntp-offset.yaml",
@@ -144,7 +144,7 @@ func TestReleaseWritesArchivesAndSums(t *testing.T) {
 				t.Errorf("%s is missing %s", filepath.Base(path), name)
 				continue
 			}
-			if name == "jumper" && mode&0o111 == 0 {
+			if name == "jumpr" && mode&0o111 == 0 {
 				t.Errorf("the binary is not executable (mode %o)", mode)
 			}
 		}
@@ -166,7 +166,7 @@ func TestReleaseWritesArchivesAndSums(t *testing.T) {
 		if len(fields) != 2 {
 			t.Fatalf("bad line %q", line)
 		}
-		if !strings.HasPrefix(fields[1], "dist/jumper-v1.2.3-darwin-") {
+		if !strings.HasPrefix(fields[1], "dist/jumpr-v1.2.3-darwin-") {
 			t.Errorf("path %q, want it relative to the repository root", fields[1])
 		}
 		digest, err := fileSHA256(filepath.Join(o.RepoDir, fields[1]))
@@ -178,7 +178,7 @@ func TestReleaseWritesArchivesAndSums(t *testing.T) {
 		}
 	}
 	// The report carries the sizes of the archives.
-	if !strings.Contains(out.String(), "jumper-v1.2.3-darwin-arm64.tar.gz") {
+	if !strings.Contains(out.String(), "jumpr-v1.2.3-darwin-arm64.tar.gz") {
 		t.Errorf("report is missing the archive sizes:\n%s", out.String())
 	}
 	if !strings.Contains(out.String(), "SHA256SUMS") || !strings.Contains(out.String(), "2 archive(s)") {
@@ -204,7 +204,7 @@ func TestReleaseBuildFlags(t *testing.T) {
 	for i, arch := range []string{"arm64", "amd64"} {
 		c := builds[i]
 		args := strings.Join(c.Args, " ")
-		for _, want := range []string{"build", "-trimpath", "-ldflags -s -w -X main.version=v1.2.3", "./cmd/jumper"} {
+		for _, want := range []string{"build", "-trimpath", "-ldflags -s -w -X main.version=v1.2.3", "./cmd/jumpr"} {
 			if !strings.Contains(args, want) {
 				t.Errorf("go build args %q are missing %q", args, want)
 			}
@@ -338,14 +338,14 @@ func TestReleaseIsReproducible(t *testing.T) {
 	if err := Release(context.Background(), o, io.Discard); err != nil {
 		t.Fatalf("Release: %v", err)
 	}
-	first, err := os.ReadFile(filepath.Join(o.RepoDir, "dist", "jumper-v1.2.3-darwin-arm64.tar.gz"))
+	first, err := os.ReadFile(filepath.Join(o.RepoDir, "dist", "jumpr-v1.2.3-darwin-arm64.tar.gz"))
 	if err != nil {
 		t.Fatalf("read archive: %v", err)
 	}
 	if err := Release(context.Background(), o, io.Discard); err != nil {
 		t.Fatalf("second Release: %v", err)
 	}
-	second, err := os.ReadFile(filepath.Join(o.RepoDir, "dist", "jumper-v1.2.3-darwin-arm64.tar.gz"))
+	second, err := os.ReadFile(filepath.Join(o.RepoDir, "dist", "jumpr-v1.2.3-darwin-arm64.tar.gz"))
 	if err != nil {
 		t.Fatalf("read archive: %v", err)
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/skeema/knownhosts"
 	gossh "golang.org/x/crypto/ssh"
 
-	"jumper/internal/transport/ssh/sshtest"
+	"jumpr/internal/transport/ssh/sshtest"
 )
 
 // doctorHostAlias is the lab-style alias every doctor test resolves.
@@ -283,7 +283,7 @@ func TestDoctorSSHEchoFails(t *testing.T) {
 }
 
 // TestDoctorUsage rejects anything but `doctor ssh <host>` with exit code 2.
-// The bare `jumper doctor` is the full report now, so it is not a usage case.
+// The bare `jumpr doctor` is the full report now, so it is not a usage case.
 func TestDoctorUsage(t *testing.T) {
 	cases := map[string][]string{
 		"no host":   {"ssh"},
@@ -296,7 +296,7 @@ func TestDoctorUsage(t *testing.T) {
 			if code := Doctor(context.Background(), Options{}, args, &out); code != 2 {
 				t.Fatalf("exit code = %d, want 2", code)
 			}
-			if !strings.Contains(out.String(), "usage: jumper doctor") {
+			if !strings.Contains(out.String(), "usage: jumpr doctor") {
 				t.Errorf("no usage line: %q", out.String())
 			}
 		})

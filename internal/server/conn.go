@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // conn is one client connection. Every write to it goes through writeMu, so a
@@ -44,7 +44,7 @@ func (c *conn) serve() {
 	if hello.Protocol != ProtocolVersion {
 		_ = c.writeJSON(FrameExit, Exit{
 			Reason:  "error",
-			Message: fmt.Sprintf("server speaks protocol %d; run \"jumper kill-server\" and start again", ProtocolVersion),
+			Message: fmt.Sprintf("server speaks protocol %d; run \"jumpr kill-server\" and start again", ProtocolVersion),
 		})
 		return
 	}

@@ -1,4 +1,4 @@
-// Dashboard model: the parts of a Grafana dashboard JSON document jumper
+// Dashboard model: the parts of a Grafana dashboard JSON document jumpr
 // understands (SPEC §8.4).
 //
 // The dashboard schema varies by Grafana version: `datasource` is a name string
@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // datasourceTypes are the datasource type names a legacy `datasource` string can
@@ -223,12 +223,12 @@ type Variable struct {
 	Options    []VariableOption
 	Query      VariableQuery
 	Datasource Datasource
-	// Auto marks a variable jumper filled from the session target rather than
+	// Auto marks a variable jumpr filled from the session target rather than
 	// one the user chose.
 	Auto bool
 }
 
-// labelValuesRE matches the simple label_values(form, label) form jumper
+// labelValuesRE matches the simple label_values(form, label) form jumpr
 // resolves through /api/ds/query: a bare metric name and label, no selector
 // and no function. Anything richer is free text.
 var labelValuesRE = regexp.MustCompile(`^label_values\(\s*[A-Za-z_:][A-Za-z0-9_:]*\s*,\s*[A-Za-z_][A-Za-z0-9_]*\s*\)$`)

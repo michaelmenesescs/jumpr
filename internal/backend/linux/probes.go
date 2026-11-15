@@ -1,8 +1,8 @@
 package linux
 
 import (
-	"jumper/internal/probe"
-	"jumper/internal/resource"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
 )
 
 // Section IDs. They are also the Op of a section-level error and the left half

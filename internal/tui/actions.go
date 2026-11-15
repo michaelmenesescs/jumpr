@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/resource"
 )
 
 // The action flow from the views to the bus: `x` asks for the menu, the menu

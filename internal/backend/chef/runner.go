@@ -4,7 +4,7 @@
 // Nothing here talks to the Chef server directly and nothing is installed on a
 // node: every read is one `knife … -F json` line run on the workstation the
 // config names. The package builds the command lines with internal/shq, decodes
-// the JSON tolerantly and maps knife's failure modes onto jumper's error kinds.
+// the JSON tolerantly and maps knife's failure modes onto jumpr's error kinds.
 package chef
 
 import (
@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 const (

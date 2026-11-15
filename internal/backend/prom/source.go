@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // Source is the inventory source fed by one Prometheus server's /api/v1/targets.
 // Only targets that are up become hosts: a down target is a scrape failure, not
-// a machine jumper should offer to open a shell on.
+// a machine jumpr should offer to open a shell on.
 type Source struct {
 	// Server is the configured Prometheus name, kept as a label so a fleet
 	// scraped by several servers stays distinguishable.

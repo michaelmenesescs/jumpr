@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // Job engine defaults. BUILD-PLAN §8: a Salt job times out after 60 s and the

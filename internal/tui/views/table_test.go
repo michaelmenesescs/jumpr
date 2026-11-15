@@ -8,16 +8,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 // fixedNow is the clock every table test runs against.

@@ -10,8 +10,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
-	"jumper/internal/mux"
+	"jumpr/internal/errs"
+	"jumpr/internal/mux"
 )
 
 // prefixSection is the one reserved top-level key of keymap.yaml: it holds the
@@ -103,7 +103,7 @@ func prefixNames() map[string]mux.OpMsg {
 // the mux prefix key table (SPEC §13, §21.2). Every top-level key names a
 // binding of Map (`up`, `page_up`, `fuzzy_find`, …); the single reserved key
 // `prefix` holds a mapping of prefix names (`split-h`, `focus-left`, …) to key
-// lists. A missing file yields empty overrides and no problems, so jumper runs
+// lists. A missing file yields empty overrides and no problems, so jumpr runs
 // on its defaults without one.
 //
 // Load reports every problem it finds — an unknown name, a malformed key list,
@@ -539,12 +539,12 @@ func Doc(m *Map, table mux.KeyTable, prefixKey string) string {
 	b.WriteString("_Generated from the built-in defaults by `go test ./internal/tui/keymap/ -update`.\n")
 	b.WriteString("Do not edit by hand: change the bindings, then regenerate._\n\n")
 	b.WriteString("Every binding below can be overridden in `keymap.yaml` in the configuration\n")
-	b.WriteString("directory (`~/.config/jumper/keymap.yaml`) by its name, without rebuilding\n")
-	b.WriteString("jumper. The prefix key itself is `mux.prefix` in `config.yaml` (default ")
+	b.WriteString("directory (`~/.config/jumpr/keymap.yaml`) by its name, without rebuilding\n")
+	b.WriteString("jumpr. The prefix key itself is `mux.prefix` in `config.yaml` (default ")
 	b.WriteString("`" + prefix + "`).\n\n")
 	b.WriteString("A key list replaces the default list completely, so name every key you want\n")
 	b.WriteString("to keep. An unknown name or a key bound to two actions is a configuration\n")
-	b.WriteString("error naming the line to fix; `:keys` shows the map jumper is running with.\n\n")
+	b.WriteString("error naming the line to fix; `:keys` shows the map jumpr is running with.\n\n")
 
 	b.WriteString("## View and global bindings\n\n")
 	b.WriteString("These work inside a view pane without the prefix.\n\n")

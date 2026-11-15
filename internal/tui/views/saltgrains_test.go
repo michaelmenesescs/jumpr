@@ -10,10 +10,10 @@ import (
 	"github.com/charmbracelet/bubbles/cursor"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // ---- fixtures ----

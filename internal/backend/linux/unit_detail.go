@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
+	"jumpr/internal/errs"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
 )
 
 // KindUnitDetail is the single-unit view kind: `enter` on a unit row opens it.

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/transport/transporttest"
 )
 
 // TestInventorySource checks requirement 4: the inventory source lists every

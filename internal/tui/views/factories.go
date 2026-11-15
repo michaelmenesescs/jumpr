@@ -7,12 +7,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // Factories returns the dedicated views, keyed by kind. app merges them into

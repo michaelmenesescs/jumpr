@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Prototypes for the typed informers. One per kind, so the informer knows the

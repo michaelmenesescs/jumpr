@@ -11,14 +11,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/investigation"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/investigation"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // jobTestJID is the job every detail test opens.

@@ -9,14 +9,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // targetInventory is a fixed inventory of 504 ewr hosts and 96 lax hosts, the

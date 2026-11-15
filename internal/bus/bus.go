@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
 )
 
 // Defaults of the engine. They are constants, not configuration, so a caller

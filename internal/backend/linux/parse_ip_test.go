@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // readIPTestdata reads one fixture of the network capture.

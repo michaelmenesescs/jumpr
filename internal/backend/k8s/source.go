@@ -10,9 +10,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 const (

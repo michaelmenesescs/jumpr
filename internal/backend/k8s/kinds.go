@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // rowFunc turns one informer object into a table row. now is the injected
@@ -149,10 +149,9 @@ func kindDefs() []kindDef {
 		},
 		{
 			spec: resource.KindSpec{
-				Name:    "job",
-				Aliases: []string{"job"},
-				Title:   "Jobs",
-				Scope:   resource.ScopeNamespace,
+				Name:  "job",
+				Title: "Jobs",
+				Scope: resource.ScopeNamespace,
 				Columns: columns(
 					text("namespace", "NAMESPACE", 14),
 					text("name", "NAME", 0),
@@ -304,10 +303,9 @@ func kindDefs() []kindDef {
 			// recording. That also means TYPE and the key names are not in the
 			// cache; task 108's describe view reads them, keys only, on demand.
 			spec: resource.KindSpec{
-				Name:    "secret",
-				Aliases: []string{"secret"},
-				Title:   "Secrets",
-				Scope:   resource.ScopeNamespace,
+				Name:  "secret",
+				Title: "Secrets",
+				Scope: resource.ScopeNamespace,
 				Columns: columns(
 					text("namespace", "NAMESPACE", 14),
 					text("name", "NAME", 0),

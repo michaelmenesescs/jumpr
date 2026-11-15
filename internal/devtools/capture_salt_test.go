@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // TestScrubValues checks the pillar value scrubber: every leaf becomes
@@ -121,7 +121,7 @@ func saltFake() *transporttest.Fake {
 			return transporttest.Reply{RC: 0}, true
 		case strings.Contains(script, "cp -p /etc/motd"):
 			return transporttest.Reply{RC: 0}, true
-		case strings.Contains(script, "mv /etc/motd.jumper-capture"):
+		case strings.Contains(script, "mv /etc/motd.jumpr-capture"):
 			return transporttest.Reply{RC: 0}, true
 		case strings.Contains(script, "salt --version"):
 			return reply("salt 3007.1 (Chlorine)\n")
@@ -257,7 +257,7 @@ func TestCaptureSaltWritesGoldenFiles(t *testing.T) {
 			started = true
 		case strings.Contains(c.Command.Script, "cp -p /etc/motd"):
 			drifted = true
-		case strings.Contains(c.Command.Script, "mv /etc/motd.jumper-capture"):
+		case strings.Contains(c.Command.Script, "mv /etc/motd.jumpr-capture"):
 			restored = true
 		}
 	}

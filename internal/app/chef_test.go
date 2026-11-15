@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"jumper/internal/config"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/config"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // TestChefBackendUnconfigured checks the builder returns nil when no

@@ -5,9 +5,9 @@ import (
 	"path"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	sshcfg "jumper/internal/transport/ssh"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	sshcfg "jumpr/internal/transport/ssh"
 )
 
 // SSHConfigSource lists every literal Host in the ssh_config files.

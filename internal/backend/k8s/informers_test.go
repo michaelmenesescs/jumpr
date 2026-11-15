@@ -17,9 +17,9 @@ import (
 	metadatafake "k8s.io/client-go/metadata/fake"
 	ktesting "k8s.io/client-go/testing"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // testPod is one pod in ns on node.

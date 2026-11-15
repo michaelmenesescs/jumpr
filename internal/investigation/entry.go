@@ -6,8 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"jumper/internal/action"
-	"jumper/internal/redact"
+	"jumpr/internal/action"
+	"jumpr/internal/redact"
 )
 
 // EntryKind classifies one timeline bullet (BUILD-PLAN §4.10).

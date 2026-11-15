@@ -11,7 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // crashTimeLayout names crash files: <cache>/crash/<UTC timestamp>.txt.

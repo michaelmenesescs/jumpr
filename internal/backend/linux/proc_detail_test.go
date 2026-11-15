@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // procStatusFixture is an sshd's /proc/PID/status.

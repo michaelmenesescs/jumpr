@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
 )
 
 const (

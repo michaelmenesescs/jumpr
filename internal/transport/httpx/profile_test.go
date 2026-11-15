@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // writeFile writes content into a fresh temp dir and returns its path.
@@ -36,7 +36,7 @@ connections:
       type: bearer
       token: s3cr3t
     headers:
-      X-Requested-By: jumper
+      X-Requested-By: jumpr
     retries: 2
   plain:
     proxy:
@@ -71,7 +71,7 @@ connections:
 	if p.Auth.Type != AuthBearer || p.Auth.Token != "s3cr3t" {
 		t.Fatalf("auth = %+v", p.Auth)
 	}
-	if p.Headers["X-Requested-By"] != "jumper" {
+	if p.Headers["X-Requested-By"] != "jumpr" {
 		t.Fatalf("headers = %v", p.Headers)
 	}
 	if p.Retries != 2 {

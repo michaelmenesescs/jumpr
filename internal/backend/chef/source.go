@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // Source is the Chef inventory source: one host per registered node, read from
@@ -28,7 +28,7 @@ func NewSource(r *Runner) *Source { return &Source{Runner: r} }
 func (s *Source) Name() string { return "chef" }
 
 // Load reads every registered node and turns it into a host. The labels are the
-// Chef facts the rest of jumper selects on: chef.environment, chef.roles
+// Chef facts the rest of jumpr selects on: chef.environment, chef.roles
 // (comma-joined) and chef.platform.
 func (s *Source) Load(ctx context.Context) ([]inventory.Host, error) {
 	if s == nil || s.Runner == nil {

@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/httpx"
 )
 
 // alertmanagerName is the name every Alertmanager ref and health dot uses.
@@ -362,7 +362,7 @@ func (c *AlertmanagerClient) remoteError(op, msg string) *errs.Error {
 	return &errs.Error{Kind: errs.Remote, Op: "prom.am." + op, Host: c.name, Msg: msg}
 }
 
-// parseError is a response body jumper could not read.
+// parseError is a response body jumpr could not read.
 func (c *AlertmanagerClient) parseError(op string, err error) *errs.Error {
 	return &errs.Error{Kind: errs.Parse, Op: "prom.am." + op, Host: c.name,
 		Msg: "the response did not parse", Err: err}

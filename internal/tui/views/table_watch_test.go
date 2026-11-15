@@ -7,10 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // watchStub is a backend that can also be watched: the test feeds the events

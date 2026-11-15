@@ -11,10 +11,10 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/ssh/sshtest"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/ssh/sshtest"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 // dialSpecFor returns a spec that dials srv with the given identity file and a

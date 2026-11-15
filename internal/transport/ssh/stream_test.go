@@ -3,14 +3,14 @@ package ssh
 import (
 	"context"
 	"io"
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport"
 )
 
 func TestStreamLines(t *testing.T) {

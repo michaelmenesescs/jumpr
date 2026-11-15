@@ -8,14 +8,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/k8s"
-	"jumper/internal/errs"
-	"jumper/internal/investigation"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/k8s"
+	"jumpr/internal/errs"
+	"jumpr/internal/investigation"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // KindK8sObject is the factory key of the describe/yaml/events screen. It is a
@@ -280,7 +280,7 @@ func (v *K8sObject) reveal() tea.Cmd {
 	}
 	yes := v.load(true)
 	text := fmt.Sprintf("reveal the values of %s? they will be shown on screen", k8sObjectCrumb(v.ref)) +
-		"\njumper never records or copies them; copy mode keeps the size markers"
+		"\njumpr never records or copies them; copy mode keeps the size markers"
 	th := v.theme
 	return func() tea.Msg {
 		return tui.OpenDialogMsg{Dialog: tui.NewConfirmDialog(th, "reveal secret values", text, yes)}

@@ -1,8 +1,8 @@
-// chef-client through jumper's own fan-out (SPEC §8.7): the why-run dry run and
+// chef-client through jumpr's own fan-out (SPEC §8.7): the why-run dry run and
 // the convergent run, normalized and grouped so a fleet's worth of output
 // collapses into the few answers that differ.
 //
-// `knife ssh '<q>' 'sudo chef-client'` is deliberately not used: jumper runs
+// `knife ssh '<q>' 'sudo chef-client'` is deliberately not used: jumpr runs
 // the client itself on the targets, so safety, audit and policy stay uniform.
 
 package chef
@@ -16,14 +16,14 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 const (

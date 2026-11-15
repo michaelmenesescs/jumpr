@@ -8,10 +8,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/investigation"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/tui"
+	"jumpr/internal/investigation"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui"
 )
 
 // dropInClip is a clipboard that remembers what it was given.

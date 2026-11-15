@@ -8,14 +8,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/mux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/mux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // keyLogView records every key it receives and renders them, so a test can see

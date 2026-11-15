@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // testPolicy is the checked-in policy.yaml used by the selector and target

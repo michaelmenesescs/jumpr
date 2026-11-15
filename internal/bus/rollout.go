@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
 )
 
 // RolloutConfig is the input of the rollout decisions. It mirrors

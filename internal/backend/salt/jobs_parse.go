@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Operation names for job errors. BUILD-PLAN §4.1 uses dotted ops.

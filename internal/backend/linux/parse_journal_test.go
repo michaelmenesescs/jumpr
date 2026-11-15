@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 const journalSample = `{"__REALTIME_TIMESTAMP":"1794512467000000","PRIORITY":"3","SYSLOG_IDENTIFIER":"nginx","_PID":"2290","_SYSTEMD_UNIT":"nginx.service","MESSAGE":"bind() to 0.0.0.0:443 failed (98: Address already in use)"}`

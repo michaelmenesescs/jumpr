@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/bus"
+	"jumpr/internal/bus"
 )
 
 // `:policy` and `:readonly` (SPEC §11, §16). The policy is the guard rail the

@@ -1,4 +1,4 @@
-// Package config holds jumper's configuration schema, defaults, loader and
+// Package config holds jumpr's configuration schema, defaults, loader and
 // validation. It never reads the environment or the real home directory: the
 // home directory is passed in by the caller (BUILD-PLAN §6.1).
 package config
@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
-// PrometheusConfig is one Prometheus server jumper may query (SPEC §8.3).
+// PrometheusConfig is one Prometheus server jumpr may query (SPEC §8.3).
 // `connection` names an entry of connections.yaml; empty means a direct,
 // unauthenticated connection.
 type PrometheusConfig struct {
@@ -23,7 +23,7 @@ type PrometheusConfig struct {
 	Connection string `yaml:"connection"`
 }
 
-// AlertmanagerConfig is one Alertmanager jumper may silence (SPEC §8.3). It has
+// AlertmanagerConfig is one Alertmanager jumpr may silence (SPEC §8.3). It has
 // the same shape as a Prometheus entry: `connection` names an entry of
 // connections.yaml, empty means a direct, unauthenticated connection.
 type AlertmanagerConfig struct {
@@ -32,7 +32,7 @@ type AlertmanagerConfig struct {
 	Connection string `yaml:"connection"`
 }
 
-// GrafanaConfig is one Grafana jumper may browse and query (SPEC §8.4). It has
+// GrafanaConfig is one Grafana jumpr may browse and query (SPEC §8.4). It has
 // the same shape as a Prometheus entry: `connection` names an entry of
 // connections.yaml, empty means a direct, unauthenticated connection.
 type GrafanaConfig struct {
@@ -41,7 +41,7 @@ type GrafanaConfig struct {
 	Connection string `yaml:"connection"`
 }
 
-// ElasticsearchConfig is one Elasticsearch cluster jumper may search
+// ElasticsearchConfig is one Elasticsearch cluster jumpr may search
 // (SPEC §8.5). It has the same name/url/connection shape as a Prometheus entry,
 // plus the saved log sources that live in the cluster.
 type ElasticsearchConfig struct {
@@ -180,7 +180,7 @@ type SaltConfig struct {
 	AllowSaltSSH bool     `yaml:"allow_salt_ssh"`
 }
 
-// ChefConfig configures the Chef workstation jumper reads knife through
+// ChefConfig configures the Chef workstation jumpr reads knife through
 // (SPEC §8.7). `workstation` is the inventory host or ssh alias the knife
 // commands run on; empty means Chef is unconfigured.
 type ChefConfig struct {
@@ -226,7 +226,7 @@ func Default() Config {
 			Identity: IdentityConfig{},
 		},
 		Knowledge: KnowledgeConfig{
-			Root: "~/jumper",
+			Root: "~/jumpr",
 		},
 		Rollout: RolloutConfig{
 			Canary:                  1,

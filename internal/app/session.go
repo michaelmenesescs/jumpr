@@ -15,19 +15,19 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/investigation"
-	"jumper/internal/resource"
-	"jumper/internal/safe"
-	"jumper/internal/server"
-	"jumper/internal/targets"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
-	"jumper/internal/tui/views"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/investigation"
+	"jumpr/internal/resource"
+	"jumpr/internal/safe"
+	"jumpr/internal/server"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
+	"jumpr/internal/tui/views"
 )
 
 // The preamble and postamble are what the session writes to a fresh terminal
@@ -41,24 +41,24 @@ const (
 	// screen back.
 	leaveScreen = "\x1b[?2004l\x1b[?25h\x1b[?1049l"
 
-	// SessionEnvVar marks a shell started by a jumper session. A local pane
-	// exports it, and `jumper` refuses to start inside one (SPEC §21.4): the
+	// SessionEnvVar marks a shell started by a jumpr session. A local pane
+	// exports it, and `jumpr` refuses to start inside one (SPEC §21.4): the
 	// inner process would fight the outer one for the keyboard.
 	SessionEnvVar = "SITREP"
 
 	// titlePrefix begins the OSC 2 title sequence the attach preamble writes.
-	titlePrefix = "\x1b]2;jumper: "
+	titlePrefix = "\x1b]2;jumpr: "
 )
 
 // InSession reports whether the environment belongs to a process started by a
-// jumper session's local pane. The check exists before local shell panes do;
+// jumpr session's local pane. The check exists before local shell panes do;
 // task 081's nested-attach refusal reads it.
 func InSession(env map[string]string) bool {
 	return env[SessionEnvVar] != ""
 }
 
 // titleSequence is the OSC 2 sequence that names the session in the terminal's
-// title bar: ESC ] 2 ; jumper: <session> BEL. Control characters are dropped
+// title bar: ESC ] 2 ; jumpr: <session> BEL. Control characters are dropped
 // so a session name can never smuggle an escape into the terminal.
 func titleSequence(name string) string {
 	name = strings.Map(func(r rune) rune {

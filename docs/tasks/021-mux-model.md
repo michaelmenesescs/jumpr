@@ -40,7 +40,7 @@ SPEC §21. BUILD-PLAN §4.9, §5.
    - several panes: each pane rectangle gets a rounded border with ` <id>:<title> ` embedded in the top edge,
      focused pane in `BorderFocused`; the content gets `(W-2) × (H-2)`.
    - compose by rows: for each screen row, concatenate the row slices of the panes it crosses, ordered by X.
-   - content output is passed through `render.Fit` (import `jumper/internal/render`; it is a leaf package).
+   - content output is passed through `render.Fit` (import `jumpr/internal/render`; it is a leaf package).
 6. Accessors for the owner: `Focused() (PaneID, Content)`, `Tabs() []Tab{Index, Name, Active, Zoomed}`,
    `PrefixArmed() bool`, `Session() *Session`, `Contents() map[PaneID]Content`, `AddPane(st ContentState, split
    string) (PaneID, tea.Cmd)` (used by `:ssh`, restore), `CloseAll()`.

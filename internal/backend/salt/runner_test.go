@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/transporttest"
 )
 
 const master = "saltmaster.example.internal"

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestGlyphsNames(t *testing.T) {

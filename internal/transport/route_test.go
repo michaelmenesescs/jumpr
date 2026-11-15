@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // stubBackend records which hosts it was asked about and answers with a

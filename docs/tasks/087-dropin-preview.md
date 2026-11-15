@@ -25,7 +25,7 @@ SPEC §20 open question 7. The zero-footprint rule: this task must not write on 
 3. `ctrl+s` shows the preview (a text view): the unified diff between the current `systemctl cat` output and
    what it would be with the new drop-in, the warnings, and a "to apply by hand" block with the exact commands
    (`sudo systemctl edit <unit>` and the content, or the `tee` + `daemon-reload` + `restart` sequence). A line at
-   the top states: `preview only — jumper does not write files on nodes`.
+   the top states: `preview only — jumpr does not write files on nodes`.
 4. `y` in the preview copies the "apply by hand" block to the clipboard. The preview is recorded as a `note`
    entry when an investigation is open (text + diff attached).
 5. No `action.Spec` is added. No remote command other than the `cat` already loaded.

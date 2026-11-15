@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

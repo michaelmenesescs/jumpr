@@ -13,7 +13,7 @@ metrics).
 BUILD-PLAN §2 (M3 demo), §3 (`app` is the composition root). SPEC §5 W1, §11, §16.
 
 ## Files
-- modify `internal/app/build.go`, `cmd/jumper/main.go` (`--readonly`)
+- modify `internal/app/build.go`, `cmd/jumpr/main.go` (`--readonly`)
 - create `internal/app/lab_w1_test.go` (`//go:build lab`)
 - create `internal/tui/commands_policy.go` (`:policy`, `:readonly on|off`)
 - modify `docs/HANDOFF.md`
@@ -42,7 +42,7 @@ Metrics and alerts (M8). Salt (M4). New features of any kind: this task only ass
 ```
 make check
 make lab-test
-./jumper --config-dir lab/jumper      # manual: BUILD-PLAN §2 M3 demo script
+./jumpr --config-dir lab/jumpr      # manual: BUILD-PLAN §2 M3 demo script
 ```
 
 ## Pitfalls

@@ -8,9 +8,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // The kinds and keys the node ↔ host pivot works with (SPEC W3).
@@ -172,7 +172,7 @@ func nodeOf(r resource.Resource) (name, internalIP string, ok bool) {
 	return name, strings.TrimSpace(internalIP), true
 }
 
-// nodeHost resolves a node to the inventory host jumper can reach over SSH: the
+// nodeHost resolves a node to the inventory host jumpr can reach over SSH: the
 // host the node's name belongs to, then the host its InternalIP belongs to, and
 // only when kubernetes.node_ssh_by_ip allows it the bare InternalIP itself.
 func (b *Backend) nodeHost(name, internalIP string) (resource.HostID, bool) {

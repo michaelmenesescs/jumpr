@@ -11,7 +11,7 @@ import (
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // rowNow is the clock every row test runs against.
@@ -675,14 +675,14 @@ func TestKindSpecs(t *testing.T) {
 		"deployment":            {"deploy"},
 		"statefulset":           {"sts"},
 		"daemonset":             {"ds"},
-		"job":                   {"job"},
+		"job":                   {},
 		"cronjob":               {"cj"},
 		"node":                  {"no"},
 		"service":               {"svc"},
 		"endpoints":             {"ep"},
 		"ingress":               {"ing"},
 		"configmap":             {"cm"},
-		"secret":                {"secret"},
+		"secret":                {},
 		"event":                 {"ev"},
 		"namespace":             {"ns"},
 		"persistentvolumeclaim": {"pvc"},

@@ -10,11 +10,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/prom"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/prom"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // fakePromQuerier is a scripted Prometheus client.

@@ -3,8 +3,8 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // HelpSection is one titled group of key hints in the help dialog.

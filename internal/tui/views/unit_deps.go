@@ -8,14 +8,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // depsLoadTimeout bounds the dependency batch.

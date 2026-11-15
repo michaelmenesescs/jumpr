@@ -14,7 +14,7 @@ binary**. `internal/app/core.go` defines the builders
 
 but nothing calls them: `buildDemo` registers `fake`, and `buildReal` registers `linux` and `salt`
 only (`core.go:684`, `:773`, `:780`). Found on 2026-11-13 by running the real binary against a real
-k3s cluster with a real kubeconfig: `jumper doctor` reported `inventory 0 hosts` and
+k3s cluster with a real kubeconfig: `jumpr doctor` reported `inventory 0 hosts` and
 `sample k8s: no hosts from this source`, because the k8s backend was never built.
 
 Each builder's own doc comment says "the task that owns app.go calls this function" — no task owned
@@ -41,7 +41,7 @@ it. This is that task.
    inventory.
 4. A backend that fails to build (bad URL, unreachable master, malformed kubeconfig) must be a
    **startup warning naming the config section**, and the app must still start with the rest.
-5. `jumper doctor` must report one `backend` line per registered backend, with its health.
+5. `jumpr doctor` must report one `backend` line per registered backend, with its health.
 
 ## Acceptance
 
@@ -61,8 +61,8 @@ And by hand, against a real cluster (this is how the gap was found):
 kubectl config view --raw > /tmp/k3s.yaml    # from the k3s host, rewrites to its IP
 printf 'kubernetes:\n  kubeconfig: "/tmp/k3s.yaml"\ninventory:\n  sources:\n    - type: k8s\n' \
   > /tmp/cfg/config.yaml
-jumper doctor --config-dir /tmp/cfg          # must show the k8s backend ok + 1 host (the node)
-jumper --config-dir /tmp/cfg                 # :nodes and :pods must list the cluster
+jumpr doctor --config-dir /tmp/cfg          # must show the k8s backend ok + 1 host (the node)
+jumpr --config-dir /tmp/cfg                 # :nodes and :pods must list the cluster
 ```
 
 ## Pitfalls

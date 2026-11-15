@@ -11,15 +11,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/investigation"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // journalMaxRows caps the rows a following journal keeps in memory.

@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // StateRow is one state in a minion's state.apply return.

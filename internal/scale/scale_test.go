@@ -22,19 +22,19 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/bus"
-	"jumper/internal/errs"
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
-	"jumper/internal/tui/views"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/bus"
+	"jumpr/internal/errs"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
+	"jumpr/internal/tui/views"
 )
 
 const (
@@ -584,7 +584,7 @@ func TestScaleUIRemainsResponsive(t *testing.T) {
 	// Up to three runs of 200 keys while the fan-out is in flight, best p99
 	// wins. A single multi-millisecond stall on this box is a stop-the-world
 	// pause or the scheduler being starved by unrelated work (the machine
-	// also runs long-lived CPU hogs), not jumper doing work on the UI thread;
+	// also runs long-lived CPU hogs), not jumpr doing work on the UI thread;
 	// a real regression shows up in every run.
 	var keyP99 time.Duration
 	for attempt := 1; attempt <= 3; attempt++ {

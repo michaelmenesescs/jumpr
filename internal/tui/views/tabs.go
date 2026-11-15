@@ -5,9 +5,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
-	"jumper/internal/tui"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/render"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/theme"
 )
 
 // Tab is one entry of a tab strip: the number key that selects it, the label

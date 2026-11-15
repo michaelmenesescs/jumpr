@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/transport/transporttest"
 )
 
 // TestCaptureChef checks a capture run writes one file per planned command, the

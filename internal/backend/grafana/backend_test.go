@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // fixedNow is the clock every backend test uses.

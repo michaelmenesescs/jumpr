@@ -12,13 +12,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/grafana"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend/grafana"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 const (
@@ -69,7 +69,7 @@ type dashboardPanel struct {
 }
 
 // queryable reports whether the TUI runs this panel's queries itself. A panel
-// whose type jumper cannot draw, or one without queries, is opened in a
+// whose type jumpr cannot draw, or one without queries, is opened in a
 // browser instead.
 func (p *dashboardPanel) queryable() bool {
 	return grafana.SupportedPanelType(p.panel.Type) && len(p.panel.Targets) > 0

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 // loadTestDef writes one plugin file and loads it, failing the test on any
@@ -53,7 +53,7 @@ func testClient(t *testing.T, name string) *httpx.Client {
 // poolMembersYAML is the SPEC §12 lb-pool-members example, pointed at url.
 func poolMembersYAML(url string) string {
 	return fmt.Sprintf(`
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: lb-pool-members
 description: load balancer pool members
@@ -63,7 +63,7 @@ request:
   method: GET
   url: %s/v1/pools/{{ .Param "pool" }}/members
   headers:
-    X-Requested-With: jumper
+    X-Requested-With: jumpr
 params:
   - name: pool
     required: true
@@ -143,8 +143,8 @@ func TestHTTPPoolMembersExample(t *testing.T) {
 	if got[0].Method != http.MethodGet || got[0].URL.Path != "/v1/pools/web/members" {
 		t.Fatalf("request = %s %s", got[0].Method, got[0].URL.Path)
 	}
-	if hdr := got[0].Header.Get("X-Requested-With"); hdr != "jumper" {
-		t.Fatalf("header = %q, want jumper", hdr)
+	if hdr := got[0].Header.Get("X-Requested-With"); hdr != "jumpr" {
+		t.Fatalf("header = %q, want jumpr", hdr)
 	}
 }
 
@@ -223,7 +223,7 @@ func TestHTTPEscapesURLValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			yaml := fmt.Sprintf(`
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: escape-%s
 target: http

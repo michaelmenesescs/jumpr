@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // labListTimeout bounds one lab listing in this file.

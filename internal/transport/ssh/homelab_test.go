@@ -3,7 +3,7 @@
 // Homelab suite: the SSH path against a real Ubuntu 24.04 node reached through
 // the user's own ~/.ssh/config. Every test here is read-only. Nothing in this
 // file compiles into `go test ./...`; it only runs under `make homelab-test`
-// with JUMPER_HOMELAB_UBUNTU set to an ssh_config alias.
+// with JUMPR_HOMELAB_UBUNTU set to an ssh_config alias.
 
 package ssh_test
 
@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
-	sshx "jumper/internal/transport/ssh"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
+	sshx "jumpr/internal/transport/ssh"
 )
 
 const (
@@ -37,9 +37,9 @@ const (
 // homelab suite starts here, so an unset variable skips instead of failing.
 func homelabHost(t *testing.T) string {
 	t.Helper()
-	host := os.Getenv("JUMPER_HOMELAB_UBUNTU")
+	host := os.Getenv("JUMPR_HOMELAB_UBUNTU")
 	if host == "" {
-		t.Skip("JUMPER_HOMELAB_UBUNTU not set")
+		t.Skip("JUMPR_HOMELAB_UBUNTU not set")
 	}
 	return host
 }

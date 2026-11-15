@@ -1,4 +1,4 @@
-# Agent instructions — jumper
+# Agent instructions — jumpr
 
 Read these files in order before doing anything:
 
@@ -31,9 +31,9 @@ Read these files in order before doing anything:
 4. **All helper and dev tooling is Go.** Lab controller, fault injection, mock proxies, example auth helpers,
    capture/sanitize tools, golden-file updates (`go test -update`), release tooling: Go programs under `cmd/` or
    `examples/`, logic under `internal/`. No bash, Python or other script files. The Makefile only calls `go` and
-   `gofmt`. (Shell one-liners that jumper sends to remote nodes are the product, not helpers. The embedded
+   `gofmt`. (Shell one-liners that jumpr sends to remote nodes are the product, not helpers. The embedded
    provisioning snippets inside `cmd/@@` belong to the lab track.)
-5. **Do not edit `cmd/@@/` or `lab/`** except `lab/jumper/` (the jumper config for the lab). They belong
+5. **Do not edit `cmd/@@/` or `lab/`** except `lab/jumpr/` (the jumpr config for the lab). They belong
    to the lab track. If the lab lacks something a task needs, add it to "Requests to the lab track" in
    `docs/HANDOFF.md`.
 6. **Tests must not need the lab, the network, an SSH agent or a real terminal.** Anything that needs the lab is

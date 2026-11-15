@@ -23,9 +23,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
 )
 
 // Meta describes an investigation without its timeline (BUILD-PLAN §4.10).

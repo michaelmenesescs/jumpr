@@ -1,4 +1,4 @@
-# Connection profiles — written once by `jumper init` (SPEC §7.2).
+# Connection profiles — written once by `jumpr init` (SPEC §7.2).
 #
 # Every HTTP backend (Prometheus, Alertmanager, Grafana, Elasticsearch) may
 # reference a profile by name in config.yaml (`connection: corp-sso`). A
@@ -23,7 +23,7 @@ connections: {}
 #       # type: http
 #       # url: http://proxy.example.internal:3128
 #     tls:
-#       ca_file: ~/.config/jumper/ca/corp-root.pem
+#       ca_file: ~/.config/jumpr/ca/corp-root.pem
 #       client_cert: ""            # optional mTLS
 #       client_key: ""
 #       insecure_skip_verify: false
@@ -31,11 +31,11 @@ connections: {}
 #     auth:
 #       type: helper               # none | basic | bearer | headers | cookie | helper
 #       helper:
-#         command: ["~/.config/jumper/helpers/sso-login.sh", "{{ .URL }}"]
+#         command: ["~/.config/jumpr/helpers/sso-login.sh", "{{ .URL }}"]
 #         cache_ttl: 50m
 #         refresh_on: [401, 403, 302-to-login]
 #     headers:
-#       X-Requested-By: jumper
+#       X-Requested-By: jumpr
 #     timeout: 15s
 #     retries: 2
 #

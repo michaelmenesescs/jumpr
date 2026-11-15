@@ -1,7 +1,7 @@
 // Package theme holds the single set of colours and styles every view uses.
 //
 // Views never name a colour directly: they take styles from Theme. The colour
-// profile is the one piece of package-level mutable state jumper allows
+// profile is the one piece of package-level mutable state jumpr allows
 // (BUILD-PLAN §6.1 rule 7); it is fixed once per process by SetProfile.
 package theme
 
@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"jumper/internal/render"
-	"jumper/internal/resource"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
 )
 
 // Flash holds the styles for the four flash-line severities.

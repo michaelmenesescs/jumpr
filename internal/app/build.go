@@ -12,19 +12,19 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/salt"
-	"jumper/internal/bus"
-	"jumper/internal/config"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh"
-	"jumper/internal/tui"
-	"jumper/internal/tui/views"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/bus"
+	"jumpr/internal/config"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/views"
 )
 
 // built is one assembled run for the callers that drive the model themselves:
-// `jumper doctor`, the composition tests and the session tests. It is a Core
+// `jumpr doctor`, the composition tests and the session tests. It is a Core
 // plus a Session that has not started its tea.Program, so nothing renders while
 // the caller calls Update and View on the root. Run does not use it: it builds
 // the same Core and a session whose program runs from the first line.

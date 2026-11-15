@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 func typeRunes(b *CmdBar, s string) {

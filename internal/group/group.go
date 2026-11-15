@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // Group is a set of hosts that produced the same normalized output and exit code.

@@ -9,10 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/investigation"
-	"jumper/internal/render"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // The knowledge side panel answers "have I seen this before?" for whatever the
@@ -540,7 +540,7 @@ type noteLinesMsg struct {
 // noteView is the read-only text view a knowledge note opens in. It exists
 // here rather than in internal/tui/views because that package imports this
 // one; it is the same text-pane behaviour (scroll, esc back) in miniature, and
-// editing stays in the user's editor outside jumper.
+// editing stays in the user's editor outside jumpr.
 type noteView struct {
 	env   *Env
 	path  string

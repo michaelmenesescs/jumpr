@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // backendName is the name every Ref and registry lookup uses.

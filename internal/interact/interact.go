@@ -1,4 +1,4 @@
-// Package interact defines the questions jumper can ask the user and the
+// Package interact defines the questions jumpr can ask the user and the
 // Prompter interface every front end implements.
 package interact
 

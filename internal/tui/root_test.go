@@ -11,15 +11,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	teatest "github.com/charmbracelet/x/exp/teatest"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/testload"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
-	"jumper/internal/tui/views"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/testload"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
+	"jumpr/internal/tui/views"
 )
 
 // newRoot builds a root model over the fake backend with the table view as the

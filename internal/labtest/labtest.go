@@ -1,7 +1,7 @@
 //go:build lab
 
 // Package labtest holds the helpers every `//go:build lab` test uses: the lab's
-// jumper configuration, an SSH transport through the lab bastion, the host list,
+// jumpr configuration, an SSH transport through the lab bastion, the host list,
 // and the two ways a test creates (and undoes) a lab-side condition.
 //
 // It is compiled only with -tags lab, so `go test ./...` never builds it. Tests
@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/config"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh"
+	"jumpr/internal/config"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh"
 )
 
 // labDomain is the suffix every lab host carries (SPEC §22).
@@ -63,7 +63,7 @@ func Root(t *testing.T) string {
 	}
 }
 
-// Config loads lab/jumper/config.yaml and skips the test when lab/ssh_config is
+// Config loads lab/jumpr/config.yaml and skips the test when lab/ssh_config is
 // missing, which means the lab is not up. The process working directory is moved
 // to the repository root, because the config's paths are relative to it.
 func Config(t *testing.T) config.Config {
@@ -78,7 +78,7 @@ func Config(t *testing.T) config.Config {
 	if err != nil {
 		t.Fatalf("labtest: %v", err)
 	}
-	cfg, err := config.Load(filepath.Join("lab", "jumper", "config.yaml"), home)
+	cfg, err := config.Load(filepath.Join("lab", "jumpr", "config.yaml"), home)
 	if err != nil {
 		t.Fatalf("labtest: config: %v", err)
 	}
@@ -103,7 +103,7 @@ func chdir(t *testing.T, dir string) {
 }
 
 // Pool returns a pool over the lab's ssh_config with the limits from
-// lab/jumper/config.yaml. Host keys are accept-new: the lab's key is regenerated
+// lab/jumpr/config.yaml. Host keys are accept-new: the lab's key is regenerated
 // whenever the lab is rebuilt. It is closed in cleanup.
 func Pool(t *testing.T) *ssh.Pool {
 	t.Helper()

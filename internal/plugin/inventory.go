@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/httpx"
 )
 
 const (

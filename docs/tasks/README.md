@@ -66,7 +66,7 @@ only by tasks 001, 098, 105 and 115.
 | [013](013-text-view.md) | Text view (scrollable text, key/value detail) | 008, 011 | M0-C | done |
 | [014](014-command-bar.md) | Command bar and command registry | 011 | M0-C | done |
 | [015](015-statusline-hints-dialogs.md) | Status line, hint bar, flash, dialog frame, help | 011 | M0-C | done |
-| [016](016-root-app.md) | Root model, `app.Run`, `jumper --demo` | 003, 007, 012, 013, 014, 015 | — | done |
+| [016](016-root-app.md) | Root model, `app.Run`, `jumpr --demo` | 003, 007, 012, 013, 014, 015 | — | done |
 
 ### M1 — Multiplexer (in-process)
 
@@ -95,7 +95,7 @@ only by tasks 001, 098, 105 and 115.
 | [032](032-ssh-pool.md) | SSH connection pool with bastion multiplexing and limits | 031 | — | done |
 | [033](033-ssh-exec-stream.md) | SSH Executor and Streamer | 027, 032 | — | done |
 | [034](034-ssh-shell.md) | SSH ShellOpener (interactive PTY sessions) | 033 | — | done |
-| [035](035-doctor-ssh-lab.md) | `jumper doctor ssh` and the first lab test | 033 | — | done |
+| [035](035-doctor-ssh-lab.md) | `jumpr doctor ssh` and the first lab test | 033 | — | done |
 | [036](036-fanout-runner.md) | Fan-out runner | 026 | M2-B | done |
 | [037](037-group-diff.md) | Grouping identical outputs, summary headline, unified diff | 005 | M2-A | done |
 | [038](038-probe-batch.md) | Probe batch compiler and section splitter | 026, 027 | M2-B | done |
@@ -140,7 +140,7 @@ only by tasks 001, 098, 105 and 115.
 | [067](067-salt-capture-goldens.md) | Capture Salt golden files from the lab (Go tool) | 053, 066 | — | done |
 | [068](068-salt-minions-keys.md) | Salt backend skeleton: minions, keys, health | 066, 039 | M4-B | done |
 | [069](069-salt-grains-inventory.md) | Grains as an inventory source | 066, 039 | M4-B | done |
-| [070](070-salt-targeting-compiler.md) | Targeting compiler: jumper selectors ↔ Salt targets (pure) | 004, 066 | M4-A | done |
+| [070](070-salt-targeting-compiler.md) | Targeting compiler: jumpr selectors ↔ Salt targets (pure) | 004, 066 | M4-A | done |
 | [071](071-salt-job-engine.md) | Salt job engine: async submit, poll, per-minion results | 066 | M4-B | done |
 | [072](072-salt-jobs-browser.md) | Jobs browser: live and historical jobs, grouped job detail | 068, 071, 048 | M4-C | done |
 | [073](073-salt-executor.md) | Salt as an execution transport | 071, 036 | M4-C | done |
@@ -190,7 +190,7 @@ only by tasks 001, 098, 105 and 115.
 |---|---|---|---|---|
 | [098](098-http-connection-profiles.md) | HTTP connection profiles: proxy, TLS, static auth | 003, 054 | — | done |
 | [099](099-auth-helper-secrets.md) | Auth helper protocol, secrets, example helper (Go) | 098 | M8-A | done |
-| [100](100-doctor-conn.md) | `jumper doctor conn` | 098 | M8-A | done |
+| [100](100-doctor-conn.md) | `jumpr doctor conn` | 098 | M8-A | done |
 | [101](101-prometheus-client-views.md) | Prometheus backend: targets, rules, PromQL, sparklines, chart | 099 | — | done |
 | [102](102-alertmanager.md) | Alertmanager: alerts view and silences | 101, 057 | — | done |
 | [103](103-alert-to-investigation.md) | Alert → investigation → hosts (SPEC W1 complete) | 101, 102, 059 | — | done |
@@ -234,7 +234,7 @@ only by tasks 001, 098, 105 and 115.
 | ID | Title | Depends on | Parallel group | Status |
 |---|---|---|---|---|
 | [123](123-scale-test.md) | Scale test: 2,000 hosts | 076 | M12-A | done |
-| [124](124-init-doctor.md) | `jumper init` and full `jumper doctor` | 076 | M12-A | done |
+| [124](124-init-doctor.md) | `jumpr init` and full `jumpr doctor` | 076 | M12-A | done |
 | [125](125-system-ssh-fallback.md) | system-ssh fallback transport | 052 | M12-A | done |
 | [126](126-crash-safety-audit.md) | Crash safety, logging and leak audit | 083, 123 | — | done |
 | [127](127-release-docs.md) | Keymap file, release build (Go tool), user documentation | 124, 126 | — | done |

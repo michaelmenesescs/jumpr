@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // Spec IDs, parameter names and defaults of the generic planner.

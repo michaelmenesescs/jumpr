@@ -12,18 +12,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/group"
-	"jumper/internal/investigation"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/group"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // KindSaltJobDetail is the factory key of the job detail screen. It is a view
@@ -207,7 +207,7 @@ func (j *SaltJob) load() tea.Cmd {
 			return saltJobLoadedMsg{Seq: seq, Err: err}
 		}
 		// A pillar.* job's arguments and returns stay hidden (task 093): the
-		// master keeps them, jumper does not show or record them.
+		// master keeps them, jumpr does not show or record them.
 		info = salt.HideJobInfo(info)
 		if info.JID == "" {
 			info.JID = jid

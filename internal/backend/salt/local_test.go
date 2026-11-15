@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 const localHost = resource.HostID("web-01.example.internal")

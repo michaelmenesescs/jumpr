@@ -1,7 +1,7 @@
-# auth-helper-cookie — example jumper auth helper
+# auth-helper-cookie — example jumpr auth helper
 
-An auth helper is any executable jumper runs for a `type: helper` connection
-profile. It prints JSON on stdout and jumper keeps the result in memory only:
+An auth helper is any executable jumpr runs for a `type: helper` connection
+profile. It prints JSON on stdout and jumpr keeps the result in memory only:
 
 ```json
 {"headers": {"Authorization": "Bearer …"},
@@ -10,12 +10,12 @@ profile. It prints JSON on stdout and jumper keeps the result in memory only:
 ```
 
 This example returns one cookie for an SSO proxy. The value comes from
-`JUMPER_AUTH_COOKIE`, or from the macOS Keychain when that is unset.
+`JUMPR_AUTH_COOKIE`, or from the macOS Keychain when that is unset.
 
 ## Use it
 
 ```yaml
-# ~/.config/jumper/connections.yaml
+# ~/.config/jumpr/connections.yaml
 connections:
   corp-sso:
     auth:
@@ -29,12 +29,12 @@ connections:
 Store the cookie once in the Keychain (the value is never written to a file):
 
 ```
-security add-generic-password -s jumper-auth -a _oauth2_proxy -w
+security add-generic-password -s jumpr-auth -a _oauth2_proxy -w
 ```
 
-`-expires` (default `50m`) sets `expires_at`, after which jumper runs the helper
+`-expires` (default `50m`) sets `expires_at`, after which jumpr runs the helper
 again. `refresh_on` lists the statuses and login-redirect patterns that count as
-"the session went stale": jumper then invalidates its cache, runs the helper
+"the session went stale": jumpr then invalidates its cache, runs the helper
 once, retries the request once, and otherwise reports an `auth` error naming the
 profile.
 

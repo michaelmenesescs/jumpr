@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/httpx"
 )
 
 // tailHit is one hit a tailFixture returns.

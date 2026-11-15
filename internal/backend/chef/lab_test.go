@@ -6,7 +6,7 @@ package chef
 // lab (SPEC §22). The lab must be up; without it a test skips with the
 // controller command that starts it (labtest.Config). Nothing is installed on a
 // node: the drift reads are knife calls on the workstation and the why-run is
-// jumper's own fan-out over SSH.
+// jumpr's own fan-out over SSH.
 
 import (
 	"context"
@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 const (

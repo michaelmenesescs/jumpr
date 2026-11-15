@@ -10,12 +10,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	teatest "github.com/charmbracelet/x/exp/teatest"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/bus/bustest"
-	"jumper/internal/resource"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/bustest"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // The action flow of task 061: the menu, the plan dialog, the confirmation

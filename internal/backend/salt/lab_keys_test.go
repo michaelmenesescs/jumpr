@@ -16,20 +16,20 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 const (
 	// strayID is the second minion identity the test gives web-03. It is a
 	// valid key id (letters, digits, dot, underscore, hyphen) and nothing else
 	// in the lab uses it.
-	strayID = "jumper-stray"
+	strayID = "jumpr-stray"
 	// strayOverride is the minion.d file that asks for that id.
-	strayOverride = "/etc/salt/minion.d/jumper-lab-id.conf"
+	strayOverride = "/etc/salt/minion.d/jumpr-lab-id.conf"
 )
 
 // TestLabSaltKeyAcceptThroughBus accepts a pending key through the bus and

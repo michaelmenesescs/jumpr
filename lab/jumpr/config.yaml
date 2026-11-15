@@ -1,13 +1,13 @@
-# jumper configuration for the local test lab (SPEC §22).
+# jumpr configuration for the local test lab (SPEC §22).
 #
 # Use it with:
 #
 #   go run ./cmd/sitrep-lab up
-#   ./jumper doctor ssh web-01.lab.example.internal --config-dir lab/jumper
+#   ./jumpr doctor ssh web-01.lab.example.internal --config-dir lab/jumpr
 #
 # Paths in a config file are used exactly as written, except that a leading
 # "~/" is expanded to the home directory: relative paths (lab/ssh_config,
-# lab/.knowledge, …) resolve against the current working directory. Run jumper
+# lab/.knowledge, …) resolve against the current working directory. Run jumpr
 # from the repository root, or pass a --config-dir that points at an absolute
 # path.
 #

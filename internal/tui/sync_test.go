@@ -13,16 +13,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/inventory"
-	"jumper/internal/investigation"
-	"jumper/internal/mux"
-	"jumper/internal/mux/termpane"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/inventory"
+	"jumpr/internal/investigation"
+	"jumpr/internal/mux"
+	"jumpr/internal/mux/termpane"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // Task 064: the broadcast line, raw synchronized input and the shell guard

@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/mux"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/mux"
+	"jumpr/internal/resource"
 )
 
 // The two synchronized-input specs (SPEC §11.1). Both are writes in the sense

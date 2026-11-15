@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/fanout"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/fanout"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // A loaded plugin behaves like a built-in kind (SPEC §12, W5): its name is a
@@ -567,7 +567,7 @@ func (b *Backend) Health(context.Context) backend.Health {
 // ManagerOptions is what the Manager needs: the plugin directory, the registry
 // to keep in step and the way to reach hosts.
 type ManagerOptions struct {
-	// Dir is the plugins directory (~/.config/jumper/plugins). Empty means no
+	// Dir is the plugins directory (~/.config/jumpr/plugins). Empty means no
 	// plugins are ever loaded.
 	Dir string
 	// Registry is where the plugin kinds are registered. Required.

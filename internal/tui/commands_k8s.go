@@ -9,9 +9,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/k8s"
-	"jumper/internal/investigation"
-	"jumper/internal/render"
+	"jumpr/internal/backend/k8s"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
 )
 
 // The `:ctx` and `:ns` command family (SPEC §8.2): the context switcher and the

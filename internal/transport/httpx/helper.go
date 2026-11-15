@@ -17,7 +17,7 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

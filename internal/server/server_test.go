@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // fakeSession is a SessionHandle that echoes its input to its output, records
@@ -143,7 +143,7 @@ type harness struct {
 
 func newHarness(t *testing.T, idle time.Duration) *harness {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "jumper-srv-")
+	dir, err := os.MkdirTemp("/tmp", "jumpr-srv-")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}
@@ -663,7 +663,7 @@ func TestServerSocketPermissions(t *testing.T) {
 }
 
 func TestServerLongSocketPathRejected(t *testing.T) {
-	dir, err := os.MkdirTemp("/tmp", "jumper-long-")
+	dir, err := os.MkdirTemp("/tmp", "jumpr-long-")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}

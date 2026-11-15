@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // testDefinition is the nginx-status plugin of SPEC §12, as a Definition the

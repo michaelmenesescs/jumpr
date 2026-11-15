@@ -8,15 +8,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/elastic"
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/probe"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/elastic"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/probe"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui"
 )
 
 // hostTestNow is the clock every host test uses.

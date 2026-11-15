@@ -1,4 +1,4 @@
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: unknown-column
 target: host

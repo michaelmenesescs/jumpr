@@ -22,7 +22,7 @@ import (
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 
-	"jumper/internal/mux/vt"
+	"jumpr/internal/mux/vt"
 )
 
 // e2eDeadline is how long a screen assertion may take. Every wait polls the
@@ -41,9 +41,9 @@ type e2eClient struct {
 	raw bytes.Buffer
 }
 
-// buildJumper builds the real binary once per test. `go build` is cached, so
+// buildJumpr builds the real binary once per test. `go build` is cached, so
 // this is quick after the first test.
-func buildJumper(t *testing.T) string {
+func buildJumpr(t *testing.T) string {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("builds the binary and needs a PTY")
@@ -52,8 +52,8 @@ func buildJumper(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bin := filepath.Join(shortDir(t), "jumper")
-	cmd := exec.Command("go", "build", "-o", bin, "./cmd/jumper")
+	bin := filepath.Join(shortDir(t), "jumpr")
+	cmd := exec.Command("go", "build", "-o", bin, "./cmd/jumpr")
 	cmd.Dir = root
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
@@ -66,13 +66,13 @@ func buildJumper(t *testing.T) string {
 func e2eEnv(t *testing.T, home string) []string {
 	t.Helper()
 	env := replaceEnv(os.Environ(), "HOME", home)
-	env = replaceEnv(env, "JUMPER_SOCKET", "")
+	env = replaceEnv(env, "JUMPR_SOCKET", "")
 	env = replaceEnv(env, "SITREP", "")
 	env = replaceEnv(env, "TMUX", "")
 	return replaceEnv(env, "TERM", "xterm-256color")
 }
 
-// startE2E starts `jumper -S sock --demo-server --config-dir cfg` on a fresh PTY
+// startE2E starts `jumpr -S sock --demo-server --config-dir cfg` on a fresh PTY
 // of cols×rows and continuously drains it into the emulator.
 func startE2E(t *testing.T, bin, home, sock, cfg string, cols, rows int) *e2eClient {
 	t.Helper()
@@ -234,8 +234,8 @@ func (c *e2eClient) lastLine() string {
 	return ""
 }
 
-// runJumper runs a control command with the test's private environment.
-func runJumper(t *testing.T, bin, home, sock string, args ...string) (string, int) {
+// runJumpr runs a control command with the test's private environment.
+func runJumpr(t *testing.T, bin, home, sock string, args ...string) (string, int) {
 	t.Helper()
 	cmd := exec.Command(bin, append([]string{"-S", sock}, args...)...)
 	cmd.Env = e2eEnv(t, home)
@@ -247,7 +247,7 @@ func runJumper(t *testing.T, bin, home, sock string, args ...string) (string, in
 	if asExitError(err, &ee) {
 		return string(out), ee.ExitCode()
 	}
-	t.Fatalf("run jumper %v: %v", args, err)
+	t.Fatalf("run jumpr %v: %v", args, err)
 	return "", -1
 }
 
@@ -262,7 +262,7 @@ func killServer(t *testing.T, bin, home, sock string) {
 // e2eSetup builds the binary and a private home, config dir and socket.
 func e2eSetup(t *testing.T) (bin, home, cfg, sock string) {
 	t.Helper()
-	bin = buildJumper(t)
+	bin = buildJumpr(t)
 	dir := shortDir(t)
 	home = filepath.Join(dir, "home")
 	cfg = filepath.Join(dir, "config")
@@ -331,7 +331,7 @@ func TestE2EDetachReattach(t *testing.T) {
 	})
 	c2.waitFrame(t, 0, "a 100-column status line", func(lines []string) bool {
 		for _, l := range lines {
-			if strings.HasPrefix(l, "jumper") && ansi.StringWidth(l) == 100 {
+			if strings.HasPrefix(l, "jumpr") && ansi.StringWidth(l) == 100 {
 				return true
 			}
 		}
@@ -339,7 +339,7 @@ func TestE2EDetachReattach(t *testing.T) {
 	})
 
 	// ls reports exactly one session, and it is attached.
-	out, code := runJumper(t, bin, home, sock, "ls")
+	out, code := runJumpr(t, bin, home, sock, "ls")
 	if code != 0 {
 		t.Fatalf("ls exit code = %d: %s", code, out)
 	}
@@ -352,7 +352,7 @@ func TestE2EDetachReattach(t *testing.T) {
 	}
 
 	// kill-server ends the client with the server's exit message.
-	if out, code := runJumper(t, bin, home, sock, "kill-server"); code != 0 {
+	if out, code := runJumpr(t, bin, home, sock, "kill-server"); code != 0 {
 		t.Fatalf("kill-server exit code = %d: %s", code, out)
 	}
 	if code := c2.waitExit(t); code != 0 {
@@ -391,7 +391,7 @@ func TestE2EResize(t *testing.T) {
 	openDemoHost(t, c)
 	c.waitFrame(t, 0, "a 120-column status line", func(lines []string) bool {
 		for _, l := range lines {
-			if strings.HasPrefix(l, "jumper") && ansi.StringWidth(l) == 120 {
+			if strings.HasPrefix(l, "jumpr") && ansi.StringWidth(l) == 120 {
 				return true
 			}
 		}
@@ -405,7 +405,7 @@ func TestE2EResize(t *testing.T) {
 	c.emu.Resize(90, 25)
 	c.waitFrame(t, off, "a 90-column status line", func(lines []string) bool {
 		for _, l := range lines {
-			if strings.HasPrefix(l, "jumper") && ansi.StringWidth(l) == 90 {
+			if strings.HasPrefix(l, "jumpr") && ansi.StringWidth(l) == 90 {
 				return true
 			}
 		}

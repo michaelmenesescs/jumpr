@@ -10,14 +10,14 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/bus"
-	"jumper/internal/config"
+	"jumpr/internal/bus"
+	"jumpr/internal/config"
 )
 
-// initFileNames are the files `jumper init` is required to write.
+// initFileNames are the files `jumpr init` is required to write.
 var initFileNames = []string{"config.yaml", "connections.yaml", "policy.yaml", "keymap.yaml"}
 
-// runInit writes the example configuration into home/.config/jumper.
+// runInit writes the example configuration into home/.config/jumpr.
 func runInit(t *testing.T, home string) (int, string) {
 	t.Helper()
 	var out strings.Builder
@@ -35,7 +35,7 @@ func TestInitWritesLoadableConfig(t *testing.T) {
 		t.Fatalf("exit code = %d, want 0\n%s", code, out)
 	}
 
-	dir := filepath.Join(home, ".config", "jumper")
+	dir := filepath.Join(home, ".config", "jumpr")
 	for _, name := range initFileNames {
 		path := filepath.Join(dir, name)
 		info, err := os.Stat(path)
@@ -61,7 +61,7 @@ func TestInitWritesLoadableConfig(t *testing.T) {
 	}
 	want := config.Default()
 	want.SSH.ConfigFiles = []string{filepath.Join(home, ".ssh", "config")}
-	want.Knowledge.Root = filepath.Join(home, "jumper")
+	want.Knowledge.Root = filepath.Join(home, "jumpr")
 	if gotYAML, wantYAML := marshalConfig(t, got), marshalConfig(t, want); gotYAML != wantYAML {
 		t.Errorf("generated config.yaml differs from config.Default():\n--- got ---\n%s\n--- want ---\n%s",
 			gotYAML, wantYAML)
@@ -122,7 +122,7 @@ func TestInitNeverOverwrites(t *testing.T) {
 	if code, out := runInit(t, home); code != 0 {
 		t.Fatalf("first run: exit code = %d\n%s", code, out)
 	}
-	dir := filepath.Join(home, ".config", "jumper")
+	dir := filepath.Join(home, ".config", "jumpr")
 	configPath := filepath.Join(dir, "config.yaml")
 	const mine = "ui:\n  color: 256\n"
 	if err := os.WriteFile(configPath, []byte(mine), 0o600); err != nil {

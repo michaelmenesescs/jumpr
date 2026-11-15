@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

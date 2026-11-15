@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // setsDir is the directory under the store root that holds saved sets.
@@ -114,7 +114,7 @@ func (s *Store) Save(name string, hosts []resource.HostID) error {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "# jumper target set: %s\n", name)
+	fmt.Fprintf(&b, "# jumpr target set: %s\n", name)
 	fmt.Fprintf(&b, "# saved: %s\n", s.now().UTC().Format(time.RFC3339))
 	for _, h := range normalizeSorted(hosts) {
 		b.WriteString(string(h))

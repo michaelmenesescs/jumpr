@@ -1,4 +1,4 @@
-# jumper — Specification v0.2
+# jumpr — Specification v0.2
 
 > Working name. An agentless, client-side **shell for SREs**: k9s + isd + tmux + Salt/Chef and Linux tooling in one
 > terminal, with nothing required on the servers.
@@ -105,7 +105,7 @@ you can reach with SSH, a kubeconfig or an HTTP API can be plugged in as a backe
 ## 5. Core workflows (acceptance scenarios)
 
 **W1 — Alert to root cause (primary).**
-`:alerts`, select a firing alert, then `Enter`. jumper opens an Investigation with window = [alert start − 30m, now]
+`:alerts`, select a firing alert, then `Enter`. jumpr opens an Investigation with window = [alert start − 30m, now]
 and targets = hosts resolved from the alert labels. The host view shows units with failed/restarting state, the
 journal for the window, top processes, sockets, disk/mem pressure, and a Prometheus sparkline of the alert's
 expression. Pivot to `salt` drift for those hosts and the pods on those nodes. Restart the unit with a confirmation.
@@ -187,7 +187,7 @@ outside the list without asking.
 - **Bastion multiplexing:** one SSH client per bastion. Target hosts are dialled as `direct-tcpip` channels through
   it. Settings: `max_conns_per_bastion` (default 4 parallel bastion clients) and `max_channels_per_conn` (default
   8). sshd's `MaxSessions` (default 10) counts session channels, so it mainly bounds concurrent commands on one
-  **target** connection (jumper uses at most 4); forwarded channels through a bastion are bounded by jumper's own
+  **target** connection (jumpr uses at most 4); forwarded channels through a bastion are bounded by jumpr's own
   limit to keep one TCP connection from becoming the bottleneck. `MaxStartups` on targets and bastions is
   respected by ramping connects through the per-bastion semaphore. Both limits are tuned against the lab bastion.
 - **Interactive shells:** a terminal pane opens a session channel with a PTY (`xterm-256color`) on the pooled
@@ -222,7 +222,7 @@ connections:
       # url: http://proxy.example.internal:3128
       # headers: { Proxy-Authorization: "{{ secret \"proxy-auth\" }}" }
     tls:
-      ca_file: ~/.config/jumper/ca/corp-root.pem
+      ca_file: ~/.config/jumpr/ca/corp-root.pem
       client_cert: ""          # optional mTLS
       client_key: ""
       insecure_skip_verify: false
@@ -231,16 +231,16 @@ connections:
       # one of: none | basic | bearer | headers | cookie | helper
       type: helper
       helper:
-        command: ["~/.config/jumper/helpers/sso-login.sh", "{{ .URL }}"]
+        command: ["~/.config/jumpr/helpers/sso-login.sh", "{{ .URL }}"]
         cache_ttl: 50m
         refresh_on: [401, 403, 302-to-login]
     headers:                   # static extra headers, templated
-      X-Requested-By: jumper
+      X-Requested-By: jumpr
     timeout: 15s
     retries: 2                 # idempotent GETs only
 ```
 
-**Auth helper protocol.** This is the enterprise extension point. jumper runs the helper and expects JSON on
+**Auth helper protocol.** This is the enterprise extension point. jumpr runs the helper and expects JSON on
 stdout:
 
 ```json
@@ -250,12 +250,12 @@ stdout:
 ```
 
 - The helper can do anything: read a browser cookie DB, run `curl --negotiate`, call an internal CLI, or open a
-  browser and wait for a login. jumper pauses the request and shows "waiting for auth helper…".
+  browser and wait for a login. jumpr pauses the request and shows "waiting for auth helper…".
 - Credentials are kept **in memory only**. They are never written to logs or investigations, and they are redacted
   from errors.
-- Auth failures are detected (401/403, or a redirect to a configured login URL pattern). jumper re-runs the helper
+- Auth failures are detected (401/403, or a redirect to a configured login URL pattern). jumpr re-runs the helper
   once, then surfaces a clear error naming the profile.
-- `jumper doctor conn <profile> <url>` shows the resolved proxy, TLS chain, helper output (redacted), and response.
+- `jumpr doctor conn <profile> <url>` shows the resolved proxy, TLS chain, helper output (redacted), and response.
   This is the main tool for customizing your environment.
 
 **Secrets.** Values like `{{ secret "name" }}` resolve from: an env var, the macOS Keychain (`security
@@ -296,7 +296,7 @@ Actions: `systemctl start|stop|restart|reload|enable|disable|mask|unmask`, `kill
 
 #### 8.1.1 systemd — parity with isd
 
-| isd feature | jumper |
+| isd feature | jumpr |
 |---|---|
 | Unit list with fuzzy search | `:units [host]` — `/` filter; quick filters by state (`failed`, `active`, `inactive`) and type (`service`, `timer`, `socket`, `mount`, …); failed units sort first |
 | Status preview | Unit detail, tab **status**: `systemctl status <u> --no-pager -n 0` plus key properties (`ActiveState`, `SubState`, `Result`, `NRestarts`, `ExecMainStatus`, `MemoryCurrent`, `TasksCurrent`, `ActiveEnterTimestamp`) |
@@ -341,7 +341,7 @@ Actions: `systemctl start|stop|restart|reload|enable|disable|mask|unmask`, `kill
 - Dashboard template variables become TUI selectors. A `$host`/`$instance` variable is filled from the current
   target.
 - Grafana alerting (`/api/prometheus/grafana/api/v1/alerts`) feeds into `:alerts` alongside Alertmanager.
-- Annotations: read in v1. Writing an annotation ("jumper: restarted nginx on 12 hosts") is an optional Action.
+- Annotations: read in v1. Writing an annotation ("jumpr: restarted nginx on 12 hosts") is an optional Action.
 
 ### 8.5 Elasticsearch
 
@@ -354,29 +354,29 @@ Actions: `systemctl start|stop|restart|reload|enable|disable|mask|unmask`, `kill
 
 ### 8.6 Salt (over SSH to the master)
 
-Salt is the second-deepest backend after Linux. jumper drives the **existing** `salt`, `salt-run` and `salt-key`
+Salt is the second-deepest backend after Linux. jumpr drives the **existing** `salt`, `salt-run` and `salt-key`
 CLIs on the master over one SSH connection (`salt.master: saltmaster.example.internal`, `sudo -n` if configured).
 It does not use salt-api, does not install anything, and does not reimplement state logic.
 
 **Job engine (everything sits on this).** Commands are submitted with `salt --async … --out=json`, which returns a
-job id (jid) immediately. jumper then polls `salt-run jobs.list_job <jid> --out=json` (expected minions + returns
+job id (jid) immediately. jumpr then polls `salt-run jobs.list_job <jid> --out=json` (expected minions + returns
 so far) until every expected minion has returned or the timeout passes. Minions that never answer are reported as
 `no return`, never silently dropped. Small, fast reads (`test.ping`, `grains.get`) may use the synchronous form
 with `--static -t <timeout>`.
 
-| Area | Kinds / commands in jumper | Salt CLI used |
+| Area | Kinds / commands in jumpr | Salt CLI used |
 |---|---|---|
 | **Minions and keys** | `:minions` (id, up/down, key state, os, role, salt version, last seen), `:keys` (accepted / pending / rejected / denied with fingerprints) | `salt-run manage.status`, `salt-run manage.versions`, `salt-key -L --out=json`, `salt-key -F --out=json` |
 | **Key management** | accept / reject / delete as actions; accept shows the fingerprint; delete needs a typed confirmation | `salt-key -a|-r|-d <id> -y` |
 | **Grains** | inventory source (labels `salt.role`, `salt.dc`, `salt.os`, …) read from the master's cache without touching minions; grains explorer per minion | `salt-run cache.grains tgt='*' --out=json`, `salt <tgt> grains.items` |
-| **Targeting compiler** | jumper selector → Salt target and back. `role=web dc~ewr|lax !maint` compiles to `-C 'G@role:web and G@dc:ewr\|lax and not G@maint:*'` when every key is a known grain; otherwise the selector is resolved on the client and sent as a chunked `-L` list. Pillar (`I@`), nodegroups (`N@name`, also usable as `@salt:name`), PCRE (`E@`) and globs are understood. A native expression can be typed directly (`:salt -C '…'`); `--preview-target` resolves it to hosts so it becomes a normal jumper target set. The compiled target is always shown in the plan | `salt -C '…' --preview-target`, `salt-run config.get nodegroups` |
+| **Targeting compiler** | jumpr selector → Salt target and back. `role=web dc~ewr|lax !maint` compiles to `-C 'G@role:web and G@dc:ewr\|lax and not G@maint:*'` when every key is a known grain; otherwise the selector is resolved on the client and sent as a chunked `-L` list. Pillar (`I@`), nodegroups (`N@name`, also usable as `@salt:name`), PCRE (`E@`) and globs are understood. A native expression can be typed directly (`:salt -C '…'`); `--preview-target` resolves it to hosts so it becomes a normal jumpr target set. The compiled target is always shown in the plan | `salt -C '…' --preview-target`, `salt-run config.get nodegroups` |
 | **Jobs browser** | `:jobs` — running (`jobs.active`) and history (window-bound). Job detail groups returns per minion like a fan-out: "41 identical · 2 differ · 1 no return"; pivot from a minion to its host | `salt-run jobs.active`, `salt-run jobs.list_jobs start_time=… end_time=…`, `salt-run jobs.list_job <jid>`, `salt-run jobs.kill_job`-equivalent (`saltutil.kill_job`) as an action |
 | **States** | `:salt state [sls]` — `state.apply test=True` on the target set, normalized and **grouped by identical diff**; per-state rows (id, function, result, changes, comment); `:states` — state tree browser (envs, top file, sls files, rendered `show_sls`/`show_highstate` for a minion) | `state.apply test=True`, `state.show_top`, `state.show_sls`, `state.show_highstate`, `salt-run fileserver.envs`, `salt-run fileserver.file_list` |
 | **Pillar** | `:pillar <minion>` — keys and structure visible, **values redacted by default**; reveal one value on demand; pillar values are never written to investigations or logs | `pillar.items`, `pillar.get` |
 | **Mine** | `:mine` — mine functions and cached values per minion | `salt-run cache.mine tgt='*'`, `mine.get` |
 | **Events** | `:events` — live event bus (job new/return, minion start, auth, beacons) streamed over the same SSH connection, filterable by tag | `salt-run state.event pretty=False` (long-running; cancelled when the pane closes) |
 | **Beacons and schedules** | per-minion lists | `beacons.list`, `schedule.list` (`return_yaml=False`) |
-| **Actions** | `state.apply` / `state.sls` (dry-run preview is mandatory in the plan), `service.restart`, `cmd.run`, `saltutil.refresh_pillar`, `saltutil.sync_all`, kill job | through the action bus; jumper's canary and rolling batches are implemented by submitting one job per batch (Salt's own `-b` is not used, so abort and thresholds behave like every other action) |
+| **Actions** | `state.apply` / `state.sls` (dry-run preview is mandatory in the plan), `service.restart`, `cmd.run`, `saltutil.refresh_pillar`, `saltutil.sync_all`, kill job | through the action bus; jumpr's canary and rolling batches are implemented by submitting one job per batch (Salt's own `-b` is not used, so abort and thresholds behave like every other action) |
 
 **Salt as an execution transport.** For fleets, `:run --via salt` and probes can execute through the master
 (`cmd.run_all`) instead of SSH fan-out. It implements the same `Executor` contract, so grouping, the bus and
@@ -392,10 +392,10 @@ recording are identical.
 | Side effects | none | command and output are kept in the **master's job cache** like any Salt job (shown as a warning on first use) |
 | Streaming output | yes | no (result arrives when the minion returns) |
 
-Default is SSH. jumper suggests Salt when the target set is larger than `salt.suggest_over` (default 200) and the
+Default is SSH. jumpr suggests Salt when the target set is larger than `salt.suggest_over` (default 200) and the
 master is healthy. Scripts are passed base64-encoded so no quoting layer can alter them.
 
-**salt-ssh awareness.** If the master has a roster, it can be read as an inventory source. jumper does **not**
+**salt-ssh awareness.** If the master has a roster, it can be read as an inventory source. jumpr does **not**
 execute through `salt-ssh` unless `salt.allow_salt_ssh: true`, because salt-ssh copies a thin runtime to the
 target (`/var/tmp`), which breaks the zero-footprint rule; when enabled, the plan says so.
 
@@ -413,7 +413,7 @@ red when the master or `sudo -n salt` fails.
   `knife status -F json` (last check-in), roles/environments/run-lists.
 - Drift signals: ohai time staleness, last run failure (if a run-status attribute or report is available), and
   run-list differences across a group.
-- Actions: `knife ssh '<q>' 'sudo chef-client'` is deliberately **not** used. Instead, jumper runs `sudo chef-client`
+- Actions: `knife ssh '<q>' 'sudo chef-client'` is deliberately **not** used. Instead, jumpr runs `sudo chef-client`
   (or `--why-run` as a dry run) on targets via its own SSH fan-out, so safety and audit stay uniform.
 
 ### 8.8 YAML plugins
@@ -447,15 +447,15 @@ Labels from all sources are merged under namespaced keys (`salt.role`, `k8s.zone
 shortcuts if there is no conflict.
 
 **Selectors** (one syntax everywhere): `role=web env=prod dc~ewr|lax !maint host~^db` plus `@saved-set` and
-`@investigation`. Inventory is cached on disk (`~/.cache/jumper/inventory.json`) and refreshed in the background.
+`@investigation`. Inventory is cached on disk (`~/.cache/jumpr/inventory.json`) and refreshed in the background.
 Stale data is labelled.
 
 ## 10. Investigations & knowledge (plain Markdown)
 
-Root: `~/jumper/` (configurable; can point inside any git repo).
+Root: `~/jumpr/` (configurable; can point inside any git repo).
 
 ```
-~/jumper/
+~/jumpr/
   investigations/2026-11-12-api-5xx-ewr.md
   knowledge/hosts/<host>.md
   knowledge/services/<unit-or-app>.md
@@ -516,7 +516,7 @@ Every write, from any backend, plugin, or (future) agent, goes through the **Act
 3. **Execute:** for many targets, use a **canary** (default 1 host, or N%) → pause and show results → **rolling
    batches** (default 10% / max 50) with `failure_threshold` (default: stop on first failure in canary, >5% after).
    `Esc` aborts remaining batches.
-4. **Record:** results are appended to the Investigation (or `~/jumper/audit/YYYY-MM-DD.md` if none is open),
+4. **Record:** results are appended to the Investigation (or `~/jumpr/audit/YYYY-MM-DD.md` if none is open),
    including actor, plan, per-host rc, and duration.
 
 Policy (`policy.yaml`): deny patterns (e.g. never `systemctl stop sshd`), protected label selectors, a max targets
@@ -544,10 +544,10 @@ Typing into several shells at once is where accidents happen, so it is guarded:
 
 ## 12. YAML plugins
 
-Location: `~/.config/jumper/plugins/*.yaml`. Hot-reloaded. Validated on load with clear errors.
+Location: `~/.config/jumpr/plugins/*.yaml`. Hot-reloaded. Validated on load with clear errors.
 
 ```yaml
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: nginx-status
 description: nginx worker + connection summary
@@ -576,7 +576,7 @@ actions:
 HTTP plugin example (uses a connection profile):
 
 ```yaml
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: lb-pool-members
 target: http
@@ -596,7 +596,7 @@ Go backends are compiled in, using the `Backend` interface (§8). No Go `plugin`
 ## 13. TUI / UX
 
 ```
-┌ jumper ─ ctx:prod-ewr ─ inv:api-5xx-ewr ─ window: -30m→now ─ targets: 24 ─ ●salt ●prom ●es ◐grafana ┐
+┌ jumpr ─ ctx:prod-ewr ─ inv:api-5xx-ewr ─ window: -30m→now ─ targets: 24 ─ ●salt ●prom ●es ◐grafana ┐
 │ :hosts role=web dc=ewr                                                         /filter: nginx      │
 ├──────────────────────────────────────────────────────┬────────────────────────────────────────────┤
 │ HOST            LOAD  MEM%  PSI-io  FAILED  UNITS     │ Knowledge (3)                              │
@@ -628,7 +628,7 @@ border is highlighted. See §21 for windows, panes and the prefix key.
 ## 14. Configuration
 
 ```
-~/.config/jumper/
+~/.config/jumpr/
   config.yaml          # backends, inventory, identity, defaults
   connections.yaml     # connection profiles (§7.2)
   policy.yaml          # safety (§11)
@@ -637,7 +637,7 @@ border is highlighted. See §21 for windows, panes and the prefix key.
   helpers/             # user auth helpers (not shipped)
 ```
 
-- `jumper init` writes a commented example config. `jumper doctor` checks every backend, connection, bastion, and
+- `jumpr init` writes a commented example config. `jumpr doctor` checks every backend, connection, bastion, and
   sudo on a sample host, and reports actionable failures.
 - Multiple named **environments** (`--env prod`) switch whole backend sets.
 
@@ -651,12 +651,12 @@ border is highlighted. See §21 for windows, panes and the prefix key.
 | Memory | < 300 MB at 2,000 hosts with overview data |
 | Failure isolation | one host/backend failure never fails the view; errors are listed per host with a reason (`timeout`, `auth`, `hostkey`, `sudo`, `parse`) |
 | Parsers | tolerant: unknown fields ignored, a missing command produces a `not-available` cell, never a crash |
-| Crash safety | panic recovery restores the terminal and writes a crash report to `~/.cache/jumper/crash/` |
-| Logs | structured debug log `~/.cache/jumper/jumper.log` (`--debug`), with secrets redacted |
+| Crash safety | panic recovery restores the terminal and writes a crash report to `~/.cache/jumpr/crash/` |
+| Logs | structured debug log `~/.cache/jumpr/jumpr.log` (`--debug`), with secrets redacted |
 
 ## 16. Security
 
-- No credentials are persisted by jumper. The Keychain and helpers own them.
+- No credentials are persisted by jumpr. The Keychain and helpers own them.
 - Investigations and audit files are redacted before writing (built-in patterns: bearer tokens, AWS keys, private
   keys, `password=`; plus user patterns).
 - Remote commands are built with strict shell quoting (`shellescape`). User input is never interpolated unquoted.
@@ -665,7 +665,7 @@ border is highlighted. See §21 for windows, panes and the prefix key.
 
 ## 17. AI-readiness (not in v1, designed for)
 
-- The Action Bus already records an `actor`. A future `jumper mcp` subcommand exposes a stdio MCP server whose tools
+- The Action Bus already records an `actor`. A future `jumpr mcp` subcommand exposes a stdio MCP server whose tools
   map 1:1 to bus operations (list, get, probe, query, search, propose_action).
 - Policy from the interview: **agents read freely; every write requires approval in the TUI**. Agent writes appear as
   pending actions in a TUI queue, using the same plan → confirm → execute flow.
@@ -697,7 +697,7 @@ Detailed milestones, demo scripts and the task list are in `BUILD-PLAN.md` §2 a
 
 | Milestone | Scope | Exit criteria |
 |---|---|---|
-| **M0 Skeleton** | repo, Makefile, config loader, error taxonomy, resource model, selectors, fake backend, TUI shell (command bar, view stack, status line with health dots, help) | `jumper --demo` navigates fake data; `make check` green |
+| **M0 Skeleton** | repo, Makefile, config loader, error taxonomy, resource model, selectors, fake backend, TUI shell (command bar, view stack, status line with health dots, help) | `jumpr --demo` navigates fake data; `make check` green |
 | **M1 Multiplexer** | layout tree, panes, windows, prefix key, zoom/resize, copy mode, layout persistence; the app proven to run over a plain byte stream (no TTY) | W7 minus shells and detach, on fake data |
 | **M2 SSH + Linux core** | ssh_config, agent, known_hosts, bastion pool, exec, batch probes, `sudo -n`; inventory (ssh_config + static); host, unit, journal, process, socket views; read-only fleet probes with grouping; SSH shell in a terminal pane | W2 against the lab; shell pane on a lab host |
 | **M3 Actions + investigations** | action bus, policy, confirm levels, canary/rolling, audit; investigation Markdown, notes, findings, knowledge panel; time window; `:run`; guarded synchronized input | W1 minus metrics, W5, W6, W9; every write recorded |
@@ -709,7 +709,7 @@ Detailed milestones, demo scripts and the task list are in `BUILD-PLAN.md` §2 a
 | **M9 Kubernetes** | client-go, core kinds, logs, describe/YAML, actions, exec in a pane, port-forward, node↔host pivot | W3 parity with daily k9s use |
 | **M10 Chef + plugins** | knife over SSH, drift, `chef-client --why-run` through the bus; YAML plugin engine + 5 example plugins | W4 (Chef); custom plugin authored in < 10 min |
 | **M11 Grafana + Elasticsearch** | dashboard browse + in-TUI panels via `/api/ds/query`; ES log sources, search, tail | dashboards and ES logs inside investigations |
-| **M12 Hardening** | 2k-host scale test, crash safety, `jumper init/doctor`, system-ssh fallback, release build, user docs | daily-driver ready |
+| **M12 Hardening** | 2k-host scale test, crash safety, `jumpr init/doctor`, system-ssh fallback, release build, user docs | daily-driver ready |
 
 Each milestone ends with a usable tool and a demo script against the lab, not a half-built layer.
 
@@ -730,16 +730,16 @@ Each milestone ends with a usable tool and a demo script against the lab, not a 
 - (v0.2) Salt runs as async jobs polled by jid; Salt can be an execution transport; salt-ssh execution is off by
   default.
 - (v0.2) `systemctl list-units` is parsed from plain text on all distros.
-- (v0.2) Module path `jumper` for now (renameable). All helper tooling in Go.
+- (v0.2) Module path `jumpr` for now (renameable). All helper tooling in Go.
 
 **Open**
-1. Final name (working: `jumper`).
-2. Default knowledge root: `~/jumper/`, or inside an existing notes repo?
+1. Final name (working: `jumpr`).
+2. Default knowledge root: `~/jumpr/`, or inside an existing notes repo?
 3. Is a Chef run-status source available (reporting / run-status attribute), or only ohai time?
 4. Do any Salt masters restrict `sudo salt` for your user (it affects whether `salt-call`-style local reads are needed)?
 5. Is Elasticsearch read-only, or do you want saved searches written back?
-6. **Prefix key.** Proposed: `C-a`, and `C-b` automatically when jumper runs inside tmux (your tmux prefix is
-   `C-a`, so it would never reach jumper). Alternative: one fixed key that never collides (`C-b` everywhere, or
+6. **Prefix key.** Proposed: `C-a`, and `C-b` automatically when jumpr runs inside tmux (your tmux prefix is
+   `C-a`, so it would never reach jumpr). Alternative: one fixed key that never collides (`C-b` everywhere, or
    `C-g`).
 7. **Drop-in edits.** v1 previews a systemd drop-in but does not write it, because that is a file write on the
    node. Allow it as an explicit, recorded action (written with `sudo tee` + `daemon-reload`)?
@@ -748,7 +748,7 @@ Each milestone ends with a usable tool and a demo script against the lab, not a 
    probes?
 9. **Raw synchronized input.** Keep the opt-in raw mode (§11.1), or ship only the broadcast-line mode?
 10. **Local shell panes.** Should a pane be allowed to run a local shell on the laptop (handy for `git`,
-    `kubectl`), or keep panes strictly for jumper views and remote shells?
+    `kubectl`), or keep panes strictly for jumpr views and remote shells?
 
 ## 21. Multiplexer and sessions ("it should work like tmux")
 
@@ -776,7 +776,7 @@ server (one per user, on the laptop)
 
 ### 21.2 Keys
 
-Prefix: `C-a` by default; `C-b` when jumper is started inside tmux (`mux.prefix`, `mux.prefix_in_tmux`). The status
+Prefix: `C-a` by default; `C-b` when jumpr is started inside tmux (`mux.prefix`, `mux.prefix_in_tmux`). The status
 line shows the active prefix. Pressing the prefix twice sends it through to the focused terminal pane. All
 bindings are rebindable in `keymap.yaml`, and each has a `:` command.
 
@@ -814,16 +814,16 @@ a finding in the open investigation.
 ### 21.4 Sessions, detach and reattach
 
 ```
-$ jumper                    # attach to the last session, or create "main"; starts the server if needed
-$ jumper new -s db-incident # new named session
-$ jumper attach -t main     # reattach
-$ jumper ls                 # sessions, windows, attached?, last activity
-$ jumper kill-session -t x  ·  jumper kill-server
-$ jumper --standalone       # no server: one process, exits when you quit (also the only mode before M5)
+$ jumpr                    # attach to the last session, or create "main"; starts the server if needed
+$ jumpr new -s db-incident # new named session
+$ jumpr attach -t main     # reattach
+$ jumpr ls                 # sessions, windows, attached?, last activity
+$ jumpr kill-session -t x  ·  jumpr kill-server
+$ jumpr --standalone       # no server: one process, exits when you quit (also the only mode before M5)
 ```
 
 - **Architecture.** One per-user **session server** on the laptop, started on demand, listening on a unix socket
-  (`~/.cache/jumper/jumper.sock`, mode 0600 in a 0700 directory). The server owns sessions, SSH connections,
+  (`~/.cache/jumpr/jumpr.sock`, mode 0600 in a 0700 directory). The server owns sessions, SSH connections,
   backends, the action bus and the investigation log, and it **renders**: each session is one long-lived TUI
   program that writes terminal bytes. The client only puts the local terminal in raw mode and pumps bytes and
   resize events over the socket. This is tmux's own design; it means there is one code path for standalone and
@@ -832,17 +832,17 @@ $ jumper --standalone       # no server: one process, exits when you quit (also 
 - **What survives a detach:** everything in the session — followed journals, running fan-outs, Salt job polling,
   open shells, a rollout paused at its canary (it stays paused; it never proceeds without a human).
 - **What survives a server restart or reboot:** the layout and each pane's command history (autosaved to
-  `~/.cache/jumper/sessions/<name>.json`), the investigation files, and the audit log. Live connections do not;
+  `~/.cache/jumpr/sessions/<name>.json`), the investigation files, and the audit log. Live connections do not;
   terminal panes come back as "disconnected — press r to reconnect".
 - **Prompts** (unknown host key, key passphrase) are shown in the TUI. If nobody is attached, the operation waits
   briefly and then fails with `needs-interaction`.
 - **ssh-agent:** each attach refreshes `SSH_AUTH_SOCK` from the attaching client, as tmux's `update-environment`
   does.
 - **Inside tmux:** supported. The prefix switches to `C-b`, OSC 52 is used for the clipboard, and the terminal
-  title is set to `jumper: <session>`. Running jumper's own client inside a jumper terminal pane is refused
+  title is set to `jumpr: <session>`. Running jumpr's own client inside a jumpr terminal pane is refused
   (`$SITREP` is set in local panes).
 - **Security:** the socket is reachable only by the same user. The server holds no credentials beyond what the
-  process would hold standalone (agent access, in-memory auth-helper tokens). `jumper kill-server` drops
+  process would hold standalone (agent access, in-memory auth-helper tokens). `jumpr kill-server` drops
   everything. Nothing is listening on the network, and nothing runs on any node.
 - **Limits (v1):** one client per session at a time (a second attach takes over); one colour profile per server.
 
@@ -857,8 +857,8 @@ and process management.
 
 A small, real environment on the laptop (OrbStack machines, arm64) so every workflow in §5 can be exercised end to
 end. It is controlled by a Go command, `cmd/@@` (`up | down | status | fault list | fault <name> [--undo]`);
-provisioning snippets that run inside lab machines are embedded in that binary. jumper itself is used against the
-lab exactly as against production: over SSH through the bastion, nothing installed by jumper.
+provisioning snippets that run inside lab machines are embedded in that binary. jumpr itself is used against the
+lab exactly as against production: over SSH through the bastion, nothing installed by jumpr.
 
 | Host (`*.lab.example.internal`) | OS | Role |
 |---|---|---|
@@ -876,7 +876,7 @@ lab exactly as against production: over SSH through the bastion, nothing install
   cannot bind :443 because haproxy took it, `/var` filling up, a crash-looping OOM pod, a stopped minion, a pending
   minion key, a failing state.
 - **How tests use it:** lab tests are ordinary Go tests behind the build tag `lab`. They read `lab/ssh_config`
-  (and `lab/.keys/kubeconfig`), skip with a clear message when the lab is down, inject a fault, drive jumper's packages
+  (and `lab/.keys/kubeconfig`), skip with a clear message when the lab is down, inject a fault, drive jumpr's packages
   (not the TUI) against real hosts, assert, and reset in cleanup. Each milestone has one demo script (manual,
   `BUILD-PLAN.md` §2) and at least one `TestLab…` test. Parser goldens are captured from the lab's three distros.
 - The lab is a development aid only. Nothing in the product depends on it, and no lab hostnames or keys are

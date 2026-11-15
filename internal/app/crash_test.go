@@ -12,8 +12,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
-	"jumper/internal/safe"
+	"jumpr/internal/errs"
+	"jumpr/internal/safe"
 )
 
 // Crash safety from the process's side (task 126 requirements 1 and 2): a panic

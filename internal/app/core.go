@@ -14,36 +14,36 @@ import (
 	"sync/atomic"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/backend/chef"
-	"jumper/internal/backend/elastic"
-	"jumper/internal/backend/fake"
-	"jumper/internal/backend/grafana"
-	"jumper/internal/backend/k8s"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/prom"
-	"jumper/internal/backend/salt"
-	"jumper/internal/bus"
-	"jumper/internal/bus/generic"
-	"jumper/internal/clip"
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/interact"
-	"jumper/internal/inventory"
-	"jumper/internal/investigation"
-	"jumper/internal/plugin"
-	"jumper/internal/redact"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/safe"
-	"jumper/internal/transport"
-	"jumper/internal/transport/httpx"
-	"jumper/internal/transport/ssh"
-	"jumper/internal/transport/sysssh"
-	"jumper/internal/tui"
-	"jumper/internal/tui/theme"
-	"jumper/internal/tui/views"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/chef"
+	"jumpr/internal/backend/elastic"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/backend/grafana"
+	"jumpr/internal/backend/k8s"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/prom"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/generic"
+	"jumpr/internal/clip"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
+	"jumpr/internal/inventory"
+	"jumpr/internal/investigation"
+	"jumpr/internal/plugin"
+	"jumpr/internal/redact"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/safe"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/httpx"
+	"jumpr/internal/transport/ssh"
+	"jumpr/internal/transport/sysssh"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/theme"
+	"jumpr/internal/tui/views"
 )
 
 // PrometheusBackend builds the Prometheus backend from cfg's `prometheus:`
@@ -522,7 +522,7 @@ type Core struct {
 	// SSH handshakes. It is the caller's when Options carried one.
 	Prompter interact.Prompter
 	// Glyphs is the glyph set of the process, resolved once from the config
-	// and JUMPER_GLYPHS.
+	// and JUMPR_GLYPHS.
 	Glyphs render.GlyphSet
 
 	// SSH is the transport stack; nil in --demo.
@@ -596,7 +596,7 @@ func (c *Core) InternalErrors() int {
 }
 
 // panicHook is the reporter safe.GoHook and safe.DoHook call: a panic in a
-// goroutine jumper started is counted and flashed, never dropped.
+// goroutine jumpr started is counted and flashed, never dropped.
 func (c *Core) panicHook() func(safe.Panic) {
 	return func(p safe.Panic) { c.noteInternalError(p.Name, p.Err()) }
 }
@@ -637,8 +637,8 @@ func newCore(ctx context.Context, cfg config.Config, paths config.Paths, baseEnv
 	c.Agent = newAgentSocket(o)
 	c.Prompter = o.Prompter
 
-	theme.SetProfile(cfg.UI.Color)
-	glyphs, err := resolveGlyphs(cfg.UI.Glyphs, os.Getenv("JUMPER_GLYPHS"))
+	theme.SetProfile(resolveColor(cfg.UI.Color, os.Getenv))
+	glyphs, err := resolveGlyphs(cfg.UI.Glyphs, os.Getenv("JUMPR_GLYPHS"))
 	if err != nil {
 		c.cancel()
 		return nil, err
@@ -1179,16 +1179,22 @@ func (c *Core) wireExtraBackends() {
 	if b, kerr := KubernetesBackend(cfg, c.home, c.env["KUBECONFIG"], log); kerr != nil {
 		warn("kubernetes", kerr)
 	} else if b != nil {
-		if rerr := c.Registry.Register(b); rerr != nil {
+		// The dynamic backend wraps the static one and reports the same name,
+		// so it is registered instead of it, never beside it. A second
+		// registration of "k8s" is refused and would drop Kubernetes entirely.
+		var reg backend.Backend = b
+		dyn, derr := KubernetesDynamicBackend(cfg, c.home, c.env["KUBECONFIG"], log)
+		if derr != nil {
+			warn("kubernetes", derr)
+		} else if dyn != nil {
+			reg = dyn
+		}
+		if rerr := c.Registry.Register(reg); rerr != nil {
 			warn("kubernetes", rerr)
 		} else {
 			c.k8s = true
-			if dyn, derr := KubernetesDynamicBackend(cfg, c.home, c.env["KUBECONFIG"], log); derr != nil {
-				warn("kubernetes", derr)
-			} else if dyn != nil {
-				if rerr := c.Registry.Register(dyn); rerr != nil {
-					warn("kubernetes", rerr)
-				} else if planner := KubernetesPatchPlanner(dyn); planner != nil {
+			if dyn != nil {
+				if planner := KubernetesPatchPlanner(dyn); planner != nil {
 					c.Planners["k8s"] = planner
 				}
 			}

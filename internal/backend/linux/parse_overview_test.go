@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // ovXReadTestdata reads a captured overview section from the shared,

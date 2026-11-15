@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
 )
 
 // run is the live rollout behind the frozen Run interface. It is the only

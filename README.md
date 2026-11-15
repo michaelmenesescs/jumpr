@@ -1,4 +1,4 @@
-# jumper
+# jumpr
 
 **It feels like k9s + isd-tui + tmux + the Salt and Chef CLIs + everyday Linux tools, and it needs
 nothing on the servers.** One central terminal interface you control, learn once, and operate any
@@ -13,25 +13,25 @@ node.
 ## Quick start
 
 ```sh
-tar xzf jumper-v1.2.3-darwin-arm64.tar.gz && install -m 0755 jumper ~/bin/jumper
-jumper --demo                 # the built-in fake fleet: the interface, no configuration
-jumper init                   # ~/.config/jumper/{config,connections,policy,keymap}.yaml
-$EDITOR ~/.config/jumper/config.yaml   # ssh.config_files: [~/.ssh/config]
-jumper doctor                 # checks config, SSH, agent, bastions, backends
-jumper                        # :hosts role=web  →  enter  →  u/j/p/s  →  x  (actions)
+tar xzf jumpr-v1.2.3-darwin-arm64.tar.gz && install -m 0755 jumpr ~/bin/jumpr
+jumpr --demo                 # the built-in fake fleet: the interface, no configuration
+jumpr init                   # ~/.config/jumpr/{config,connections,policy,keymap}.yaml
+$EDITOR ~/.config/jumpr/config.yaml   # ssh.config_files: [~/.ssh/config]
+jumpr doctor                 # checks config, SSH, agent, bastions, backends
+jumpr                        # :hosts role=web  →  enter  →  u/j/p/s  →  x  (actions)
 ```
 
 `:kind selector` is the interface, `C-a` is the tmux-style prefix, `?` is help. Detach with
-`C-a d`; the session keeps running and `jumper` attaches again.
+`C-a d`; the session keeps running and `jumpr` attaches again.
 
 ## Documentation
 
-- [docs/USER-GUIDE.md](docs/USER-GUIDE.md) — install, `jumper init`, SSH and Salt, the nine
+- [docs/USER-GUIDE.md](docs/USER-GUIDE.md) — install, `jumpr init`, SSH and Salt, the nine
   workflows, sessions and detach, the safety model, investigations and knowledge files,
   connection profiles, plugins, troubleshooting with `doctor`.
 - [docs/KEYS.md](docs/KEYS.md) — every key binding, generated from the defaults; all of them are
   rebindable in `keymap.yaml`.
-- [docs/SPEC.md](docs/SPEC.md) — what jumper does and why.
+- [docs/SPEC.md](docs/SPEC.md) — what jumpr does and why.
 - [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) — the contracts: packages, interfaces, messages,
   protocol, errors, dependencies.
 - [docs/HANDOFF.md](docs/HANDOFF.md) — current state of the build.
@@ -47,15 +47,15 @@ the lab's Prometheus and Alertmanager behind a mock SSO cookie proxy; the M11
 tests (`internal/backend/grafana/lab_test.go`,
 `internal/backend/elastic/lab_test.go`) use the same proxy for Grafana's
 dashboards and for central logs. The stack is configured in
-`lab/jumper/config.yaml` (`prometheus:`, `alertmanager:`, `grafana:`,
-`elasticsearch:`) and `lab/jumper/connections.yaml` (the `lab-sso` connection
+`lab/jumpr/config.yaml` (`prometheus:`, `alertmanager:`, `grafana:`,
+`elasticsearch:`) and `lab/jumpr/connections.yaml` (the `lab-sso` connection
 profile).
 
 ```sh
 go build -o lab/.keys/auth-helper ./examples/auth-helper-cookie
-export JUMPER_AUTH_COOKIE=<the cookie the mock proxy handed out>
+export JUMPR_AUTH_COOKIE=<the cookie the mock proxy handed out>
 make lab-test
-./jumper doctor conn lab-sso https://prom.lab.example.internal --config-dir lab/jumper
+./jumpr doctor conn lab-sso https://prom.lab.example.internal --config-dir lab/jumpr
 ```
 
 The proxy is a Go program owned by the lab track. The tests expect it to:
@@ -71,7 +71,7 @@ The proxy is a Go program owned by the lab track. The tests expect it to:
 - serve Grafana's `/api/search`, `/api/dashboards/uid/<uid>` and
   `/api/ds/query`, with at least one dashboard whose timeseries panel reaches
   the lab's Prometheus (so a panel over the last fifteen minutes has samples);
-- serve the `elasticsearch:` log sources of `lab/jumper/config.yaml`
+- serve the `elasticsearch:` log sources of `lab/jumpr/config.yaml`
   (`logs-nginx-*`, `logs-system-*`, ECS field names) and ship the web hosts'
   nginx logs into them, so the `haproxy-443` fault produces a line for
   `web-01` inside the fault window.
@@ -122,7 +122,7 @@ make lab-test                                        # the k3s tests: TestLabK8s
   layout survives a restart.
 - **M2 — SSH + Linux core.** One connection pool through bastions; hosts, units, journal, processes, sockets,
   mounts, disks, interfaces; fleet probes grouped by identical output; an interactive SSH shell in a pane;
-  `jumper doctor ssh <host>`.
+  `jumpr doctor ssh <host>`.
 - **M3 — actions + investigations.** Every write is planned, confirmed and executed through the action bus
   (policy, canary, rolling batches, typed confirmation). Markdown records in the knowledge root. `:run`,
   guarded synchronized input.
@@ -156,13 +156,13 @@ the only environment the `TestLab…` tests talk to.
 go run ./cmd/@@ up                       # create + provision (idempotent)
 go run ./cmd/@@ status
 make build
-./jumper --config-dir lab/jumper         # M4 demo: :minions → :jobs → :hosts salt.role=web
+./jumpr --config-dir lab/jumpr         # M4 demo: :minions → :jobs → :hosts salt.role=web
                                          #          → :salt state → x apply → :run --via salt 'uptime'
 make lab-test                            # lab-only suite; skips when the lab is down
 go run ./cmd/@@ down                     # stop the lab
 ```
 
-`lab/jumper/config.yaml` points jumper at `lab/ssh_config` (written by the lab controller), the lab's Salt
+`lab/jumpr/config.yaml` points jumpr at `lab/ssh_config` (written by the lab controller), the lab's Salt
 master and the lab's k3s kubeconfig (`lab/.keys/kubeconfig`, context `@@`); the Salt source adds the grains
-labels (`role`, `dc`) the demo selectors use. Run jumper from the repository root so the relative paths
+labels (`role`, `dc`) the demo selectors use. Run jumpr from the repository root so the relative paths
 resolve. Everything else — `go test ./...`, `make check` — runs without the lab, the network or an SSH agent.

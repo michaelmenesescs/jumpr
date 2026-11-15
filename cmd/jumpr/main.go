@@ -1,4 +1,4 @@
-// Command jumper is the client binary: a terminal UI for operating fleets of
+// Command jumpr is the client binary: a terminal UI for operating fleets of
 // servers from the laptop (see docs/SPEC.md). This file is the only one that
 // touches os.Stdin, os.Stdout, os.Stderr and os.Exit (BUILD-PLAN §6.1); every
 // other package gets readers, writers and values passed in.
@@ -23,10 +23,10 @@ import (
 
 	"golang.org/x/term"
 
-	"jumper/internal/app"
-	"jumper/internal/errs"
-	"jumper/internal/interact"
-	"jumper/internal/server"
+	"jumpr/internal/app"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
+	"jumpr/internal/server"
 )
 
 // version is set at build time with
@@ -46,7 +46,7 @@ func main() {
 func run(args []string) int {
 	inv, err := app.ParseCLI(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %s\n", errorText(err))
+		fmt.Fprintf(os.Stderr, "jumpr: %s\n", errorText(err))
 		if errs.KindOf(err) == errs.Config {
 			fmt.Fprint(os.Stderr, app.Usage())
 		}
@@ -55,7 +55,7 @@ func run(args []string) int {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 
@@ -67,7 +67,7 @@ func run(args []string) int {
 		fmt.Print(app.Usage())
 		return 0
 	case app.CommandVersion:
-		fmt.Printf("jumper %s\n", version)
+		fmt.Printf("jumpr %s\n", version)
 		return 0
 	case app.CommandInit:
 		dir, code := initArgs(inv.Args, inv.ConfigDir)
@@ -115,7 +115,7 @@ func run(args []string) int {
 	case app.CommandAttach:
 		return runAttach(ctx, inv, home)
 	}
-	fmt.Fprintf(os.Stderr, "jumper: unknown command %q\n", inv.Command)
+	fmt.Fprintf(os.Stderr, "jumpr: unknown command %q\n", inv.Command)
 	return 2
 }
 
@@ -132,9 +132,9 @@ func errorText(err error) string {
 // runServer runs the session server in this process (BUILD-PLAN §6).
 func runServer(ctx context.Context, inv app.Invocation, home string) int {
 	paths := app.Paths(inv, home)
-	socket := app.SocketPath(inv, os.Getenv("JUMPER_SOCKET"), home)
+	socket := app.SocketPath(inv, os.Getenv("JUMPR_SOCKET"), home)
 	if err := app.CheckSocketPath(socket); err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	err := app.RunServer(ctx, app.ServerOptions{
@@ -152,7 +152,7 @@ func runServer(ctx context.Context, inv app.Invocation, home string) int {
 		Foreground: inv.Foreground,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	return 0
@@ -161,14 +161,14 @@ func runServer(ctx context.Context, inv app.Invocation, home string) int {
 // runAttach attaches the terminal to a session, standalone or through the
 // session server.
 func runAttach(ctx context.Context, inv app.Invocation, home string) int {
-	// A jumper inside a jumper terminal pane would fight the outer one for the
+	// A jumpr inside a jumpr terminal pane would fight the outer one for the
 	// keyboard (SPEC §21.4); local panes export $SITREP.
 	if os.Getenv(app.SessionEnvVar) != "" {
-		fmt.Fprintln(os.Stderr, "jumper: already inside jumper")
+		fmt.Fprintln(os.Stderr, "jumpr: already inside jumpr")
 		return 1
 	}
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
-		fmt.Fprintln(os.Stderr, "jumper: not a terminal")
+		fmt.Fprintln(os.Stderr, "jumpr: not a terminal")
 		return 2
 	}
 
@@ -178,19 +178,23 @@ func runAttach(ctx context.Context, inv app.Invocation, home string) int {
 	}
 
 	paths := app.Paths(inv, home)
-	socket := app.SocketPath(inv, os.Getenv("JUMPER_SOCKET"), home)
+	socket := app.SocketPath(inv, os.Getenv("JUMPR_SOCKET"), home)
 	if err := app.CheckSocketPath(socket); err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
+		return 1
+	}
+	if msg := app.ReadOnlyConflict(socket, app.StatePath(paths.CacheDir), inv.ReadOnly); msg != "" {
+		fmt.Fprintf(os.Stderr, "jumpr: %s\n", msg)
 		return 1
 	}
 	exe, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	if err := app.EnsureServer(ctx, socket, exe, serverArgs(inv, socket), os.Environ(),
 		app.LogPath(paths.CacheDir)); err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	if msg := app.ConfigWarning(app.StatePath(paths.CacheDir), paths.ConfigDir); msg != "" {
@@ -214,7 +218,7 @@ func runAttach(ctx context.Context, inv app.Invocation, home string) int {
 		Hangup:     hangups,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	if msg := exit.UserMessage(); msg != "" {
@@ -230,10 +234,20 @@ func runAttach(ctx context.Context, inv app.Invocation, home string) int {
 // the debugging mode, and the only mode there was before M5 (BUILD-PLAN §6).
 func runStandalone(ctx context.Context, inv app.Invocation, home string, env map[string]string) int {
 	paths := app.Paths(inv, home)
+	// The session reads input through a switchable reader, not the terminal
+	// file, so Bubble Tea cannot put the terminal in raw mode itself; the
+	// attach client does it in server mode (makeRaw above) and standalone must
+	// too, or keys are line-buffered and echoed instead of reaching the TUI.
+	restore, err := makeRaw()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
+		return 1
+	}
+	defer restore()
 	size, resizes, stopSizes := watchSize(os.Stdout)
 	defer stopSizes()
 
-	err := app.Run(ctx, app.Options{
+	err = app.Run(ctx, app.Options{
 		In:        os.Stdin,
 		Out:       os.Stdout,
 		Demo:      inv.Demo,
@@ -249,7 +263,7 @@ func runStandalone(ctx context.Context, inv app.Invocation, home string, env map
 		Resizes:   resizes,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	return 0
@@ -259,20 +273,20 @@ func runStandalone(ctx context.Context, inv app.Invocation, home string, env map
 // kill-server, new -d). ensure says whether the server may be started first.
 func runControl(ctx context.Context, inv app.Invocation, home string, ensure bool) int {
 	paths := app.Paths(inv, home)
-	socket := app.SocketPath(inv, os.Getenv("JUMPER_SOCKET"), home)
+	socket := app.SocketPath(inv, os.Getenv("JUMPR_SOCKET"), home)
 	if err := app.CheckSocketPath(socket); err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	if ensure {
 		exe, err := os.Executable()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+			fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 			return 1
 		}
 		if err := app.EnsureServer(ctx, socket, exe, serverArgs(inv, socket), os.Environ(),
 			app.LogPath(paths.CacheDir)); err != nil {
-			fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+			fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 			return 1
 		}
 	}
@@ -280,10 +294,10 @@ func runControl(ctx context.Context, inv app.Invocation, home string, ensure boo
 	res, err := server.Control(ctx, socket, inv.Hello(version, 0, 0, nil))
 	if err != nil {
 		if errs.KindOf(err) == errs.Unreachable {
-			fmt.Fprintln(os.Stderr, "jumper: no server running")
+			fmt.Fprintln(os.Stderr, "jumpr: no server running")
 			return 1
 		}
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	if !res.OK {
@@ -291,7 +305,7 @@ func runControl(ctx context.Context, inv app.Invocation, home string, ensure boo
 		if msg == "" {
 			msg = "server refused the command"
 		}
-		fmt.Fprintf(os.Stderr, "jumper: %s\n", msg)
+		fmt.Fprintf(os.Stderr, "jumpr: %s\n", msg)
 		return 1
 	}
 	if inv.Command == app.CommandLs {
@@ -315,6 +329,9 @@ func serverArgs(inv app.Invocation, socket string) []string {
 	}
 	if inv.Demo || inv.DemoServer {
 		args = append(args, "--demo")
+	}
+	if inv.ReadOnly {
+		args = append(args, "--readonly")
 	}
 	args = append(args, "-S", socket)
 	return args
@@ -423,7 +440,7 @@ func watchSize(f *os.File) (*app.Size, <-chan app.Size, func()) {
 // because the flag package stops at the first non-flag word.
 var configDirFlags = []string{"--config-dir", "-config-dir"}
 
-// doctorArgs pulls the flags out of a `jumper doctor …` invocation and returns
+// doctorArgs pulls the flags out of a `jumpr doctor …` invocation and returns
 // the positional arguments and the effective configuration directory. code is
 // -1 when the command should run, else it is the exit code to return: 0 after
 // help, 2 for a bad command line.
@@ -433,15 +450,15 @@ func doctorArgs(args []string, configDir string) (pos []string, dir string, code
 		a := args[i]
 		switch {
 		case a == "-h" || a == "--help":
-			fmt.Print("usage: jumper doctor [--config-dir DIR]\n" +
-				"       jumper doctor ssh <host> [--config-dir DIR]\n\n" +
+			fmt.Print("usage: jumpr doctor [--config-dir DIR]\n" +
+				"       jumpr doctor ssh <host> [--config-dir DIR]\n\n" +
 				"  doctor          check the configuration, SSH, agent, bastions, samples,\n" +
 				"                  backends, connection profiles, knowledge root and terminal\n" +
 				"  ssh <host>      resolve, dial, authenticate and run a few read-only probes\n")
 			return nil, dir, 0
 		case matchesFlag(a, configDirFlags):
 			if i+1 >= len(args) {
-				fmt.Fprintf(os.Stderr, "jumper: %s needs a directory\n", a)
+				fmt.Fprintf(os.Stderr, "jumpr: %s needs a directory\n", a)
 				return nil, dir, 2
 			}
 			i++
@@ -455,11 +472,11 @@ func doctorArgs(args []string, configDir string) (pos []string, dir string, code
 	return pos, dir, -1
 }
 
-// initArgs pulls the flags out of a `jumper init` invocation and returns the
+// initArgs pulls the flags out of a `jumpr init` invocation and returns the
 // effective configuration directory. code is -1 when init should run, else the
 // exit code to return: 0 after help, 2 for a bad command line.
 func initArgs(args []string, configDir string) (dir string, code int) {
-	const usage = "usage: jumper init [--config-dir DIR]\n\n" +
+	const usage = "usage: jumpr init [--config-dir DIR]\n\n" +
 		"  writes a commented config.yaml, connections.yaml, policy.yaml and keymap.yaml\n" +
 		"  plus an empty plugins/ into the configuration directory; never overwrites\n"
 	dir = configDir
@@ -471,7 +488,7 @@ func initArgs(args []string, configDir string) (dir string, code int) {
 			return dir, 0
 		case matchesFlag(a, configDirFlags):
 			if i+1 >= len(args) {
-				fmt.Fprintf(os.Stderr, "jumper: %s needs a directory\n", a)
+				fmt.Fprintf(os.Stderr, "jumpr: %s needs a directory\n", a)
 				return dir, 2
 			}
 			i++
@@ -479,7 +496,7 @@ func initArgs(args []string, configDir string) (dir string, code int) {
 		case strings.HasPrefix(a, "--config-dir=") || strings.HasPrefix(a, "-config-dir="):
 			dir = a[strings.IndexByte(a, '=')+1:]
 		default:
-			fmt.Fprintf(os.Stderr, "jumper: init: unexpected argument %q\n", a)
+			fmt.Fprintf(os.Stderr, "jumpr: init: unexpected argument %q\n", a)
 			fmt.Fprint(os.Stderr, usage)
 			return dir, 2
 		}
@@ -564,16 +581,16 @@ func ctxErr(ctx context.Context) error {
 	return nil
 }
 
-// runDoctor implements `jumper doctor conn <profile> <url> [--verbose]` (SPEC
+// runDoctor implements `jumpr doctor conn <profile> <url> [--verbose]` (SPEC
 // §7.2). It returns the process exit code: 0 only when the endpoint answered 2xx
 // and did not redirect to a login page.
 func runDoctor(ctx context.Context, args []string, home, configDir string) int {
-	const usage = "usage: jumper doctor conn <profile> <url> [--verbose]"
+	const usage = "usage: jumpr doctor conn <profile> <url> [--verbose]"
 	if len(args) == 0 || args[0] != "conn" {
 		fmt.Fprintln(os.Stderr, usage)
 		return 2
 	}
-	fs := flag.NewFlagSet("jumper doctor conn", flag.ContinueOnError)
+	fs := flag.NewFlagSet("jumpr doctor conn", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	verbose := fs.Bool("verbose", false, "also show the response headers, redacted")
 	// Flags may come before or after the two positionals; flag.Parse stops at
@@ -607,7 +624,7 @@ func runDoctor(ctx context.Context, args []string, home, configDir string) int {
 		Verbose:   *verbose,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "jumper: %v\n", err)
+		fmt.Fprintf(os.Stderr, "jumpr: %v\n", err)
 		return 1
 	}
 	if !res.OK {
@@ -617,7 +634,7 @@ func runDoctor(ctx context.Context, args []string, home, configDir string) int {
 }
 
 // environ copies the process environment into a map for the `env` proxy type.
-// cmd/jumper is where the environment is read; internal/app never is.
+// cmd/jumpr is where the environment is read; internal/app never is.
 func environ() map[string]string {
 	env := make(map[string]string, len(os.Environ()))
 	for _, kv := range os.Environ() {

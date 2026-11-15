@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestFirstJSON(t *testing.T) {

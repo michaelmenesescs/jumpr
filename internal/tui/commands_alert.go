@@ -10,11 +10,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/k8s"
-	"jumper/internal/backend/prom"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/tui/keymap"
+	"jumpr/internal/backend/k8s"
+	"jumpr/internal/backend/prom"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui/keymap"
 )
 
 // Constants of the alert → investigation flow.

@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/mux"
-	"jumper/internal/resource"
+	"jumpr/internal/mux"
+	"jumpr/internal/resource"
 )
 
 // sshCommandMsg asks the root to open a shell pane for the host the focused

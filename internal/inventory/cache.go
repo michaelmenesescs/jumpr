@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // cacheFile is the on-disk form of the per-source host lists.

@@ -8,11 +8,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/chef"
-	"jumper/internal/bus"
-	"jumper/internal/render"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/chef"
+	"jumpr/internal/bus"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
 )
 
 // The `:chef` command family (SPEC §8.7, BUILD-PLAN §2 M10): `drift` shows the

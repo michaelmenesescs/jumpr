@@ -1,4 +1,4 @@
-// Release tooling for jumper: a reproducible darwin build, the archives a user
+// Release tooling for jumpr: a reproducible darwin build, the archives a user
 // downloads and the checksum file that goes with them. It is a Go program, not
 // a script (AGENTS.md rule 4): `go run ./cmd/sitrep-lab release --version v1.2.3`.
 //
@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/render"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
 )
 
 // versionRe is the shape a release version must have: a leading v, three
@@ -74,7 +74,7 @@ type ReleaseOptions struct {
 	Run Runner
 }
 
-// Release builds jumper for each darwin architecture, writes one .tar.gz per
+// Release builds jumpr for each darwin architecture, writes one .tar.gz per
 // architecture plus SHA256SUMS into the output directory, and reports the sizes
 // on out. It never uploads, never tags and never pushes.
 //
@@ -113,7 +113,7 @@ func Release(ctx context.Context, o ReleaseOptions, out io.Writer) error {
 		case "arm64", "amd64":
 		default:
 			return errs.New(errs.Config, "devtools.release",
-				fmt.Sprintf("unknown architecture %q: jumper ships darwin/arm64 and darwin/amd64", arch))
+				fmt.Sprintf("unknown architecture %q: jumpr ships darwin/arm64 and darwin/amd64", arch))
 		}
 	}
 	dist := o.OutDir
@@ -160,7 +160,7 @@ func Release(ctx context.Context, o ReleaseOptions, out io.Writer) error {
 	if err := os.MkdirAll(dist, 0o755); err != nil {
 		return errs.Wrap(errs.Internal, "devtools.release", err)
 	}
-	work, err := os.MkdirTemp("", "jumper-release-")
+	work, err := os.MkdirTemp("", "jumpr-release-")
 	if err != nil {
 		return errs.Wrap(errs.Internal, "devtools.release", err)
 	}
@@ -170,7 +170,7 @@ func Release(ctx context.Context, o ReleaseOptions, out io.Writer) error {
 	binSizes := make([]int64, 0, len(archs))
 	names := make([]string, 0, len(archs))
 	for _, arch := range archs {
-		binary := filepath.Join(work, "jumper-"+arch)
+		binary := filepath.Join(work, "jumpr-"+arch)
 		if err := build(ctx, o, arch, binary, out); err != nil {
 			return err
 		}
@@ -184,9 +184,9 @@ func Release(ctx context.Context, o ReleaseOptions, out io.Writer) error {
 				return err
 			}
 		}
-		name := fmt.Sprintf("jumper-%s-darwin-%s.tar.gz", o.Version, arch)
+		name := fmt.Sprintf("jumpr-%s-darwin-%s.tar.gz", o.Version, arch)
 		path := filepath.Join(dist, name)
-		files := append([]archiveFile{{Name: "jumper", Path: binary, Mode: 0o755}}, payload...)
+		files := append([]archiveFile{{Name: "jumpr", Path: binary, Mode: 0o755}}, payload...)
 		if err := writeArchive(path, files); err != nil {
 			return err
 		}
@@ -250,7 +250,7 @@ func build(ctx context.Context, o ReleaseOptions, arch, binary string, out io.Wr
 		"-trimpath",
 		"-ldflags", "-s -w -X main.version=" + o.Version,
 		"-o", binary,
-		"./cmd/jumper",
+		"./cmd/jumpr",
 	}
 	env := []string{"CGO_ENABLED=0", "GOOS=darwin", "GOARCH=" + arch}
 	if err := o.Run(ctx, Cmd{Name: o.Go, Args: args, Dir: o.RepoDir, Env: env, Stdout: out, Stderr: out}); err != nil {

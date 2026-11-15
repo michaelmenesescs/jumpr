@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 // API paths.

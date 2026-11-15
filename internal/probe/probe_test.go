@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const testNonce = "deadbeef"
@@ -99,7 +99,7 @@ func TestSplitRoundTripLocal(t *testing.T) {
 		Section{ID: "a", Cmd: "echo a"},
 		Section{ID: "err", Cmd: "( echo err >&2; exit 3 )"},
 		Section{ID: "nonl", Cmd: "printf 'no newline'"},
-		Section{ID: "missing", Cmd: "jumper-no-such-command-xyz"},
+		Section{ID: "missing", Cmd: "jumpr-no-such-command-xyz"},
 	)
 	cmd := exec.Command("sh", "-c", b.Script())
 	var stdout, stderr bytes.Buffer

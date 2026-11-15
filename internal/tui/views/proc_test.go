@@ -8,13 +8,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // procFake is a backend that answers the /proc batch, the socket list, the

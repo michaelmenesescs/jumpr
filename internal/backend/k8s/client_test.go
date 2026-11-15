@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // testKubeconfig is the sanitised two-context kubeconfig of testdata/.

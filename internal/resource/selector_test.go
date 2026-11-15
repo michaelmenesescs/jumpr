@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestParseSelector(t *testing.T) {

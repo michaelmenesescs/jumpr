@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // TestLoadKubernetesSection covers the `kubernetes:` keys of BUILD-PLAN §11:

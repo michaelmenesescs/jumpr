@@ -1,8 +1,8 @@
-// Command @@ manages the local OrbStack test lab used to develop and test jumper.
+// Command @@ manages the local OrbStack test lab used to develop and test jumpr.
 //
 // The lab is a set of OrbStack Linux machines (named sr-<name>) behind a bastion, with a Salt master,
 // a two-node k3s cluster, and fault-injection scenarios that reproduce real incidents. Everything it
-// installs lives only in these throwaway lab machines; jumper itself never installs anything on nodes.
+// installs lives only in these throwaway lab machines; jumpr itself never installs anything on nodes.
 //
 // Usage:
 //
@@ -34,10 +34,10 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/config"
-	"jumper/internal/devtools"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh"
+	"jumpr/internal/config"
+	"jumpr/internal/devtools"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh"
 )
 
 //go:embed provision/*.sh
@@ -171,7 +171,7 @@ func repoRoot() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("run inside the jumper repo (no go.mod found)")
+			return "", errors.New("run inside the jumpr repo (no go.mod found)")
 		}
 		dir = parent
 	}
@@ -554,10 +554,10 @@ systemctl reset-failed nginx; systemctl restart nginx; systemctl is-active nginx
 		Inject: func() error {
 			return each([]string{"db-01"}, `
 avail=$(df -B1 --output=avail / | tail -1); size=$(df -B1 --output=size / | tail -1)
-target=$(( size * 92 / 100 - (size - avail) )); [ $target -gt 0 ] && fallocate -l $target /var/jumper-ballast
+target=$(( size * 92 / 100 - (size - avail) )); [ $target -gt 0 ] && fallocate -l $target /var/jumpr-ballast
 df -h / | tail -1`)
 		},
-		Undo: func() error { return each([]string{"db-01"}, "rm -f /var/jumper-ballast; df -h / | tail -1") },
+		Undo: func() error { return each([]string{"db-01"}, "rm -f /var/jumpr-ballast; df -h / | tail -1") },
 	},
 	"oom-pod": {
 		Desc: "k8s: deployment checkout/checkout crash-loops with OOMKilled (mockup W3)",
@@ -660,7 +660,7 @@ func capture(args []string) error {
 // captureLinux records the Linux probes.
 func captureLinux(args []string) error {
 	fs := flag.NewFlagSet("capture linux", flag.ContinueOnError)
-	configDir := fs.String("config-dir", filepath.Join("lab", "jumper"), "directory holding the lab's config.yaml")
+	configDir := fs.String("config-dir", filepath.Join("lab", "jumpr"), "directory holding the lab's config.yaml")
 	outDir := fs.String("out", filepath.Join("testdata", "linux"), "testdata root to write under")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -682,7 +682,7 @@ func captureLinux(args []string) error {
 // captureSalt records the Salt CLI's real output (task 067).
 func captureSalt(args []string) error {
 	fs := flag.NewFlagSet("capture salt", flag.ContinueOnError)
-	configDir := fs.String("config-dir", filepath.Join("lab", "jumper"), "directory holding the lab's config.yaml")
+	configDir := fs.String("config-dir", filepath.Join("lab", "jumpr"), "directory holding the lab's config.yaml")
 	outDir := fs.String("out", filepath.Join("testdata", "salt"), "testdata directory to write under")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -705,7 +705,7 @@ func captureSalt(args []string) error {
 // (task 113).
 func captureChef(args []string) error {
 	fs := flag.NewFlagSet("capture chef", flag.ContinueOnError)
-	configDir := fs.String("config-dir", filepath.Join("lab", "jumper"), "directory holding the lab's config.yaml")
+	configDir := fs.String("config-dir", filepath.Join("lab", "jumpr"), "directory holding the lab's config.yaml")
 	outDir := fs.String("out", filepath.Join("testdata", "chef"), "testdata directory to write under")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -744,7 +744,7 @@ func sanitizeFiles(args []string) error {
 }
 
 // labTransport builds an SSH transport over the lab's ssh_config with the limits
-// from the lab's jumper configuration. The returned close function releases the
+// from the lab's jumpr configuration. The returned close function releases the
 // connection pool.
 func labTransport(configDir string) (transport.Executor, func(), error) {
 	home, err := os.UserHomeDir()

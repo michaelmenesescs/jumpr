@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
 )
 
 // AppendAudit appends one entry to root/audit/YYYY-MM-DD.md, creating the file

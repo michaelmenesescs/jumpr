@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
+	"jumpr/internal/backend"
 )
 
 // batchWindow bounds how long NextBatch keeps draining a channel after the

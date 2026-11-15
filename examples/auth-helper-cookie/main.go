@@ -1,7 +1,7 @@
-// Command auth-helper-cookie is an example jumper auth helper for an SSO proxy
+// Command auth-helper-cookie is an example jumpr auth helper for an SSO proxy
 // that issues a cookie: it prints the cookie as helper JSON on stdout.
-// The value comes from JUMPER_AUTH_COOKIE, or from the macOS Keychain.
-// jumper runs this directly, without a shell; diagnostics go to stderr.
+// The value comes from JUMPR_AUTH_COOKIE, or from the macOS Keychain.
+// jumpr runs this directly, without a shell; diagnostics go to stderr.
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 const securityBin = "/usr/bin/security"
 
 // document is the helper protocol of SPEC §7.2: headers, cookies and an
-// optional expiry. jumper keeps these values in memory only.
+// optional expiry. jumpr keeps these values in memory only.
 type document struct {
 	Headers   map[string]string `json:"headers,omitempty"`
 	Cookies   []cookie          `json:"cookies"`
@@ -34,10 +34,10 @@ type cookie struct {
 func main() {
 	name := flag.String("name", "_oauth2_proxy", "cookie name the proxy expects")
 	domain := flag.String("domain", "", "cookie domain, e.g. .example.internal (empty sends it to every host)")
-	service := flag.String("service", "jumper-auth", "Keychain service name")
+	service := flag.String("service", "jumpr-auth", "Keychain service name")
 	account := flag.String("account", "", "Keychain account name; empty uses the cookie name")
 	valid := flag.Duration("expires", 50*time.Minute, "how long the cookie stays valid")
-	envVar := flag.String("env", "JUMPER_AUTH_COOKIE", "environment variable holding the cookie value")
+	envVar := flag.String("env", "JUMPR_AUTH_COOKIE", "environment variable holding the cookie value")
 	flag.Parse()
 
 	accountName := *account

@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
 )
 
 // TargetsViewRequestedMsg asks the root to open a text view listing the current

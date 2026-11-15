@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 func hid(i int) resource.HostID { return resource.HostID(fmt.Sprintf("h%05d", i)) }

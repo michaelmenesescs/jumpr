@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
 )
 
 // Entry is one parsed journal record.

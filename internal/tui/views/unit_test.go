@@ -8,13 +8,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/backend/elastic"
-	"jumper/internal/backend/linux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/elastic"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // stubView is a minimal tui.View that records how often it was initialised.

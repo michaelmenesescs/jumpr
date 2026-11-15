@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/mux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
+	"jumpr/internal/mux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
 )
 
 // paneView is a View that can describe itself as a `:` command line and can

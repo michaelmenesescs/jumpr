@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 type jsonNode struct {

@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 // newDrained returns an emulator whose Responses stream is already being

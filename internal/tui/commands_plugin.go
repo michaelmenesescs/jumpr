@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/plugin"
-	"jumper/internal/render"
+	"jumpr/internal/plugin"
+	"jumpr/internal/render"
 )
 
 // `:plugins` is the plugin listing (SPEC §12): what is loaded, from which file,

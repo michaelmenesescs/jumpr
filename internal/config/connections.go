@@ -3,7 +3,7 @@ package config
 import (
 	"path/filepath"
 
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/transport/httpx"
 )
 
 // ConnectionsFile is the file name of the connection profiles (SPEC §7.2).

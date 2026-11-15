@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // logAPI is a minimal API server for the log tests: it answers GET /log,

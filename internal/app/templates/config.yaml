@@ -1,8 +1,8 @@
-# jumper configuration — written once by `jumper init`.
+# jumpr configuration — written once by `jumpr init`.
 #
 # Every key is optional. The value shown is the default, and the comment after
-# it says what it does. The file is read from ~/.config/jumper/config.yaml
-# (override the directory with --config-dir or $JUMPER_CONFIG_DIR). Unknown
+# it says what it does. The file is read from ~/.config/jumpr/config.yaml
+# (override the directory with --config-dir or $JUMPR_CONFIG_DIR). Unknown
 # keys are errors, so delete what you do not need rather than renaming it.
 
 ui:
@@ -13,12 +13,12 @@ ui:
 
 mux:
   prefix: C-a             # the tmux-style prefix key
-  prefix_in_tmux: C-b     # used when jumper runs inside tmux; set equal to prefix to disable
+  prefix_in_tmux: C-b     # used when jumpr runs inside tmux; set equal to prefix to disable
   scrollback: 10000       # lines kept per terminal pane
   max_sync_panes: 8       # raw synchronized input limit
 
 ssh:
-  config_files: [~/.ssh/config]  # every ssh_config jumper resolves hosts from
+  config_files: [~/.ssh/config]  # every ssh_config jumpr resolves hosts from
   known_hosts: []                # empty = from ssh_config, else ~/.ssh/known_hosts
   concurrency: 64                # fan-out workers
   max_conns_per_bastion: 4
@@ -39,13 +39,13 @@ inventory:
     - type: ssh_config           # ssh_config | static | salt | k8s | prom | chef
       path: ""                   # required for type: static, ignored otherwise
     # - type: static
-    #   path: ~/.config/jumper/hosts.yaml
+    #   path: ~/.config/jumpr/hosts.yaml
     # - type: salt               # needs salt.master below
   identity:
     rewrites: []                 # [{from: '^(.*):9100$', to: '$1'}]
 
 knowledge:
-  root: ~/jumper                 # investigations, notes and the audit log
+  root: ~/jumpr                 # investigations, notes and the audit log
 
 rollout:
   canary: 1                      # hosts tried first, per action

@@ -1,12 +1,12 @@
 # Task 143 — `:kind` in the muxed app fails with "no view factory for kind unit"
 
-- **Milestone:** M0 fix (found by driving `jumper --demo` in a PTY)
+- **Milestone:** M0 fix (found by driving `jumpr --demo` in a PTY)
 - **Depends on:** 016, 020, 022, 014
 - **Parallel group:** —
 - **Status:** done
 
 ## Symptom (reproduced)
-In `jumper --demo` (110x16 PTY): `:u` + `enter` leaves the host table in place and flashes
+In `jumpr --demo` (110x16 PTY): `:u` + `enter` leaves the host table in place and flashes
 `no view factory for kind unit`. `:units` behaves the same. The command bar itself is fine: `Commands.Exec` resolves the
 alias and emits `OpenQueryMsg`, and the message does reach a pane.
 
@@ -54,7 +54,7 @@ New factories, the kind picker dialog, command parsing changes (§4.8 is frozen)
 go test ./internal/tui/ -run "TestViewPane|TestCmdNav" -v
 go test ./...
 ```
-Plus a recorded manual check in the report: 110x16 PTY, `jumper --demo`, `:units⏎` → a `unit` table (crumb `unit`),
+Plus a recorded manual check in the report: 110x16 PTY, `jumpr --demo`, `:units⏎` → a `unit` table (crumb `unit`),
 `esc` → hosts; `:journal⏎` → journal view; `:bogus⏎` → unknown-command flash, view unchanged.
 
 ## Pitfalls

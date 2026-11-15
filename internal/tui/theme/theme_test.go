@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // allStyles returns every style field of the dark theme.

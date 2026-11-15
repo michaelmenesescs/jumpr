@@ -9,17 +9,17 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/bus"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/bus"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
 )
 
 // The `:salt` command family (SPEC §8.6, BUILD-PLAN §2 M4): native targets
-// become jumper target sets, `:salt state` opens the dry-run view, `:salt run`
+// become jumpr target sets, `:salt state` opens the dry-run view, `:salt run`
 // proposes a module execution through the bus, and `:salt target` explains how
 // the current selection compiles. Nothing here blocks: every remote call runs in
 // a tea.Cmd with a deadline.

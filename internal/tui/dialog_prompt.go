@@ -6,8 +6,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // promptDialog is the one-line text prompt: enter submits the trimmed value,

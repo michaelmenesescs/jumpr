@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
-// TestGlyphsResolve pins the precedence between ui.glyphs and JUMPER_GLYPHS:
+// TestGlyphsResolve pins the precedence between ui.glyphs and JUMPR_GLYPHS:
 // a non-empty environment value wins, "auto" means unicode, and an unknown
 // value on either side is a config error naming its source.
 func TestGlyphsResolve(t *testing.T) {
@@ -48,8 +48,8 @@ func TestGlyphsResolveErrors(t *testing.T) {
 		source   string
 	}{
 		{"bogus", "", "ui.glyphs"},
-		{"ascii", "bogus", "JUMPER_GLYPHS"},
-		{"auto", "blocks", "JUMPER_GLYPHS"},
+		{"ascii", "bogus", "JUMPR_GLYPHS"},
+		{"auto", "blocks", "JUMPR_GLYPHS"},
 	}
 	for _, c := range cases {
 		_, err := resolveGlyphs(c.cfg, c.env)

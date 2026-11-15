@@ -7,10 +7,10 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
-// GlyphSet is one complete, declared set of the glyphs jumper draws. Every
+// GlyphSet is one complete, declared set of the glyphs jumpr draws. Every
 // rune the UI emits outside resource data comes from the active set, so a
 // terminal font that lacks one family (Nerd Font icons, Unicode blocks) still
 // gets a readable frame after switching sets.
@@ -122,7 +122,7 @@ func Glyphs(name string) (GlyphSet, error) {
 }
 
 // AutoGlyphs resolves the auto setting against an environment value, normally
-// $JUMPER_GLYPHS. nerd and ascii are explicit overrides; anything else —
+// $JUMPR_GLYPHS. nerd and ascii are explicit overrides; anything else —
 // including empty — is unicode. It reads no environment itself and never probes
 // the terminal font: auto is deterministic and pure.
 func AutoGlyphs(env string) GlyphSet {

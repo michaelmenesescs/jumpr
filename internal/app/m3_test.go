@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/bus/bustest"
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/bustest"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // writePolicy writes body as <dir>/policy.yaml.
@@ -35,7 +35,7 @@ type m3Fixture struct {
 }
 
 // newM3Fixture builds the fixture. The knowledge root is a temp directory, so
-// nothing a test records can reach the real ~/jumper.
+// nothing a test records can reach the real ~/jumpr.
 func newM3Fixture(t *testing.T, policy string) *m3Fixture {
 	t.Helper()
 	dir := t.TempDir()

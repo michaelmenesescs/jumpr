@@ -18,7 +18,7 @@ BUILD-PLAN §6 (the client is a dumb byte pump), §6.2 (frames). SPEC §21.4.
 ## Requirements
 1. `type ClientOptions struct { SocketPath string; Hello Hello; In io.Reader; Out io.Writer; MakeRaw func()
    (restore func(), err error); Size func() (cols, rows int); Resizes <-chan struct{}; Hangup <-chan struct{} }`
-   — everything OS-specific is injected by `cmd/jumper` so this package stays testable and obeys §6.1.
+   — everything OS-specific is injected by `cmd/jumpr` so this package stays testable and obeys §6.1.
 2. `func Attach(ctx context.Context, o ClientOptions) (Exit, error)`:
    - dial the socket (2 s); send `HELLO` (with the current size); read `WELCOME` or `EXIT`.
    - `MakeRaw()`; defer `restore()` — it must run on every path, including panics.
@@ -36,7 +36,7 @@ BUILD-PLAN §6 (the client is a dumb byte pump), §6.2 (frames). SPEC §21.4.
    `[detached: another client attached]`, `[server exited]`, or the error message.
 
 ## Out of scope
-Starting the server (081). TTY detection (`cmd/jumper`).
+Starting the server (081). TTY detection (`cmd/jumpr`).
 
 ## Acceptance
 ```

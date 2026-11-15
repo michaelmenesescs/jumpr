@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	sshcfg "jumper/internal/transport/ssh"
+	sshcfg "jumpr/internal/transport/ssh"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // fakeSource is a Source whose result a test can change between refreshes.

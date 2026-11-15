@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/mux"
-	"jumper/internal/render"
+	"jumpr/internal/mux"
+	"jumpr/internal/render"
 )
 
 // typeKeys feeds keys in order and returns the first yank it produces.

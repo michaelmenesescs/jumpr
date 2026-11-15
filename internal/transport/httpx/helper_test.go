@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 // TestMain doubles as the fake auth helper: when the environment says so, the

@@ -9,15 +9,15 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/investigation"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // KindPillar is the factory key of the pillar screen. It is a view kind, not a
@@ -428,7 +428,7 @@ func (s *SaltPillar) reveal() tea.Cmd {
 	}
 	path, minion := row.Node.Key, s.minion
 	text := fmt.Sprintf("reveal pillar value %s on %s? it will be shown on screen", path, minion) +
-		"\nthe value stays in the master's job cache either way; jumper never records or copies it"
+		"\nthe value stays in the master's job cache either way; jumpr never records or copies it"
 	yes := s.revealCmd(path)
 	th := s.theme
 	return func() tea.Msg {

@@ -6,7 +6,7 @@
 //
 // They skip with "lab k3s cluster not running" unless that kubeconfig exists,
 // so `make lab-test` is green on a laptop with the lab shut down. Every test
-// drives jumper's packages: the backend's List/Get, the log reader, the pod
+// drives jumpr's packages: the backend's List/Get, the log reader, the pod
 // shell and the action bus, not the TUI.
 //
 // The fault `oom-pod` (labtest.Fault) is the lab's own; the node of the pod it
@@ -29,12 +29,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/config"
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/config"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 const (
@@ -46,7 +46,7 @@ const (
 	// not up.
 	labSkip = "lab k3s cluster not running"
 	// labNamespace is the namespace the write tests create and delete.
-	labNamespace = "jumper-lab"
+	labNamespace = "jumpr-lab"
 	// labCordonNode is the node the cordon test takes out of service.
 	labCordonNode = "k3s-2"
 	// labNodeCount is how many nodes the lab's k3s cluster has, all Ready.
@@ -252,7 +252,7 @@ func TestLabK8sCordonUncordon(t *testing.T) {
 	}
 }
 
-// labBackend loads lab/jumper/config.yaml, moves to the repository root (the
+// labBackend loads lab/jumpr/config.yaml, moves to the repository root (the
 // kubeconfig path is relative to it) and skips unless the k3s cluster is up.
 func labBackend(t *testing.T) *Backend {
 	t.Helper()
@@ -273,12 +273,12 @@ func labBackend(t *testing.T) *Backend {
 	if err != nil {
 		t.Fatalf("lab: home: %v", err)
 	}
-	cfg, err := config.Load(filepath.Join("lab", "jumper", "config.yaml"), home)
+	cfg, err := config.Load(filepath.Join("lab", "jumpr", "config.yaml"), home)
 	if err != nil {
 		t.Fatalf("lab: config: %v", err)
 	}
 	if strings.TrimSpace(cfg.Kubernetes.Kubeconfig) == "" {
-		t.Skipf("%s: lab/jumper/config.yaml sets no kubernetes.kubeconfig", labSkip)
+		t.Skipf("%s: lab/jumpr/config.yaml sets no kubernetes.kubeconfig", labSkip)
 	}
 	b, err := New(Options{Kubeconfig: cfg.Kubernetes.Kubeconfig, Home: home})
 	if err != nil {

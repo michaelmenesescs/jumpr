@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // Key states as reported by salt-key -L.
@@ -21,7 +21,7 @@ const (
 )
 
 // Key is one entry of salt-key -L. ID is the minion ID as Salt knows it; it is
-// not necessarily a hostname jumper can resolve.
+// not necessarily a hostname jumpr can resolve.
 type Key struct {
 	ID    string
 	State string

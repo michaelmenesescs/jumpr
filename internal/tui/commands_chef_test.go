@@ -8,16 +8,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/backend/chef"
-	"jumper/internal/bus"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/chef"
+	"jumpr/internal/bus"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // chefFake is the read half of a Chef backend: it answers the drift check and

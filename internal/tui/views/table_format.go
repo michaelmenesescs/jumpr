@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	"jumper/internal/render"
-	"jumper/internal/resource"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
 )
 
 // cellText renders one field of row as plain text with the unicode glyph set.

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // maxOSC52 is the largest base64 payload sent as one OSC 52 sequence. tmux and

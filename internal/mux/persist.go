@@ -12,7 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // SessionVersion is the only session file version this build writes and reads.

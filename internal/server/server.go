@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (
@@ -77,7 +77,7 @@ type SavedSession struct {
 }
 
 // Options is everything Serve needs from the caller. SocketPath and LockPath are
-// usually under ~/.cache/jumper; tests pass a short temp dir.
+// usually under ~/.cache/jumpr; tests pass a short temp dir.
 type Options struct {
 	SocketPath string
 	LockPath   string

@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // ListItem is one row of a list dialog.

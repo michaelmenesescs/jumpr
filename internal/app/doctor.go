@@ -16,15 +16,15 @@ import (
 
 	"golang.org/x/crypto/ssh/agent"
 
-	"jumper/internal/backend"
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/backend"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/httpx"
 )
 
 // doctorLabelWidth is the column width of the check name; statusWidth fits
@@ -37,10 +37,10 @@ const (
 // Doctor runs one diagnostic subcommand and returns the process exit code. It
 // writes every line to out, so nothing in this package touches a real terminal.
 //
-// With no arguments it runs the full report (`jumper doctor`); the positional
+// With no arguments it runs the full report (`jumpr doctor`); the positional
 // subcommands probe one thing in detail:
 //
-//	jumper doctor ssh <host>
+//	jumpr doctor ssh <host>
 func Doctor(ctx context.Context, o Options, args []string, out io.Writer) int {
 	if out == nil {
 		out = io.Discard
@@ -52,8 +52,8 @@ func Doctor(ctx context.Context, o Options, args []string, out io.Writer) int {
 		return doctorAll(ctx, o, out)
 	}
 	if args[0] != "ssh" || len(args) != 2 {
-		fmt.Fprintf(out, "usage: jumper doctor [--config-dir DIR]\n"+
-			"       jumper doctor ssh <host> [--config-dir DIR]\n")
+		fmt.Fprintf(out, "usage: jumpr doctor [--config-dir DIR]\n"+
+			"       jumpr doctor ssh <host> [--config-dir DIR]\n")
 		return 2
 	}
 	return doctorSSH(ctx, o, args[1], out)
@@ -131,7 +131,7 @@ type doctorHealth struct {
 	Health  backend.Health
 }
 
-// doctorAll is `jumper doctor` with the real outside world attached.
+// doctorAll is `jumpr doctor` with the real outside world attached.
 func doctorAll(ctx context.Context, o Options, out io.Writer) int {
 	return doctorAllWith(ctx, o, out, doctorHooks{})
 }
@@ -190,7 +190,7 @@ func (d *doctorAllRun) run(ctx context.Context) int {
 		return 1
 	}
 	d.cfg = cfg
-	// The session socket lives in the cache directory. jumper creates it 0700
+	// The session socket lives in the cache directory. jumpr creates it 0700
 	// on first start, so create it here too: checkSocket then reports the real
 	// mode instead of a directory this run had not made yet (the inventory
 	// cache writer would create it 0755).
@@ -291,7 +291,7 @@ func (d *doctorAllRun) checkConfigFile(path string) {
 		d.report.ok("config", path)
 	case errors.Is(err, fs.ErrNotExist):
 		d.report.status("warn", "config", "no config.yaml in "+d.paths.ConfigDir+
-			"; defaults in use — run `jumper init`")
+			"; defaults in use — run `jumpr init`")
 	default:
 		d.report.failDetail("config", path, err)
 	}
@@ -626,7 +626,7 @@ func (d *doctorAllRun) checkKnowledge() {
 	root := d.cfg.Knowledge.Root
 	if root == "" {
 		d.report.status("warn", "knowledge", "knowledge.root is empty; using the default")
-		root = filepath.Join(d.opts.Home, "jumper")
+		root = filepath.Join(d.opts.Home, "jumpr")
 	}
 	created := false
 	if _, err := os.Stat(root); errors.Is(err, fs.ErrNotExist) {
@@ -636,7 +636,7 @@ func (d *doctorAllRun) checkKnowledge() {
 		d.report.failDetail("knowledge", root, err)
 		return
 	}
-	f, err := os.CreateTemp(root, ".jumper-doctor-*")
+	f, err := os.CreateTemp(root, ".jumpr-doctor-*")
 	if err != nil {
 		d.report.failDetail("knowledge", root, err)
 		return
@@ -657,9 +657,9 @@ const maxSocketPath = 103
 // checkSocket checks the session socket's directory: it must be private, or
 // the server would expose a terminal to every local user.
 func (d *doctorAllRun) checkSocket() {
-	socket := d.env("JUMPER_SOCKET")
+	socket := d.env("JUMPR_SOCKET")
 	if socket == "" {
-		socket = filepath.Join(d.paths.CacheDir, "jumper.sock")
+		socket = filepath.Join(d.paths.CacheDir, "jumpr.sock")
 	}
 	if len(socket) > maxSocketPath {
 		d.report.failMsg("socket dir",
@@ -688,7 +688,7 @@ func (d *doctorAllRun) checkSocket() {
 	d.report.ok("socket dir", fmt.Sprintf("%s (%04o)", dir, mode))
 }
 
-// checkTerminal reports what jumper can tell about the terminal it will draw
+// checkTerminal reports what jumpr can tell about the terminal it will draw
 // in: TERM, the colour depth and whether it runs inside tmux.
 func (d *doctorAllRun) checkTerminal() {
 	term := d.env("TERM")
@@ -722,7 +722,7 @@ func (d *doctorAllRun) checkTerminal() {
 }
 
 // env reads one variable from the caller's environment, or from the process
-// when the caller passed none (cmd/jumper always does; the tests do not).
+// when the caller passed none (cmd/jumpr always does; the tests do not).
 func (d *doctorAllRun) env(key string) string {
 	if d.opts.Env != nil {
 		return d.opts.Env[key]

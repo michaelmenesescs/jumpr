@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // Spec IDs of the silence actions. They share the "alertmanager." prefix, which

@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/investigation"
-	"jumper/internal/tui"
+	"jumpr/internal/investigation"
+	"jumpr/internal/tui"
 )
 
 // timelineLinesMsg is the loaded content of the record file.

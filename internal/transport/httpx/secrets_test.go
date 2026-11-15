@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestSecretEnvName(t *testing.T) {
 	cases := map[string]string{
-		"proxy-auth": "JUMPER_SECRET_PROXY_AUTH",
-		"api_key":    "JUMPER_SECRET_API_KEY",
-		"Token":      "JUMPER_SECRET_TOKEN",
-		"db.pass":    "JUMPER_SECRET_DB_PASS",
+		"proxy-auth": "JUMPR_SECRET_PROXY_AUTH",
+		"api_key":    "JUMPR_SECRET_API_KEY",
+		"Token":      "JUMPR_SECRET_TOKEN",
+		"db.pass":    "JUMPR_SECRET_DB_PASS",
 	}
 	for in, want := range cases {
 		if got := SecretEnvName(in); got != want {
@@ -27,7 +27,7 @@ func TestSecretEnvName(t *testing.T) {
 }
 
 func TestSecretFromEnv(t *testing.T) {
-	s := NewSecrets(map[string]string{"JUMPER_SECRET_PROXY_AUTH": "Bearer env-value"}, nil)
+	s := NewSecrets(map[string]string{"JUMPR_SECRET_PROXY_AUTH": "Bearer env-value"}, nil)
 	got, err := s.Value(context.Background(), "proxy-auth")
 	if err != nil {
 		t.Fatalf("Value: %v", err)
@@ -41,7 +41,7 @@ func TestSecretOrderEnvBeatsCommand(t *testing.T) {
 	setHelperMode(t, "print")
 	t.Setenv("HTTPX_HELPER_VALUE", "from-command")
 	s := NewSecrets(
-		map[string]string{"JUMPER_SECRET_API": "from-env"},
+		map[string]string{"JUMPR_SECRET_API": "from-env"},
 		map[string]SecretCommand{"api": {Command: []string{os.Args[0]}}},
 	)
 	got, err := s.Value(context.Background(), "api")
@@ -71,7 +71,7 @@ func TestSecretKeychainPlaceholderArgv(t *testing.T) {
 	setHelperMode(t, "keychain")
 	s := NewSecrets(nil, nil)
 	// The {name} token is replaced in place, not appended.
-	s.Security = []string{os.Args[0], "-s", "jumper", "-a", "{name}", "-w"}
+	s.Security = []string{os.Args[0], "-s", "jumpr", "-a", "{name}", "-w"}
 	got, err := s.Value(context.Background(), "grafana")
 	if err != nil {
 		t.Fatalf("Value: %v", err)
@@ -143,7 +143,7 @@ func TestSecretMissingIsConfigError(t *testing.T) {
 	if kind := errs.KindOf(err); kind != errs.Config {
 		t.Fatalf("kind = %q, want config (%v)", kind, err)
 	}
-	for _, want := range []string{"nope", "JUMPER_SECRET_NOPE", "keychain"} {
+	for _, want := range []string{"nope", "JUMPR_SECRET_NOPE", "keychain"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("the error does not mention %q: %v", want, err)
 		}
@@ -155,8 +155,8 @@ func TestSecretMissingIsConfigError(t *testing.T) {
 
 func TestSecretExpandTemplates(t *testing.T) {
 	s := NewSecrets(map[string]string{
-		"JUMPER_SECRET_A": "alpha",
-		"JUMPER_SECRET_B": "beta",
+		"JUMPR_SECRET_A": "alpha",
+		"JUMPR_SECRET_B": "beta",
 	}, nil)
 	got, err := s.Expand(context.Background(), `Basic {{ secret "a" }}:{{secret 'b'}} end`)
 	if err != nil {
@@ -181,7 +181,7 @@ func TestSecretExpandsProfileHeaders(t *testing.T) {
 	defer srv.Close()
 
 	p := &Profile{Headers: map[string]string{"X-Api-Key": `{{ secret "api" }}`}}
-	c := newClient(t, p, Deps{Env: map[string]string{"JUMPER_SECRET_API": "k-1"}})
+	c := newClient(t, p, Deps{Env: map[string]string{"JUMPR_SECRET_API": "k-1"}})
 	if _, _, err := get(t, c, srv.URL); err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestSecretTemplateProducesNoWarning(t *testing.T) {
 		Name: "corp",
 		Auth: Auth{Type: AuthBearer, Token: `{{ secret "token" }}`},
 	}
-	c := newClient(t, p, Deps{Env: map[string]string{"JUMPER_SECRET_TOKEN": "t"}})
+	c := newClient(t, p, Deps{Env: map[string]string{"JUMPR_SECRET_TOKEN": "t"}})
 	if warnings := c.Warnings(); len(warnings) != 0 {
 		t.Fatalf("a templated credential warned: %v", warnings)
 	}

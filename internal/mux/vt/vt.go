@@ -1,4 +1,4 @@
-// Package vt wraps a terminal emulator behind jumper's own small interface so
+// Package vt wraps a terminal emulator behind jumpr's own small interface so
 // the implementation can be swapped without touching the mux.
 //
 // Nothing from github.com/charmbracelet/x/vt or ultraviolet may appear in this
@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	vtx "github.com/charmbracelet/x/vt"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 // Emulator turns a terminal byte stream into a screen of cells.

@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
-// The event kinds of the master's bus, as jumper names them (task 096). They
-// come from the tag, never from the payload, so a payload jumper cannot read
+// The event kinds of the master's bus, as jumpr names them (task 096). They
+// come from the tag, never from the payload, so a payload jumpr cannot read
 // still lands in the right kind.
 const (
 	EventJobNew      = "job-new"
@@ -52,7 +52,7 @@ var eventTimeLayouts = []string{
 }
 
 // Event is one line of the master's event bus. Tag is the Salt event tag;
-// Kind is jumper's classification of it; Minion, JID and Fun are filled from
+// Kind is jumpr's classification of it; Minion, JID and Fun are filled from
 // the tag and the payload when it names them. Data is the raw JSON payload.
 type Event struct {
 	Tag    string
@@ -70,8 +70,8 @@ func EventCommand() string {
 	return shq.Join(toolRun, "state.event", "pretty=False")
 }
 
-// OwnRunner reports whether fun is one of the runner functions jumper runs
-// itself while polling, so the event screen can hide jumper's own noise.
+// OwnRunner reports whether fun is one of the runner functions jumpr runs
+// itself while polling, so the event screen can hide jumpr's own noise.
 func OwnRunner(fun string) bool {
 	switch strings.TrimSpace(fun) {
 	case "manage.status", "manage.versions", "cache.grains", "cache.mine",

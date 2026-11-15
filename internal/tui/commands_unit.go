@@ -6,11 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 // unitOp is the Op of every error built here.

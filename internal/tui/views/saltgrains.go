@@ -10,15 +10,15 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // The grains explorer and the mine browser (SPEC §8.6 "Grains" and "Mine").

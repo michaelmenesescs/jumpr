@@ -8,8 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/bus"
-	"jumper/internal/mux"
+	"jumpr/internal/bus"
+	"jumpr/internal/mux"
 )
 
 // SessionSummary is one session as the sessions dialog shows it: its name, its

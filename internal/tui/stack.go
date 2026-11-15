@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 // Stack is the view history of one view pane. The root view is always at the

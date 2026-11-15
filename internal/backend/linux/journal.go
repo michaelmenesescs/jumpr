@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/fanout"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/fanout"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 // journalOp is the Op of every error built here.

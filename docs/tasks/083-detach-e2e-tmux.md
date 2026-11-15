@@ -18,19 +18,19 @@ BUILD-PLAN §9 (session server tests), D7. SPEC §21.4 ("Inside tmux").
 ## Requirements
 1. `TestE2EDetachReattach` (uses `github.com/creack/pty` and the vt adapter from task 049 to read the screen):
    build the binary. `--demo` implies standalone, so add a hidden flag `--demo-server` that makes the **server**
-   use the fake backend; run `jumper -S <tmp>/s.sock --demo-server
+   use the fake backend; run `jumpr -S <tmp>/s.sock --demo-server
    --config-dir <tmp>` on a PTY of 120×36; feed the output to a `vt.Emulator`; wait until the screen shows
    `web-ewr-001`; type `:alerts` + Enter → screen shows `HighErrorRate`; press prefix `%` → two panes; press
    prefix `d` → the process exits 0 and its last output line is `[detached (from session main)]`; the terminal
    modes are restored (PTY is no longer in raw mode: check with `term.GetState`/`unix.IoctlGetTermios` that
    `ICANON` and `ECHO` are set); start a second client on a **new** PTY of 100×30 → the screen shows both
-   panes and `HighErrorRate`, laid out for 100×30; `jumper -S … ls` prints one attached session;
+   panes and `HighErrorRate`, laid out for 100×30; `jumpr -S … ls` prints one attached session;
    `kill-server` → the client exits with `[server exited]`.
 2. `TestE2EClientKilled`: `kill -9` the client; a new client can attach and the session is intact.
 3. `TestE2EResize`: `pty.Setsize` to 90×25 → the status line becomes 90 columns wide.
 4. Inside tmux (`TMUX` in the attach env): prefix switches to `mux.prefix_in_tmux`; the clipboard uses OSC 52 in
    tmux passthrough form in addition to `pbcopy`; the session sets the terminal title with
-   `ESC ] 2 ; jumper: <session> BEL` on attach (written in the preamble) — unit tests for these three in
+   `ESC ] 2 ; jumpr: <session> BEL` on attach (written in the preamble) — unit tests for these three in
    `internal/app/session_test.go`.
 5. Local panes export `SITREP=<session>` (used by the nested-attach refusal in task 081); since local shell panes
    are still an open question, only define the constant and the check now.

@@ -7,12 +7,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/linux"
-	"jumper/internal/investigation"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui/keymap"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui/keymap"
 )
 
 // KindTimeline is the synthetic view kind of the investigation timeline. No
@@ -395,7 +395,7 @@ func runKB(env *Env, args string) tea.Cmd {
 }
 
 // newKnowledgeNote creates (or opens) a note and shows it. Editing stays in the
-// user's editor outside jumper, so the path is flashed.
+// user's editor outside jumpr, so the path is flashed.
 func newKnowledgeNote(env *Env, rest string) tea.Cmd {
 	kind, name := splitFirstWord(strings.TrimSpace(rest))
 	kind = strings.ToLower(strings.TrimSpace(kind))

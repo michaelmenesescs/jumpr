@@ -15,10 +15,10 @@ import (
 	"sort"
 	"strings"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/group"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/group"
+	"jumpr/internal/resource"
 )
 
 // Spec IDs offered by this backend. Both share the "chef." prefix, which is

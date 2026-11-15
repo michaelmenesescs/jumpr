@@ -16,12 +16,12 @@ import (
 	"github.com/skeema/knownhosts"
 	gossh "golang.org/x/crypto/ssh"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh/sshtest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh/sshtest"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 // Aliases used by every fixture; nothing here is a real host.

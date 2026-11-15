@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 const (
@@ -294,7 +294,7 @@ func (execOnly) Exec(context.Context, resource.HostID, transport.Command) (trans
 	return transport.ExecResult{}, nil
 }
 
-// TestEventsOwnRunner: jumper's own polling runners are recognisable, so the
+// TestEventsOwnRunner: jumpr's own polling runners are recognisable, so the
 // screen can hide them by default.
 func TestEventsOwnRunner(t *testing.T) {
 	for _, fun := range []string{"manage.status", "manage.versions", "cache.grains", "cache.mine", "jobs.active", "jobs.list_job", "jobs.list_jobs"} {

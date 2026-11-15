@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"testing"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // defaultRollout mirrors config.Default().Rollout.

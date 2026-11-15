@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 // Salt capture defaults. A capture is a one-shot developer tool, so the waits
@@ -31,7 +31,7 @@ const (
 const (
 	saltCaptureMaster        = "salt.lab.example.internal"
 	saltCaptureDriftFile     = "/etc/motd"
-	saltCaptureDriftBackup   = "/etc/motd.jumper-capture"
+	saltCaptureDriftBackup   = "/etc/motd.jumpr-capture"
 	saltCaptureStoppedMinion = "web-02"
 	saltCaptureDriftMarker   = "# drift added by the capture tool"
 )
@@ -100,7 +100,7 @@ type saltCapture struct {
 // tasks 068-075 are written against what Salt actually prints.
 //
 // Every command goes through salt.Runner, i.e. exactly the command line,
-// JSON flags and failure rules the jumper code itself uses; the few captures
+// JSON flags and failure rules the jumpr code itself uses; the few captures
 // that need plain text (salt --version, --preview-target without JSON, the
 // event stream) are built with shq and run on the same master. Output is
 // passed through Sanitize, and pillar output additionally through ScrubValues.
@@ -692,7 +692,7 @@ func saltReadme(lines, deviations []string) []byte {
 	var b strings.Builder
 	b.WriteString("# Salt golden files\n\n")
 	b.WriteString("Captured from the lab's Salt master (`" + saltCaptureMaster + "`) by\n")
-	b.WriteString("`go run ./cmd/sitrep-lab capture salt --config-dir lab/jumper`.\n\n")
+	b.WriteString("`go run ./cmd/sitrep-lab capture salt --config-dir lab/jumpr`.\n\n")
 	b.WriteString("Every file is the Salt CLI's own output, passed through `devtools.Sanitize`.\n")
 	b.WriteString("`pillar-items.json` is additionally passed through `devtools.ScrubValues`, so\n")
 	b.WriteString("every leaf value is `REDACTED-<type>` and no pillar value is ever recorded.\n\n")

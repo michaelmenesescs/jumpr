@@ -6,18 +6,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/bus"
-	"jumper/internal/inventory"
-	"jumper/internal/investigation"
-	"jumper/internal/redact"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/bus"
+	"jumpr/internal/inventory"
+	"jumpr/internal/investigation"
+	"jumpr/internal/redact"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // Env is the shared, read-mostly environment handed to every view and command.

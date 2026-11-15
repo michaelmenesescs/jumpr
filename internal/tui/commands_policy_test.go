@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/bus"
+	"jumpr/internal/bus"
 )
 
 // loadTestPolicy writes body to a temp policy.yaml and loads it.

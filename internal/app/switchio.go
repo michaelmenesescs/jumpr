@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"jumper/internal/safe"
+	"jumpr/internal/safe"
 )
 
 // SwitchWriter is the output pipe of a session whose terminal can come and go.

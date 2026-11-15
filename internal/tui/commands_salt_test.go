@@ -9,19 +9,19 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/bus"
-	"jumper/internal/bus/generic"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/generic"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // saltTestJID is the job id the fake master hands back.

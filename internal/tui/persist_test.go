@@ -11,8 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	teatest "github.com/charmbracelet/x/exp/teatest"
 
-	"jumper/internal/mux"
-	"jumper/internal/resource"
+	"jumpr/internal/mux"
+	"jumpr/internal/resource"
 )
 
 // sessionPath is where a test's session file lives: always the test's own temp

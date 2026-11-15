@@ -1,4 +1,4 @@
-# Task 035 — `jumper doctor ssh` and the first lab test
+# Task 035 — `jumpr doctor ssh` and the first lab test
 
 - **Milestone:** M2
 - **Depends on:** 033
@@ -9,29 +9,29 @@
 A CLI check that proves SSH works end to end, and the lab test harness all later lab tests reuse.
 
 ## Context
-SPEC §14 (`jumper doctor`), §22 (lab). BUILD-PLAN §9, §12 (risk 1).
+SPEC §14 (`jumpr doctor`), §22 (lab). BUILD-PLAN §9, §12 (risk 1).
 
 ## Files
 - create `internal/app/doctor.go`, `internal/app/doctor_test.go`
 - create `internal/app/build_ssh.go` (builds Resolver, Pool, Transport from config; reused by task 052)
 - create `internal/labtest/labtest.go` (helpers for `//go:build lab` tests; the file itself has the `lab` tag)
 - create `internal/transport/ssh/lab_test.go` (`//go:build lab`)
-- create `lab/jumper/config.yaml`
-- modify `cmd/jumper/main.go` (subcommand `doctor`)
+- create `lab/jumpr/config.yaml`
+- modify `cmd/jumpr/main.go` (subcommand `doctor`)
 
 ## Requirements
-1. `jumper doctor ssh <host> [--config-dir d]` prints, one line each, with `ok`/`FAIL`:
+1. `jumpr doctor ssh <host> [--config-dir d]` prints, one line each, with `ok`/`FAIL`:
    resolved chain (`web-01.lab.example.internal via bastion.lab.example.internal`), dial + auth time, host key
    status, `echo ok` round trip time, `sudo -n true` result (`ok`, or `needs-privilege`), remote
    `uname -sr` and `/etc/os-release` `PRETTY_NAME`. Exit code 0 when dial and echo succeed, else 1. Output goes
    to the writer passed in (`app.Doctor(ctx, o Options, args []string, out io.Writer) int`).
    Prompts (unknown host key, passphrase) are answered on the terminal by a simple line-based `Prompter` defined
    in `main.go` (stdin/stderr are allowed there).
-2. `lab/jumper/config.yaml` (committed; the lab track owns the rest of `lab/`): `ssh.config_files: [lab/ssh_config]`, `inventory.sources: [{type: ssh_config}]`,
+2. `lab/jumpr/config.yaml` (committed; the lab track owns the rest of `lab/`): `ssh.config_files: [lab/ssh_config]`, `inventory.sources: [{type: ssh_config}]`,
    `salt.master: salt.lab.example.internal`, `knowledge.root: lab/.knowledge`. Relative paths in a config file
    resolve against the current working directory (document this in the file's header comment).
 3. `labtest`: `func Config(t *testing.T) config.Config` (finds the repo root by walking up to `go.mod`, loads
-   `lab/jumper/config.yaml`, and `t.Skip("lab not running: lab/ssh_config missing; run: go run ./cmd/@@
+   `lab/jumpr/config.yaml`, and `t.Skip("lab not running: lab/ssh_config missing; run: go run ./cmd/@@
    up")` when the ssh config is absent); `func SSH(t *testing.T) *ssh.Transport` (strict host keys off for lab:
    `accept-new`, agent or the lab key from ssh_config); `func Hosts() []resource.HostID` (the nine lab hosts);
    `func Fault(t *testing.T, name string)` runs `go run ./cmd/@@ fault <name>` and registers
@@ -55,7 +55,7 @@ go test ./internal/app/ -run Doctor -v      # against sshtest servers: output li
 make check
 # with the lab up:
 make lab-test                               # TestLab* in internal/transport/ssh pass
-./jumper doctor ssh web-01.lab.example.internal --config-dir lab/jumper     # all lines ok
+./jumpr doctor ssh web-01.lab.example.internal --config-dir lab/jumpr     # all lines ok
 ```
 
 ## Pitfalls

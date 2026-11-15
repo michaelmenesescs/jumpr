@@ -26,10 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
 )
 
 // Spec IDs offered by this backend. Every one starts with "k8s.".

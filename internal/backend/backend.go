@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 type HealthState int

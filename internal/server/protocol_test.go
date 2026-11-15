@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestFrameRoundTripAllTypes(t *testing.T) {

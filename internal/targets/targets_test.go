@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // testHost is one host of the stub inventory.

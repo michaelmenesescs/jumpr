@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Parser names. They double as the Op of a parser error and the ID of the

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/clip"
+	"jumpr/internal/clip"
 )
 
 // fakeClip is a Clipboard that records what it was given or fails on purpose.

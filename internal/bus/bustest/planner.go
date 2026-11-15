@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/resource"
 )
 
 // Result scripts one step. The zero value is a successful step with no output.

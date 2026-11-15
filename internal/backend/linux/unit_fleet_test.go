@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // fleetShow is one host's `systemctl show` reply for nginx.service.

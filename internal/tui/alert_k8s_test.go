@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/investigation"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/investigation"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // k8sAlertRow is one alert whose labels name a Kubernetes namespace and pod.

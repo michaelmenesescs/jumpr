@@ -18,11 +18,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	sshx "jumper/internal/transport/ssh"
+	"jumpr/internal/errs"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	sshx "jumpr/internal/transport/ssh"
 )
 
 const (
@@ -42,9 +42,9 @@ const (
 // homelab suite starts here, so an unset variable skips instead of failing.
 func homelabHost(t *testing.T) string {
 	t.Helper()
-	host := os.Getenv("JUMPER_HOMELAB_UBUNTU")
+	host := os.Getenv("JUMPR_HOMELAB_UBUNTU")
 	if host == "" {
-		t.Skip("JUMPER_HOMELAB_UBUNTU not set")
+		t.Skip("JUMPR_HOMELAB_UBUNTU not set")
 	}
 	return host
 }
@@ -344,14 +344,14 @@ func TestHomelabJournal(t *testing.T) {
 	}
 
 	// A unit filter that matches nothing must yield no entries, not a panic.
-	mute := JournalCommand(JournalOptions{Unit: "jumper-homelab-no-such-unit.service", Limit: 50})
+	mute := JournalCommand(JournalOptions{Unit: "jumpr-homelab-no-such-unit.service", Limit: 50})
 	res, err = tr.Exec(ctx, id, transport.Command{Script: mute, Timeout: homelabCallTimeout})
 	if err != nil {
 		t.Fatalf("journalctl -u (no match) on %s: %v", host, err)
 	}
 	none, _ := ParseJournal(res.Stdout)
 	if len(none) != 0 {
-		t.Fatalf("journalctl -u jumper-homelab-no-such-unit.service returned %d entries", len(none))
+		t.Fatalf("journalctl -u jumpr-homelab-no-such-unit.service returned %d entries", len(none))
 	}
 
 	t.Logf("%s: %d journal entries (rc %d on the empty filter, %d bytes)", host, len(entries), res.RC, len(res.Stdout))

@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 // healthTimeout bounds one `GET /` probe (BUILD-PLAN §8: health checks 5 s).
@@ -27,12 +27,12 @@ const fieldCapsLimit = 2000
 // catFields are the `_cat/indices` columns the source browser shows.
 const catFields = "index,health,status,docs.count,store.size"
 
-// allowedEndings are the only API endpoints jumper may call (SPEC §8.5). A path
+// allowedEndings are the only API endpoints jumpr may call (SPEC §8.5). A path
 // is read-only when it is `/` (the version probe) or ends with one of these,
 // optionally after an index pattern.
 var allowedEndings = []string{"/_search", "/_field_caps", "/_cat/indices", "/_pit", "/_resolve/index"}
 
-// indexPatternRE matches an index pattern jumper is willing to put in a URL
+// indexPatternRE matches an index pattern jumpr is willing to put in a URL
 // path: index names, wildcards, comma lists and cross-cluster `remote:index`
 // patterns. Anything else (a slash, a space, a query string) is refused, so a
 // pattern can never reach a different endpoint.

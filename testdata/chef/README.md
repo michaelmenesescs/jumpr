@@ -11,7 +11,7 @@ search.json: knife search node '*:*' -a platform -F json
 
 The lab capture that refreshes these files is:
 
-    go run ./cmd/sitrep-lab capture chef --config-dir lab/jumper
+    go run ./cmd/sitrep-lab capture chef --config-dir lab/jumpr
 
 That run rewrites every file here from the lab's chef-zero
 (`chef.lab.example.internal`, knife configured for user `sre`) and regenerates

@@ -6,7 +6,7 @@
 - **Status:** done
 
 ## Goal
-`jumper server`: a per-user process that listens on a unix socket and connects clients to sessions.
+`jumpr server`: a per-user process that listens on a unix socket and connects clients to sessions.
 
 ## Context
 BUILD-PLAN §6 (server rules), §6.2 (protocol). SPEC §21.4 (security, limits).

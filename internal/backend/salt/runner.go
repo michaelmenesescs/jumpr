@@ -3,7 +3,7 @@
 //
 // Nothing here knows about jobs, targeting logic or specific Salt functions:
 // it builds correct command lines with internal/shq, runs them, and maps the
-// failure modes of the CLI onto jumper's error kinds.
+// failure modes of the CLI onto jumpr's error kinds.
 package salt
 
 import (
@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 // defaultTimeout bounds one Salt CLI call when neither the runner nor the call

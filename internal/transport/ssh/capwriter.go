@@ -5,7 +5,7 @@ import "sync"
 // capWriter keeps the first limit bytes written to it and discards the rest.
 //
 // Write always reports every byte as written and never returns an error: a
-// full buffer must not kill the remote command (the output cap is jumper's
+// full buffer must not kill the remote command (the output cap is jumpr's
 // limit, the command keeps running until it is done or the timeout fires).
 type capWriter struct {
 	mu        sync.Mutex

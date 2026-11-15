@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
+	"jumpr/internal/backend"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 func TestNextBatchSingleItem(t *testing.T) {

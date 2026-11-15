@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // exeInv is the executor tests' inventory: one host per minion, mapped through
@@ -152,7 +152,7 @@ func TestExecutorScriptIsBase64(t *testing.T) {
 	}
 }
 
-// TestExecutorHostileScriptsRoundTrip: nothing between jumper and the minion
+// TestExecutorHostileScriptsRoundTrip: nothing between jumpr and the minion
 // may change a byte of the script.
 func TestExecutorHostileScriptsRoundTrip(t *testing.T) {
 	scripts := []string{

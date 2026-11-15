@@ -7,10 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // planDialog is the plan dialog: what will run, where and how, and the control

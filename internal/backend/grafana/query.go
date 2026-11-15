@@ -3,7 +3,7 @@
 // (SPEC §8.4, task 120).
 //
 // Grafana interpolates a dashboard's variables in the browser before it sends
-// a query; jumper does the same, because /api/ds/query knows nothing about
+// a query; jumpr does the same, because /api/ds/query knows nothing about
 // template variables. Everything here is pure except Client.QueryPanel, which
 // sends one request.
 
@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Vars holds the values of a dashboard's template variables: one or more per
@@ -259,7 +259,7 @@ func joinValues(vals []string, format string) string {
 	return strings.Join(vals, "|")
 }
 
-// builtin resolves the time variables. It is the only place jumper claims a
+// builtin resolves the time variables. It is the only place jumpr claims a
 // name the dashboard cannot define itself.
 func (iv Interpolation) builtin(name string) (string, bool) {
 	switch name {

@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 // stubView is a minimal View that records what reaches it.

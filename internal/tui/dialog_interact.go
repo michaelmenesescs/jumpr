@@ -6,9 +6,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/interact"
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/interact"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // Answer strings the dialogs produce and the prompter caches. They match the

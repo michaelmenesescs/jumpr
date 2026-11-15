@@ -68,7 +68,7 @@ go test -race ./internal/tui/views/ -run SaltState -v
 ```
 
 ## Pitfalls
-- A dry run is read-only for jumper's purposes and does not go through the bus; an apply always does.
+- A dry run is read-only for jumpr's purposes and does not go through the bus; an apply always does.
 - Never run `state.apply` without `test=True` outside a bus step.
 - One job per minion per step is deliberate: it keeps abort, thresholds and per-host records identical to every
   other action. Do not "optimize" it into one big job.

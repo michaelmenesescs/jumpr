@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
 )
 
 // Mine and grains reads (SPEC §8.6 "Grains" and "Mine").

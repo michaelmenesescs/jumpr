@@ -11,8 +11,8 @@ import (
 	"github.com/skeema/knownhosts"
 	"golang.org/x/crypto/ssh"
 
-	"jumper/internal/errs"
-	"jumper/internal/interact"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
 )
 
 func hostAddr(host string, port int) string {

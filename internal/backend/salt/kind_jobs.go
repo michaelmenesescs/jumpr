@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Job states as the jobs browser shows them.
@@ -174,7 +174,7 @@ func targetMentions(raw json.RawMessage, minion string) bool {
 	return false
 }
 
-// internalJob reports whether a job is jumper's own polling noise rather than
+// internalJob reports whether a job is jumpr's own polling noise rather than
 // something an operator asked for.
 func internalJob(fun string) bool {
 	return strings.HasPrefix(fun, "runner.jobs.") || fun == "saltutil.find_job"

@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 const rosterYAML = `# salt-ssh roster

@@ -19,7 +19,7 @@ on every lab host with grains `role` and `dc`, nodegroups `webs` and `k8s`, stat
   command that produced it)
 
 ## Requirements
-1. `go run ./cmd/@@ capture salt [--config-dir lab/jumper] [--out testdata/salt]` runs through
+1. `go run ./cmd/@@ capture salt [--config-dir lab/jumpr] [--out testdata/salt]` runs through
    `salt.Runner` (so the files are exactly what the code will see) and writes:
    `version.txt`; `key-list.json` (`salt-key -L`); `key-finger.json` (`salt-key -F`); `manage-status.json`;
    `manage-versions.json`; `cache-grains.json` (`salt-run cache.grains tgt='*'`); `nodegroups.json`
@@ -51,7 +51,7 @@ Parsers. Changing the lab.
 ## Acceptance
 ```
 go test ./internal/devtools/ -run 'Scrub|Sanitize' -v
-go run ./cmd/@@ capture salt --config-dir lab/jumper      # lab up: exit 0, files written
+go run ./cmd/@@ capture salt --config-dir lab/jumpr      # lab up: exit 0, files written
 ls testdata/salt | wc -l                                          # >= 24
 grep -ril 'fake-secret\|BEGIN.*PRIVATE' testdata/salt ; test $? -eq 1
 ```

@@ -10,18 +10,18 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // inventoryHTTPYAML is a target: inventory plugin fed by an HTTP request.
 func inventoryHTTPYAML(url string) string {
 	return fmt.Sprintf(`
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: db-pool
 description: database pool members

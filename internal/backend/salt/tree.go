@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // slsNameRe is the shape of one sls name Salt can be asked to render: dotted,
@@ -227,7 +227,7 @@ func ParseShowTop(b []byte) (ShowTop, error) {
 }
 
 // StateDef is one rendered state of one minion: the show_sls/show_highstate
-// row jumper shows.
+// row jumpr shows.
 type StateDef struct {
 	Minion string
 	ID     string

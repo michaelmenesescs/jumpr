@@ -4,9 +4,9 @@
 // the mock SSO proxy (task 122).
 //
 // These tests are ordinary Go tests behind the `lab` build tag. They skip with
-// "lab observability stack not running" unless the lab is up, lab/jumper names
+// "lab observability stack not running" unless the lab is up, lab/jumpr names
 // a Grafana server, the `lab-sso` auth helper is built, the server accepts a
-// TCP connection and JUMPER_AUTH_COOKIE holds the cookie the mock proxy hands
+// TCP connection and JUMPR_AUTH_COOKIE holds the cookie the mock proxy hands
 // out. Nothing here runs a proxy: the mock SSO proxy belongs to the lab track
 // (SPEC §22).
 //
@@ -31,10 +31,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/config"
-	"jumper/internal/labtest"
-	"jumper/internal/redact"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/config"
+	"jumpr/internal/labtest"
+	"jumpr/internal/redact"
+	"jumpr/internal/transport/httpx"
 )
 
 const (
@@ -44,7 +44,7 @@ const (
 	// labProfile is the connection profile the lab's stack uses.
 	labProfile = "lab-sso"
 	// labCookieVar is what examples/auth-helper-cookie reads.
-	labCookieVar = "JUMPER_AUTH_COOKIE"
+	labCookieVar = "JUMPR_AUTH_COOKIE"
 	// labDashboards is how many search hits are opened before giving up on
 	// finding a renderable timeseries panel.
 	labDashboards = 10
@@ -61,7 +61,7 @@ type labStack struct {
 	client *Client
 }
 
-// loadLabStack loads lab/jumper, moves to the repository root (the profile's
+// loadLabStack loads lab/jumpr, moves to the repository root (the profile's
 // helper path is relative to it) and skips unless the stack is up.
 func loadLabStack(t *testing.T) *labStack {
 	t.Helper()
@@ -69,7 +69,7 @@ func loadLabStack(t *testing.T) *labStack {
 	root := labtest.Root(t)
 
 	if len(cfg.Grafana) == 0 {
-		t.Skipf("%s: lab/jumper/config.yaml configures no grafana server", labSkip)
+		t.Skipf("%s: lab/jumpr/config.yaml configures no grafana server", labSkip)
 	}
 	entry := cfg.Grafana[0]
 
@@ -77,13 +77,13 @@ func loadLabStack(t *testing.T) *labStack {
 	if err != nil {
 		t.Fatalf("lab: home directory: %v", err)
 	}
-	profiles, err := config.LoadConnections(filepath.Join("lab", "jumper", "connections.yaml"), home)
+	profiles, err := config.LoadConnections(filepath.Join("lab", "jumpr", "connections.yaml"), home)
 	if err != nil {
 		t.Fatalf("lab: connections: %v", err)
 	}
 	p, ok := profiles[labProfile]
 	if !ok || p == nil {
-		t.Skipf("%s: lab/jumper/connections.yaml has no %q profile", labSkip, labProfile)
+		t.Skipf("%s: lab/jumpr/connections.yaml has no %q profile", labSkip, labProfile)
 	}
 	if p.Auth.Helper == nil || len(p.Auth.Helper.Command) == 0 {
 		t.Fatalf("lab: profile %q has no auth helper", labProfile)

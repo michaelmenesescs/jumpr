@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // investigationSet is the selector set that resolves through the hosts of the

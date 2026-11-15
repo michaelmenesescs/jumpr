@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // hostsPerDC is the fleet size per datacenter; the demo world has three DCs.

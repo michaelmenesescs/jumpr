@@ -8,10 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui/theme"
 )
 
 // The dialogs of the action flow before there is a plan: the actions menu, the

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/plugin"
+	"jumpr/internal/plugin"
 )
 
 // fakePluginSource scripts the plugin manager for `:plugins`.
@@ -47,16 +47,16 @@ func TestPluginsCommandLists(t *testing.T) {
 	src := &fakePluginSource{
 		plugins: []plugin.Plugin{
 			{Name: "cert-expiry", Target: "host", Description: "cert days", State: plugin.StateLoaded,
-				Path: "/home/u/.config/jumper/plugins/cert-expiry.yaml"},
+				Path: "/home/u/.config/jumpr/plugins/cert-expiry.yaml"},
 			{Name: "nginx-status", Target: "host", Description: "nginx summary", State: plugin.StateError,
-				Path: "/home/u/.config/jumper/plugins/nginx-status.yaml",
+				Path: "/home/u/.config/jumpr/plugins/nginx-status.yaml",
 				Problems: []plugin.Problem{{
-					File: "/home/u/.config/jumper/plugins/nginx-status.yaml",
+					File: "/home/u/.config/jumpr/plugins/nginx-status.yaml",
 					Line: 7, Field: "parse.type", Msg: "parse type \"xml\" must be one of json, jq, regex, columns, kv, lines, raw",
 				}}},
 		},
 		problems: []plugin.Problem{{
-			File: "/home/u/.config/jumper/plugins/nginx-status.yaml",
+			File: "/home/u/.config/jumpr/plugins/nginx-status.yaml",
 			Line: 7, Field: "parse.type", Msg: "parse type \"xml\" must be one of json, jq, regex, columns, kv, lines, raw",
 		}},
 	}
@@ -75,7 +75,7 @@ func TestPluginsCommandLists(t *testing.T) {
 		"NAME", "TARGET", "STATE", "DESCRIPTION",
 		"cert-expiry", "cert days", plugin.StateLoaded,
 		"nginx-status", "nginx summary", plugin.StateError,
-		"/home/u/.config/jumper/plugins/nginx-status.yaml:7",
+		"/home/u/.config/jumpr/plugins/nginx-status.yaml:7",
 		"parse.type",
 	} {
 		if !strings.Contains(text, want) {

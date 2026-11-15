@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // batchSize is the maximum number of resources in one Result.

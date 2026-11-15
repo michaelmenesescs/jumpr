@@ -7,10 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 func testStatus() StatusData {
@@ -36,7 +36,7 @@ func TestStatusExactWidth(t *testing.T) {
 
 func TestStatusContent(t *testing.T) {
 	got := ansiStrip(RenderStatus(theme.Dark(), testStatus(), 200))
-	for _, want := range []string{"jumper", "main", "0:hosts*", "inv:inc-42", "window:last 1h", "targets:12", "RO", "SYNC ×3", "^A", "●salt", "●prom", "◐grafana"} {
+	for _, want := range []string{"jumpr", "main", "0:hosts*", "inv:inc-42", "window:last 1h", "targets:12", "RO", "SYNC ×3", "^A", "●salt", "●prom", "◐grafana"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in %q", want, got)
 		}

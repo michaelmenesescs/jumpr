@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/salt"
-	"jumper/internal/investigation"
-	"jumper/internal/tui"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/investigation"
+	"jumpr/internal/tui"
 )
 
 // ---- fixtures ----

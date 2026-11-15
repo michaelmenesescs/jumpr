@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 // window is the fixed range the query tests cover: one hour ending at an

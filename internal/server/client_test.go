@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 const testPostamble = "\x1b[?1049l\x1b[?25h\x1b[?2004l\x1b[0m"
@@ -46,7 +46,7 @@ func (b *safeBuffer) String() string {
 // inside the macOS 103-byte sun_path limit.
 func testSocketPath(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "jumper-cli-")
+	dir, err := os.MkdirTemp("/tmp", "jumpr-cli-")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}

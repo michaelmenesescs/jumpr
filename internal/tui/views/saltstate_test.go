@@ -12,13 +12,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/salt"
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui"
 )
 
 // stateMasterHost is the inventory host of the fake Salt master.

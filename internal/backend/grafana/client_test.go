@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 // fixtureServer answers each API path from a recorded JSON body. Query

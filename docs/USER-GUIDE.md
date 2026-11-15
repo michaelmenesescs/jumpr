@@ -1,11 +1,11 @@
-# jumper — user guide
+# jumpr — user guide
 
-jumper is one terminal tool for operating infrastructure from your laptop: from an alert to the
+jumpr is one terminal tool for operating infrastructure from your laptop: from an alert to the
 hosts behind it, to the units, processes, sockets, logs and metrics on those hosts, to the pods on
 them, to the config management that put them there — and then to the fix. It keeps the context at
 every step and writes down what you did.
 
-**Nothing is installed on the servers.** jumper only uses SSH and commands that already exist on
+**Nothing is installed on the servers.** jumpr only uses SSH and commands that already exist on
 RHEL 8+/Ubuntu 20.04+, plus your kubeconfig or an HTTP API when you configure one. All parsing,
 joining, diffing and rendering happen on your machine.
 
@@ -16,44 +16,44 @@ the bastion, `salt.example.internal` is the Salt master.
 
 ## 1. Install
 
-jumper is a single static binary for macOS (arm64 and amd64). No runtime, no cgo, no helper
+jumpr is a single static binary for macOS (arm64 and amd64). No runtime, no cgo, no helper
 daemon to install.
 
 ```
-tar xzf jumper-v1.2.3-darwin-arm64.tar.gz
-xattr -d com.apple.quarantine ./jumper   # only if you downloaded it with a browser
-install -m 0755 jumper ~/bin/jumper      # anywhere on your PATH
-jumper version
+tar xzf jumpr-v1.2.3-darwin-arm64.tar.gz
+xattr -d com.apple.quarantine ./jumpr   # only if you downloaded it with a browser
+install -m 0755 jumpr ~/bin/jumpr      # anywhere on your PATH
+jumpr version
 ```
 
 The archive also carries this guide (`docs/USER-GUIDE.md`), the key reference
 (`docs/KEYS.md`) and the example configuration and plugins (`examples/`), which are the same
-files `jumper init` writes — copy them by hand only if you want to start from them.
+files `jumpr init` writes — copy them by hand only if you want to start from them.
 
 You need:
 
-- an SSH agent or a key jumper can read (`~/.ssh/id_*`), and `ssh_config` entries for your
+- an SSH agent or a key jumpr can read (`~/.ssh/id_*`), and `ssh_config` entries for your
   hosts, or a Salt master (see §2);
 - a terminal of at least 100x30 for comfort (the UI works smaller, it just shows fewer columns).
 
-`jumper` runs a small session server in the background (§5), so a session survives closing the
-laptop lid. It uses one unix socket under `~/.cache/jumper/`.
+`jumpr` runs a small session server in the background (§5), so a session survives closing the
+laptop lid. It uses one unix socket under `~/.cache/jumpr/`.
 
 ---
 
-## 2. First run: `jumper init`, SSH and Salt
+## 2. First run: `jumpr init`, SSH and Salt
 
-`jumper init` writes the configuration skeleton and never overwrites an existing file:
+`jumpr init` writes the configuration skeleton and never overwrites an existing file:
 
 ```
-jumper init                 # ~/.config/jumper/
-jumper init --config-dir /tmp/jumper-demo   # try it somewhere else
+jumpr init                 # ~/.config/jumpr/
+jumpr init --config-dir /tmp/jumpr-demo   # try it somewhere else
 ```
 
 It creates:
 
 ```
-~/.config/jumper/
+~/.config/jumpr/
   config.yaml         every key, at its default, with comments
   connections.yaml    HTTP connection profiles (§8)
   policy.yaml         the action policy (§6)
@@ -61,13 +61,13 @@ It creates:
   plugins/            empty; your YAML plugins go here (§9)
 ```
 
-Configuration lives in `~/.config/jumper`, or wherever `--config-dir` / `$JUMPER_CONFIG_DIR`
+Configuration lives in `~/.config/jumpr`, or wherever `--config-dir` / `$JUMPR_CONFIG_DIR`
 points. Everything is optional: a missing file means defaults. An unknown key is an error naming
 the file and line, so a typo never silently does nothing.
 
-### Pointing jumper at your hosts
+### Pointing jumpr at your hosts
 
-Hosts come from your `ssh_config`. jumper reads the files in `ssh.config_files`, resolves `Host`
+Hosts come from your `ssh_config`. jumpr reads the files in `ssh.config_files`, resolves `Host`
 aliases, `HostName`, `User`, `Port`, `IdentityFile`, `ProxyJump` and bastions, and uses the same
 `known_hosts` your `ssh` does:
 
@@ -87,15 +87,15 @@ inventory:
   sources:
     - type: ssh_config
     - type: static
-      path: ~/.config/jumper/hosts.yaml
+      path: ~/.config/jumpr/hosts.yaml
 ```
 
 `hosts.yaml` is a list of `{id, labels, hostname?, user?, port?}`; labels are what `:hosts
 role=web` selects on. `:inventory refresh` re-reads every source.
 
-### Pointing jumper at a Salt master
+### Pointing jumpr at a Salt master
 
-jumper drives the Salt CLI **over SSH** on the existing master. Nothing is installed there and no
+jumpr drives the Salt CLI **over SSH** on the existing master. Nothing is installed there and no
 API is required; it uses `salt`, `salt-run` and `salt-key` as they are.
 
 ```yaml
@@ -117,7 +117,7 @@ Once `master` is set, the `salt` backend appears (status line shows a green dot)
 Check it before trusting it:
 
 ```
-jumper doctor          # configuration, SSH, agent, bastions, backends, knowledge root, terminal
+jumpr doctor          # configuration, SSH, agent, bastions, backends, knowledge root, terminal
 ```
 
 ---
@@ -125,7 +125,7 @@ jumper doctor          # configuration, SSH, agent, bastions, backends, knowledg
 ## 3. Keys
 
 `docs/KEYS.md` is the full reference. It is generated from the built-in bindings by a test, so it
-cannot drift, and `:keys` shows the map jumper is *currently* running with (after your overrides).
+cannot drift, and `:keys` shows the map jumpr is *currently* running with (after your overrides).
 
 The essentials:
 
@@ -144,7 +144,7 @@ The essentials:
 Every binding in `keymap.yaml` is overridable by name, and so is every prefix binding:
 
 ```yaml
-# ~/.config/jumper/keymap.yaml
+# ~/.config/jumpr/keymap.yaml
 open: [o, enter]          # replaces the default list: name every key you want to keep
 quit: [Q]
 prefix:
@@ -153,11 +153,11 @@ prefix:
 ```
 
 - A list replaces the default completely.
-- Unknown names, and a key bound to two actions, are errors — jumpers tells you the file and line
+- Unknown names, and a key bound to two actions, are errors — jumprs tells you the file and line
   and refuses to start with the file loaded.
 - The prefix key itself is not a binding: it is `mux.prefix` in `config.yaml`
-  (`C-a` by default, `C-b` when jumper runs inside tmux).
-- `:keys` lists the effective map; restart jumper after editing the file.
+  (`C-a` by default, `C-b` when jumpr runs inside tmux).
+- `:keys` lists the effective map; restart jumpr after editing the file.
 
 ---
 
@@ -167,7 +167,7 @@ Each one is a real path through the interface. `enter` drills in, `esc` goes bac
 breadcrumb at the top of the pane always says where you are.
 
 **W1 — alert to root cause.** `:alerts` lists firing alerts from Alertmanager. Select one and
-press `enter`: jumper opens an **investigation** (a Markdown record, §7) with the window set to
+press `enter`: jumpr opens an **investigation** (a Markdown record, §7) with the window set to
 [alert start − 30m, now] and the targets resolved from the alert's labels. The host view shows
 failed and restarting units, the journal for that window, top processes, sockets, disk and memory
 pressure, and a sparkline of the alert's expression. `u` opens a unit, `j` its journal, `p`
@@ -223,19 +223,19 @@ investigation. `policy.yaml` can set `sync.raw: deny` to turn this off entirely;
 
 ## 5. Sessions and detach
 
-jumper runs like tmux: a client attaches to a session hosted by a session server.
+jumpr runs like tmux: a client attaches to a session hosted by a session server.
 
 ```
-jumper                      # attach to the most recent session, or create "main"
-jumper new -s incident      # create and attach a named session
-jumper new -s salt-run -d   # create it without attaching
-jumper ls                   # list sessions: name, windows, attached, created, activity
-jumper kill-session -t incident
-jumper kill-server          # end the server and every session
+jumpr                      # attach to the most recent session, or create "main"
+jumpr new -s incident      # create and attach a named session
+jumpr new -s salt-run -d   # create it without attaching
+jumpr ls                   # list sessions: name, windows, attached, created, activity
+jumpr kill-session -t incident
+jumpr kill-server          # end the server and every session
 ```
 
-Inside jumper, `C-a d` or `:detach` returns you to your shell with everything still running:
-follows keep following, jobs keep polling, shells stay connected. `jumper` attaches again.
+Inside jumpr, `C-a d` or `:detach` returns you to your shell with everything still running:
+follows keep following, jobs keep polling, shells stay connected. `jumpr` attaches again.
 A second client on the same session sees the same panes; `--standalone` skips the server
 entirely for one process (debugging only — the session dies with the terminal).
 
@@ -248,19 +248,19 @@ The layout, the windows and each pane's view are restored after a restart (`--fr
 
 There are three layers, and they are deliberate.
 
-**Read-only.** `jumper --readonly` starts a session where every write is denied, and
+**Read-only.** `jumpr --readonly` starts a session where every write is denied, and
 `:readonly on|off` toggles it at runtime. Reads still work, shells still work if `policy.yaml`
 allows them.
 
 **The action bus.** Every write — a unit restart, a package change, a Salt state apply, a key
 delete, a Kubernetes patch, a broadcast line — is planned by its backend, checked against the
-policy, confirmed by you, executed, and recorded. There is no second path: nothing in jumper
+policy, confirmed by you, executed, and recorded. There is no second path: nothing in jumpr
 writes directly. A plan shows the exact commands, the hosts, the blast radius and the canary; a
 dry run (`state.apply test=True`, a server-side dry run for a patch) is not a write. Rolling
 batches, a canary first, and typed confirmation over a size threshold are all configurable:
 
 ```yaml
-# ~/.config/jumper/config.yaml
+# ~/.config/jumpr/config.yaml
 rollout:
   canary: 1
   batch_percent: 10
@@ -282,10 +282,10 @@ anything is written.
 
 ## 7. Investigations and knowledge files
 
-Everything is plain Markdown under `knowledge.root` (`~/jumper` by default):
+Everything is plain Markdown under `knowledge.root` (`~/jumpr` by default):
 
 ```
-~/jumper/
+~/jumpr/
   investigations/2026-11-12-api-5xx-ewr.md   one file per investigation
   audit/2026-11-12.md                        actions, denials and input when no investigation is open
   knowledge/hosts/web-01.example.internal.md
@@ -297,7 +297,7 @@ Everything is plain Markdown under `knowledge.root` (`~/jumper` by default):
 An investigation carries the window, the targets, the alerts and the timeline; `:inv` opens,
 closes, resolves or resumes one (`:inv resume <id>`), `:timeline` shows it as a view, `:note
 <text>` appends a note, `F` marks a selection as a finding, and `y` yanks. Files are ordinary
-Markdown: edit them by hand, `git init` the root, review the diff. jumper reads them back —
+Markdown: edit them by hand, `git init` the root, review the diff. jumpr reads them back —
 notes match by host, service, alert and tag, and closed investigations are searched too — which is
 what makes W6 work.
 
@@ -315,7 +315,7 @@ connections:
       type: ssh-socks                       # built-in SOCKS over an SSH host, like ssh -D
       via: bastion1.example.internal
     tls:
-      ca_file: ~/.config/jumper/ca/corp-root.pem
+      ca_file: ~/.config/jumpr/ca/corp-root.pem
     auth:
       type: helper
       helper:
@@ -323,7 +323,7 @@ connections:
         cache_ttl: 50m
         refresh_on: [401, 403, 302-to-login]
     headers:
-      X-Requested-By: jumper
+      X-Requested-By: jumpr
     timeout: 15s
 ```
 
@@ -336,14 +336,14 @@ executable that prints this JSON on stdout:
  "expires_at": "2026-11-12T18:00:00Z"}
 ```
 
-jumper keeps the answer **in memory only**, caches it for `cache_ttl`, and on one of the
+jumpr keeps the answer **in memory only**, caches it for `cache_ttl`, and on one of the
 `refresh_on` conditions (a 401/403, or a redirect to a login page) drops the cache, runs the
 helper once and retries once. `examples/auth-helper-cookie` is a working one: it reads the cookie
-from `JUMPER_AUTH_COOKIE` or the macOS Keychain.
+from `JUMPR_AUTH_COOKIE` or the macOS Keychain.
 
 ```
 go build -o ~/go/bin/auth-helper-cookie ./examples/auth-helper-cookie
-jumper doctor conn corp-sso https://prom.example.internal/api/v1/query?query=up
+jumpr doctor conn corp-sso https://prom.example.internal/api/v1/query?query=up
 ```
 
 `doctor conn` prints the resolved proxy, the TLS chain, the helper's output (redacted) and the
@@ -354,11 +354,11 @@ by name from a backend (`prometheus.connection: corp-sso`) or a plugin (`connect
 
 ## 9. Writing a plugin
 
-A plugin is one YAML file in `~/.config/jumper/plugins/`. It is hot-reloaded: save it, then
+A plugin is one YAML file in `~/.config/jumpr/plugins/`. It is hot-reloaded: save it, then
 `:plugins reload`. This one sums up nginx's workers and established connections on a host:
 
 ```yaml
-apiVersion: jumper/v1
+apiVersion: jumpr/v1
 kind: Plugin
 name: nginx-status
 description: nginx worker + connection summary
@@ -390,7 +390,7 @@ actions:
   `columns` splits fixed columns, `kv` and `lines` are the simple cases, `raw` shows text.
 - `emits_hosts: host` makes each row pivotable to a host.
 - `actions` are real writes: they go through the action bus like everything else.
-- A malformed plugin is reported with the file, line and field, and jumper keeps running without
+- A malformed plugin is reported with the file, line and field, and jumpr keeps running without
   it. `:plugins` lists what loaded.
 
 `S` on a fan-out view (a `:run` or `:probe` result) saves the command behind those results as a
@@ -403,24 +403,24 @@ plugin, so the fastest way to write one is to run it once and save the view.
 Start with `doctor`; it checks each layer and says what to do next.
 
 ```
-jumper doctor                       # config, SSH, agent, bastions, samples, backends, knowledge root
-jumper doctor ssh web-01.example.internal    # resolve, dial, authenticate, run read-only probes
-jumper doctor conn corp-sso https://prom.example.internal/   # one HTTP profile
-jumper --debug                      # structured debug log in ~/.cache/jumper/jumper.log
+jumpr doctor                       # config, SSH, agent, bastions, samples, backends, knowledge root
+jumpr doctor ssh web-01.example.internal    # resolve, dial, authenticate, run read-only probes
+jumpr doctor conn corp-sso https://prom.example.internal/   # one HTTP profile
+jumpr --debug                      # structured debug log in ~/.cache/jumpr/jumpr.log
 ```
 
 | Symptom | What to look at |
 |---|---|
 | "no backends configured; try --demo" | `config.yaml` has no source with hosts: set `ssh.config_files` or `salt.master` |
 | A host cell shows `timeout` | reachability or bastion saturation: `doctor ssh <host>`, `ssh.max_conns_per_bastion` |
-| A cell shows `sudo` | the account needs a password for `sudo -n`; jumper never prompts remote sudo |
+| A cell shows `sudo` | the account needs a password for `sudo -n`; jumpr never prompts remote sudo |
 | A cell shows `not-available` | the command is not on that host (rc 127); the probe needs another tool |
 | `auth` / `hostkey` | an unknown or changed host key, or a failed SSH auth — `doctor ssh <host>` prints both |
 | An HTTP backend shows `auth` | the connection profile: `doctor conn <profile> <url>` |
-| Keys do nothing, or jumper refuses to start | the error names the `keymap.yaml` line; `:keys` shows the effective map |
+| Keys do nothing, or jumpr refuses to start | the error names the `keymap.yaml` line; `:keys` shows the effective map |
 | A plugin is missing from `:plugins` | the load error names file, line and field |
-| The UI looks wrong after a panic | jumper restored the terminal and wrote a crash report to `~/.cache/jumper/crash/`; attach it to a bug report (it is redacted) |
-| A session is stale | `jumper ls`, `jumper kill-session -t <name>`, or `jumper kill-server` |
+| The UI looks wrong after a panic | jumpr restored the terminal and wrote a crash report to `~/.cache/jumpr/crash/`; attach it to a bug report (it is redacted) |
+| A session is stale | `jumpr ls`, `jumpr kill-session -t <name>`, or `jumpr kill-server` |
 
 `--demo` runs a built-in fake fleet of 1,512 hosts with no configuration at all: the quickest way
 to see the interface, and a way to tell a UI problem from a connection problem.
@@ -431,15 +431,15 @@ to see the interface, and a way to tell a UI problem from a connection problem.
 
 | Path | What |
 |---|---|
-| `~/.config/jumper/config.yaml` | backends, inventory, SSH, Salt, rollout limits |
-| `~/.config/jumper/connections.yaml` | HTTP connection profiles |
-| `~/.config/jumper/policy.yaml` | action policy |
-| `~/.config/jumper/keymap.yaml` | key overrides |
-| `~/.config/jumper/plugins/*.yaml` | YAML plugins |
-| `~/jumper/` | investigations, audit files and knowledge notes |
-| `~/.cache/jumper/jumper.log` | debug log (`--debug`) |
-| `~/.cache/jumper/crash/` | crash reports |
-| `~/.cache/jumper/jumper.sock` | session-server socket |
+| `~/.config/jumpr/config.yaml` | backends, inventory, SSH, Salt, rollout limits |
+| `~/.config/jumpr/connections.yaml` | HTTP connection profiles |
+| `~/.config/jumpr/policy.yaml` | action policy |
+| `~/.config/jumpr/keymap.yaml` | key overrides |
+| `~/.config/jumpr/plugins/*.yaml` | YAML plugins |
+| `~/jumpr/` | investigations, audit files and knowledge notes |
+| `~/.cache/jumpr/jumpr.log` | debug log (`--debug`) |
+| `~/.cache/jumpr/crash/` | crash reports |
+| `~/.cache/jumpr/jumpr.sock` | session-server socket |
 
-`JUMPER_CONFIG_DIR`, `JUMPER_SOCKET` and `JUMPER_GLYPHS` override the configuration directory, the
+`JUMPR_CONFIG_DIR`, `JUMPR_SOCKET` and `JUMPR_GLYPHS` override the configuration directory, the
 socket and the glyph set (`auto|unicode|nerd|ascii`).

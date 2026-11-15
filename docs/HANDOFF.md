@@ -12,8 +12,8 @@ _Last updated: 2026-11-12 (task 014 done; M0 in progress)_
 - [x] Task breakdown → `docs/tasks/` (one file per task; index and workflow in `docs/tasks/README.md`)
 - [x] Lab controller `cmd/@@` and `lab/` (separate track; see `lab/README.md`)
 - [x] **Task 001 done:** `go.mod`/`go.sum` with every M0–M7 dependency pinned (BUILD-PLAN §10), `Makefile`
-      (`build test lint lab-test check tidy`), `cmd/jumper/main.go` (version only), `internal/deps/deps.go`
-      (blank imports under `//go:build deps`). `make check` green; `./jumper version` → `jumper dev`.
+      (`build test lint lab-test check tidy`), `cmd/jumpr/main.go` (version only), `internal/deps/deps.go`
+      (blank imports under `//go:build deps`). `make check` green; `./jumpr version` → `jumpr dev`.
 
 - [x] **Task 002 done:** `internal/errs` exactly as BUILD-PLAN §4.1 — `Kind` constants, `Error`
       (`Kind/Op/Host/Msg/Err`), `New`, `Wrap`, `WithHost` (copy), `KindOf` (`errors.As` → ctx deadline/cancel →
@@ -171,7 +171,7 @@ lab tests create these situations themselves with `labtest.Break` (lab-only SSH 
 - bastion sshd with `MaxSessions 10` and default `MaxStartups` (to exercise pool limits, task 035)
 - observability stack + mock SSO cookie proxy (Go) for M8: Prometheus, Alertmanager, Grafana, Elasticsearch, with
   an alert that fires when `haproxy-443` is injected
-- a `lab/jumper/` directory is owned by the implementation tasks (jumper's config for the lab), not by the lab
+- a `lab/jumpr/` directory is owned by the implementation tasks (jumpr's config for the lab), not by the lab
   track
 
 ## Ground rules (from the user)
@@ -185,7 +185,7 @@ lab tests create these situations themselves with `labtest.Break` (lab-only SSH 
 
 ## Repo
 
-- Local: `~/workspace/sitrep` (git, branch `main`; directory keeps its old name, the module/binary/paths are `jumper`).
+- Local: `~/workspace/sitrep` (git, branch `main`; directory keeps its old name, the module/binary/paths are `jumpr`).
   **No remote yet.** Personal use now, so a private personal GitHub repo is the sane default when you want one.
 - Toolchain: go 1.27.2 darwin/arm64.
 
@@ -196,7 +196,7 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
 - 2026-11-12 — Scoping: spec v0.2, build plan, tasks 001–127 written. Dependency set verified to compile
   together with `CGO_ENABLED=0` (Bubble Tea v1.3.10 + `charmbracelet/x/vt` v0.1.0 and the rest of BUILD-PLAN §10).
 - 2026-11-12 — Task 001: repo bootstrap. All 17 pinned M0–M7 modules in `go.mod` (held by the blank imports in
-  `internal/deps`), `Makefile`, `cmd/jumper` (version printing), `.gitignore` additions. `make check` green;
+  `internal/deps`), `Makefile`, `cmd/jumpr` (version printing), `.gitignore` additions. `make check` green;
   `go mod tidy` idempotent; `GOARCH=amd64` cross-build OK; `cmd/@@` still builds. Choice: `lint` is two
   recipe lines, `test -z "$(gofmt -l .)"` then `go vet ./...`, so unformatted files fail it (task Pitfalls).
 - 2026-11-12 — Task 002: `internal/errs`. Choice: `Is(nil, "")` is `true`, because task requirement 6 defines
@@ -306,8 +306,8 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   with a nil/absent registry flashes `unknown command` rather than panicking. `make check` green; `internal/tui`
   tests 1.47 s under `-race`, acceptance suite passes.
 
-- 2026-11-12 — Task 000 (rename): `sitrep` → `jumper` across module path, binary (`cmd/jumper`), imports, config/cache/
-  crash paths (`~/.config/jumper`, `~/.cache/jumper`), env prefix (`JUMPER_`), Makefile, docs and all task files.
+- 2026-11-12 — Task 000 (rename): `sitrep` → `jumpr` across module path, binary (`cmd/jumpr`), imports, config/cache/
+  crash paths (`~/.config/jumpr`, `~/.cache/jumpr`), env prefix (`JUMPR_`), Makefile, docs and all task files.
   Deliberately **not** renamed: the `sitrep-lab` / `sitrep-dev` binaries (lab track owns `cmd/sitrep-lab/` and `lab/`),
   and the repo directory, which stays `~/workspace/sitrep`. `go build ./...`, `go vet ./...`, `go test ./...` green.
   Also removed six orphaned, untracked task-015 WIP files (`internal/tui/{statusline,hints,dialog,dialog_help}.go` + two
@@ -352,10 +352,10 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
   - Tasks 022, 031, 080 had edited `docs/tasks/README.md` against instructions; the index hunk was dropped from each
     commit (`git checkout main -- docs/tasks/README.md`), then rebased and merged. Their task work was unaffected.
 
-- 2026-11-12 — Task 142: glyph wiring. `internal/app.resolveGlyphs` is the only place that reads `JUMPER_GLYPHS`
+- 2026-11-12 — Task 142: glyph wiring. `internal/app.resolveGlyphs` is the only place that reads `JUMPR_GLYPHS`
   (rule 7); it beats `ui.glyphs`, and `auto` → unicode. The set goes `Env.Glyphs` → root → table/status line/format,
-  via `render.FitWith` and `GlyphSet.Empty`/`AgeWith`. Verified end to end, not just by unit test: `JUMPER_GLYPHS=ascii
-  ./jumper --demo` in a 100x10 PTY renders a frame with **zero** runes above 0x7f (`+fake`, `|` separators, ASCII
+  via `render.FitWith` and `GlyphSet.Empty`/`AgeWith`. Verified end to end, not just by unit test: `JUMPR_GLYPHS=ascii
+  ./jumpr --demo` in a 100x10 PTY renders a frame with **zero** runes above 0x7f (`+fake`, `|` separators, ASCII
   sparklines), asserted by `TestAsciiFrame` at 120x34. Two rebase conflicts were resolved by hand (root.go against the
   mux work from 022; a `NewRoot` call-site arity change in a test).
 
@@ -365,9 +365,9 @@ _Append one entry per session: date, tasks done, anything surprising, measured n
 The build now runs on the M4 Mac mini (`ssh mini`), not the laptop. Layout on that machine:
 
 - repo: `~/workspace/sitrep` (same `main`, branch per task under `~/workspace/wt/t<NNN>`)
-- runner: `~/jumper-run/` — `scheduler.py`, `launch.sh`, `supervise.sh`, `status.sh`, `stop.sh`, `state.json`,
-  per-task agent logs in `~/jumper-run/logs/<NNN>.log`, scheduler output in `logs/supervisor.out`
-- tmux session `jumper` runs `supervise.sh` (restarts the scheduler if it dies; state.json makes restarts safe)
+- runner: `~/jumpr-run/` — `scheduler.py`, `launch.sh`, `supervise.sh`, `status.sh`, `stop.sh`, `state.json`,
+  per-task agent logs in `~/jumpr-run/logs/<NNN>.log`, scheduler output in `logs/supervisor.out`
+- tmux session `jumpr` runs `supervise.sh` (restarts the scheduler if it dies; state.json makes restarts safe)
 - one Hermes agent per task, its own worktree; the scheduler verifies the **rebased** tree (gofmt/vet/test +
   forbidden-path check) before an `--ff-only` merge, marks the task done in the index and amends the commit
 
@@ -377,9 +377,9 @@ Provider note: the first launch died on `deepseek-flash` (billing exhausted). Th
 The build now runs on the M4 Mac mini (`ssh mini`), not the laptop. Layout on that machine:
 
 - repo: `~/workspace/sitrep` (same `main`, branch per task under `~/workspace/wt/t<NNN>`)
-- runner: `~/jumper-run/` — `scheduler.py`, `launch.sh`, `supervise.sh`, `status.sh`, `stop.sh`, `state.json`;
-  per-task agent logs in `~/jumper-run/logs/<NNN>.log`, scheduler output in `logs/supervisor.out`
-- tmux session `jumper` runs `supervise.sh` (restarts the scheduler if it dies; `state.json` makes restarts safe)
+- runner: `~/jumpr-run/` — `scheduler.py`, `launch.sh`, `supervise.sh`, `status.sh`, `stop.sh`, `state.json`;
+  per-task agent logs in `~/jumpr-run/logs/<NNN>.log`, scheduler output in `logs/supervisor.out`
+- tmux session `jumpr` runs `supervise.sh` (restarts the scheduler if it dies; `state.json` makes restarts safe)
 - one Hermes agent per task, each in its own worktree; the scheduler verifies the **rebased** tree
   (gofmt/vet/test plus forbidden-path check) before an `--ff-only` merge, marks the task done in the index and
   amends that task's commit
@@ -402,24 +402,24 @@ Verification that actually ran (Mac mini, final tree):
 |---|---|
 | `make check` (gofmt + vet + `go test ./...` + build) | **exit 0, 43 packages ok** |
 | `go test -race -count=1 ./...` | **42 packages, exit 0, no FAIL** |
-| `go build ./cmd/jumper` | 5.7 s, **56 MB** binary (gate is 80 MB) |
-| `./jumper --demo` in a real PTY (120x34) | alt screen entered, `jumper main 0:* targets:0`, `host (1512)`, fake health dot, keystrokes accepted, clean exit (7,878 bytes) |
-| `jumper doctor` (temp HOME) | 13 checks, exit 0 |
-| `jumper doctor` with the real `~/.ssh/config` | 6 hosts parsed, bastions reported absent, host-key prompter rendered, dead host classified `timeout` |
+| `go build ./cmd/jumpr` | 5.7 s, **56 MB** binary (gate is 80 MB) |
+| `./jumpr --demo` in a real PTY (120x34) | alt screen entered, `jumpr main 0:* targets:0`, `host (1512)`, fake health dot, keystrokes accepted, clean exit (7,878 bytes) |
+| `jumpr doctor` (temp HOME) | 13 checks, exit 0 |
+| `jumpr doctor` with the real `~/.ssh/config` | 6 hosts parsed, bastions reported absent, host-key prompter rendered, dead host classified `timeout` |
 | **`make homelab-test` against a real Ubuntu 24.04.5 over SSH** | **all TestHomelab* PASS** — overview 9 sections / 2,325 bytes / **7 ms** (dial 28 ms, first byte 1 ms), 310 units (192 active), 50 journal entries, 24 probe commands proven read-only |
 
 Two real targets, both green:
 
-- `ssh jumper-lab` — OrbStack Ubuntu 24.04.5 on the OrbStack kernel, which has **no PSI**. This is the
+- `ssh jumpr-lab` — OrbStack Ubuntu 24.04.5 on the OrbStack kernel, which has **no PSI**. This is the
   run that found the missing-`CONFIG_PSI` bug below.
 - `ssh macmini` — the user's own Ubuntu 24.04 box (Linux 6.8.0-149, 8.0 GB). It was down all morning
   (TCP accepted, SSH banner exchanged, publickey answers never came, later resets), and passed
   7/7 once it came back: `id -un` → `mike` in 228 ms, 516 units / 349 active, 50 journal entries,
   overview **37 ms / 2,853 bytes / 9 sections**, dial 81 ms, first byte 4 ms. That is the normal
-  path; `jumper-lab` covered the no-PSI path.
+  path; `jumpr-lab` covered the no-PSI path.
 
 Task 144's suite skips cleanly on a silent node (`homelabSkipIfSilent`), so both runs are repeatable:
-`JUMPER_HOMELAB_UBUNTU=macmini make homelab-test`.
+`JUMPR_HOMELAB_UBUNTU=macmini make homelab-test`.
 
 **Bug the real host found:** the PSI probe section exited 1 on a kernel without `CONFIG_PSI`
 (`/proc/pressure/*` absent), so the overview reported a *failed* section instead of "not available".

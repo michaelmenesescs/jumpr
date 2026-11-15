@@ -8,13 +8,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
 )
 
 // ---- fixtures ----

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 // Box characters. Rounded, like tmux's default pane border.

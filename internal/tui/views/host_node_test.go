@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/k8s"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/k8s"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // nodeOnlyBackend is a backend that knows one Kubernetes node and nothing else.

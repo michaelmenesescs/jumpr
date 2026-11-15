@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // snippetLen is how much unparsable output an error message carries.

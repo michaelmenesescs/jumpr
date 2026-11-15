@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // journalLine renders one journalctl -o json line.

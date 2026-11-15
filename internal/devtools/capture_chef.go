@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/backend/chef"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/backend/chef"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 // Chef capture defaults. A capture is a one-shot developer tool, so the timeout
@@ -63,7 +63,7 @@ type chefCapture struct {
 // 113-114 are written against what knife actually prints (SPEC §8.7).
 //
 // Every JSON command goes through chef.Runner, i.e. exactly the command line,
-// JSON flags and failure rules jumper itself uses. The one plain-text capture
+// JSON flags and failure rules jumpr itself uses. The one plain-text capture
 // (knife --version) is built with shq and run on the same workstation. Output
 // passes through Sanitize.
 //
@@ -182,7 +182,7 @@ func chefReadme(lines, deviations []string) []byte {
 	var b strings.Builder
 	b.WriteString("# Chef capture files\n\n")
 	b.WriteString("Captured from the lab's Chef workstation with\n")
-	b.WriteString("`go run ./cmd/sitrep-lab capture chef --config-dir lab/jumper`.\n\n")
+	b.WriteString("`go run ./cmd/sitrep-lab capture chef --config-dir lab/jumpr`.\n\n")
 	b.WriteString("Every file is knife's own output on the lab's chef-zero, passed through\n")
 	b.WriteString("`devtools.Sanitize`. One line per file: the exact command that produced it.\n\n")
 	b.WriteString(strings.Join(lines, "\n"))

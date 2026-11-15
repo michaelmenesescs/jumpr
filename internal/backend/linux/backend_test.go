@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // testInventory is a fixed host list implementing inventory.Inventory.

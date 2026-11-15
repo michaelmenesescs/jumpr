@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // jobsHistory is the answer of one jobs.list_jobs call. jidB is also in
@@ -22,7 +22,7 @@ const jobsHistory = `{
 }`
 
 // jobsActive is the answer of jobs.active: jidB is still running, and one
-// internal job (jumper's own polling noise) is running too.
+// internal job (jumpr's own polling noise) is running too.
 const jobsActive = `{
   "20261112135501765432": {"Function": "state.apply", "Arguments": ["nginx"], "Target": ["web-01", "web-02"],
     "Target-type": "list", "User": "sudo_sre", "Running": [{"web-02": 4321}], "Returned": ["web-01"]},

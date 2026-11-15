@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // stubBackend is a minimal Backend for registry tests.

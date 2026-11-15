@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
 )
 
 // testTime is the clock the fixtures are written against: web-01 checked in 5
@@ -127,7 +127,7 @@ func TestParseNodeDetail(t *testing.T) {
 		}
 	}
 	normal := strings.Join(d.Attributes[0].Lines, "\n")
-	if !strings.Contains(normal, "jumper.owner = platform") {
+	if !strings.Contains(normal, "jumpr.owner = platform") {
 		t.Errorf("normal attributes missing:\n%s", normal)
 	}
 	automatic := d.Attributes[3]

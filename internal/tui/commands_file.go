@@ -11,15 +11,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 const (

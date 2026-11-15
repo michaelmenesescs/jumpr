@@ -1,4 +1,4 @@
-// Package safe is how jumper starts the goroutines it owns: a panic inside one
+// Package safe is how jumpr starts the goroutines it owns: a panic inside one
 // of them is recovered at its top, logged with the stack that produced it and
 // reported, instead of taking the process (and every session in it) down
 // (SPEC §15 "Crash safety", task 126 requirement 1).
@@ -12,7 +12,7 @@ import (
 	"log/slog"
 	"runtime/debug"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Panic is one recovered panic: what was running, the value it panicked with

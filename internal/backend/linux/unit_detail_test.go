@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // unitDetailStatus is an active nginx.service's `systemctl status` output.

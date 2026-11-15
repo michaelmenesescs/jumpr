@@ -7,10 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/plugin"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui"
+	"jumpr/internal/plugin"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui"
 )
 
 // TestFanoutSaveAsPluginPromptsAndWrites is requirement 4: `S` in a run result

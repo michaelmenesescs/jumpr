@@ -1,6 +1,6 @@
 package prom
 
-import "jumper/internal/resource"
+import "jumpr/internal/resource"
 
 // Kind names this backend serves.
 const (

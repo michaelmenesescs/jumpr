@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"jumper/internal/probe"
-	"jumper/internal/resource"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
 )
 
 // interfaceRows joins `ip -j -s link` with `ip -j addr`: one row per interface,

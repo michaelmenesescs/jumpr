@@ -3,7 +3,7 @@ package inventory
 import (
 	"regexp"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Rewrite replaces every match of From with To. Both are applied to the

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Static returns a Prompter that answers with the given answers in order and

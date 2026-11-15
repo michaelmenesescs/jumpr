@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
 )
 
 // saltPrefix is the label namespace the inventory adds to grain keys. A
@@ -32,7 +32,7 @@ type Compiled struct {
 	Explain string
 }
 
-// CompileSelector turns a jumper selector into one compound Salt target.
+// CompileSelector turns a jumpr selector into one compound Salt target.
 // It succeeds only when the selector has no sets and every term targets a
 // known grain or the minion ID. Values Salt cannot take in a compound
 // expression (empty, a space, a quote, or parentheses) make it fail so the

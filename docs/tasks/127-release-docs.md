@@ -19,10 +19,10 @@ Daily-driver ready: rebindable keys, a reproducible release, and docs a new user
    by a test with `-update` from the defaults (so it cannot drift).
 2. `go run ./cmd/@@ release --version vX.Y.Z` (Go, no scripts): checks a clean tree and passing
    `make check`; builds `darwin/arm64` and `darwin/amd64` with `CGO_ENABLED=0 -trimpath -ldflags "-s -w -X
-   main.version=…"`; writes `dist/jumper-<ver>-darwin-<arch>.tar.gz` with the binary, `README.md`, the example
+   main.version=…"`; writes `dist/jumpr-<ver>-darwin-<arch>.tar.gz` with the binary, `README.md`, the example
    configs and plugins; writes `dist/SHA256SUMS`; prints sizes. `--sign <identity>` runs `codesign` when given
    (open question: signing identity). No upload, no tag push.
-3. `docs/USER-GUIDE.md`: install, `jumper init`, pointing at ssh_config and a Salt master, the nine workflows of
+3. `docs/USER-GUIDE.md`: install, `jumpr init`, pointing at ssh_config and a Salt master, the nine workflows of
    SPEC §5 as short walkthroughs, sessions and detach, safety model (bus, policy, read-only), investigations and
    knowledge files, connection profiles with the example helper, writing a plugin, troubleshooting with
    `doctor`. Neutral examples only.

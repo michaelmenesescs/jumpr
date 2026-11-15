@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/interact"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/theme"
 )
 
 // The session UX of task 082, from the process's side: work keeps running while

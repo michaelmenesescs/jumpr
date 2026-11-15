@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // doctorAllFixture is a temp home and config directory for the full report: a
@@ -26,24 +26,24 @@ type doctorAllFixture struct {
 	socketDir string
 }
 
-// newDoctorAllFixture writes everything `jumper doctor` reads, none of which
+// newDoctorAllFixture writes everything `jumpr doctor` reads, none of which
 // touches the network. The session socket lives in a short, private directory
 // under /tmp because macOS caps a unix socket path at 103 bytes.
 func newDoctorAllFixture(t *testing.T) *doctorAllFixture {
 	t.Helper()
 	home := t.TempDir()
-	dir := filepath.Join(home, ".config", "jumper")
+	dir := filepath.Join(home, ".config", "jumpr")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(home, ".cache", "jumper"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, ".cache", "jumpr"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	work := filepath.Join(home, "work")
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	socketDir, err := os.MkdirTemp("/tmp", "jumper-doctor-")
+	socketDir, err := os.MkdirTemp("/tmp", "jumpr-doctor-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func (f *doctorAllFixture) writeConfig(t *testing.T, extra string) {
 		"knowledge:\n  root: %q\n"+
 		"prometheus:\n  - name: prom\n    url: https://prom.example.internal\n    connection: corp\n"+
 		"grafana:\n  - name: grafana\n    url: https://grafana.example.internal\n    connection: corp\n%s",
-		f.sshCfg, f.hostsFile, filepath.Join(f.home, "jumper"), extra)
+		f.sshCfg, f.hostsFile, filepath.Join(f.home, "jumpr"), extra)
 	if err := os.WriteFile(filepath.Join(f.dir, "config.yaml"), []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func (f *doctorAllFixture) runDoctorAll(t *testing.T, env map[string]string, hoo
 	if env == nil {
 		env = map[string]string{}
 	}
-	env["JUMPER_SOCKET"] = filepath.Join(f.socketDir, "jumper.sock")
+	env["JUMPR_SOCKET"] = filepath.Join(f.socketDir, "jumpr.sock")
 	var out strings.Builder
 	code := doctorAllWith(context.Background(), Options{
 		Home:      f.home,

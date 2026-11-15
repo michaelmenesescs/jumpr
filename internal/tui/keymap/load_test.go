@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/mux"
+	"jumpr/internal/mux"
 )
 
 var update = flag.Bool("update", false, "rewrite docs/KEYS.md from the defaults")
@@ -245,7 +245,7 @@ func TestLoadReportsEveryProblem(t *testing.T) {
 	}
 }
 
-// TestLoadShippedTemplate loads the keymap.yaml `jumper init` writes: it must be
+// TestLoadShippedTemplate loads the keymap.yaml `jumpr init` writes: it must be
 // valid and must spell every default, so the template cannot drift from the map.
 func TestLoadShippedTemplate(t *testing.T) {
 	o, probs := Load(filepath.Join("..", "..", "app", "templates", "keymap.yaml"))

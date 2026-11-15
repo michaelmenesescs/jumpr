@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/mux"
-	"jumper/internal/tui/keymap"
+	"jumpr/internal/mux"
+	"jumpr/internal/tui/keymap"
 )
 
 // muxOpText describes one mux operation for the help dialog. The key table in

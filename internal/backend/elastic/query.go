@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // SearchSize is how many hits one `_search` asks for (SPEC §8.5).
@@ -62,7 +62,7 @@ type SearchBody struct {
 	PIT            *PointInTime `json:"pit,omitempty"`
 }
 
-// Query is the `query` part of a search. jumper only builds bool queries:
+// Query is the `query` part of a search. jumpr only builds bool queries:
 // every clause it adds is a filter or a must, never a scoring change.
 type Query struct {
 	Bool Bool `json:"bool"`

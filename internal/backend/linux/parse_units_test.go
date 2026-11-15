@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 func readUnitTestdata(t *testing.T, name string) string {

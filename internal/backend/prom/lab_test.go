@@ -4,7 +4,7 @@
 // observability stack behind the mock SSO proxy (task 104).
 //
 // These tests are ordinary Go tests behind the `lab` build tag. They skip with
-// "lab observability stack not running" unless the lab is up, lab/jumper names
+// "lab observability stack not running" unless the lab is up, lab/jumpr names
 // a Prometheus and an Alertmanager, the `lab-sso` auth helper is built, and both
 // addresses accept a TCP connection. Nothing here runs a proxy: the mock SSO
 // proxy belongs to the lab track and must be a Go program (task 104, Pitfalls).
@@ -19,7 +19,7 @@
 //     cookie and answers {"cookie": "<renewed value>"}, which is how the helper
 //     refresh test gets a new value to hand back.
 //
-// The tests drive jumper's packages, not the TUI: prom clients built from the
+// The tests drive jumpr's packages, not the TUI: prom clients built from the
 // same connection profiles the app builds, the Alertmanager backend behind
 // `:alerts`, HostsFromLabels over a Prometheus-backed inventory, and the action
 // bus for the silence writes (SPEC W1).
@@ -41,17 +41,17 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/bus"
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	"jumper/internal/investigation"
-	"jumper/internal/labtest"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/bus"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	"jumpr/internal/investigation"
+	"jumpr/internal/labtest"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/httpx"
 )
 
 const (
@@ -61,7 +61,7 @@ const (
 	// labProfile is the connection profile both lab servers use.
 	labProfile = "lab-sso"
 	// labCookieVar is what examples/auth-helper-cookie reads.
-	labCookieVar = "JUMPER_AUTH_COOKIE"
+	labCookieVar = "JUMPR_AUTH_COOKIE"
 	// labInvalidatePath is the mock proxy's lab-only session control.
 	labInvalidatePath = "/__lab/sso/invalidate"
 	// labFault is the fault whose alert these tests follow.
@@ -95,7 +95,7 @@ type labStack struct {
 	am       config.AlertmanagerConfig
 }
 
-// loadLabStack loads lab/jumper, moves to the repository root (the profile's
+// loadLabStack loads lab/jumpr, moves to the repository root (the profile's
 // helper path is relative to it) and skips unless the stack is up.
 func loadLabStack(t *testing.T) *labStack {
 	t.Helper()
@@ -106,20 +106,20 @@ func loadLabStack(t *testing.T) *labStack {
 	if err != nil {
 		t.Fatalf("lab: home directory: %v", err)
 	}
-	cfg, err := config.Load(filepath.Join("lab", "jumper", "config.yaml"), home)
+	cfg, err := config.Load(filepath.Join("lab", "jumpr", "config.yaml"), home)
 	if err != nil {
 		t.Fatalf("lab: config: %v", err)
 	}
 	if len(cfg.Prometheus) == 0 || len(cfg.Alertmanager) == 0 {
-		t.Skipf("%s: lab/jumper/config.yaml configures no prometheus and alertmanager server", labSkip)
+		t.Skipf("%s: lab/jumpr/config.yaml configures no prometheus and alertmanager server", labSkip)
 	}
-	profiles, err := config.LoadConnections(filepath.Join("lab", "jumper", "connections.yaml"), home)
+	profiles, err := config.LoadConnections(filepath.Join("lab", "jumpr", "connections.yaml"), home)
 	if err != nil {
 		t.Fatalf("lab: connections: %v", err)
 	}
 	p, ok := profiles[labProfile]
 	if !ok || p == nil {
-		t.Skipf("%s: lab/jumper/connections.yaml has no %q profile", labSkip, labProfile)
+		t.Skipf("%s: lab/jumpr/connections.yaml has no %q profile", labSkip, labProfile)
 	}
 	if p.Auth.Helper == nil || len(p.Auth.Helper.Command) == 0 {
 		t.Fatalf("lab: profile %q has no auth helper", labProfile)
@@ -131,7 +131,7 @@ func loadLabStack(t *testing.T) *labStack {
 		t.Skipf("%s: the lab is down (lab/ssh_config missing); run: go run ./cmd/sitrep-lab up", labSkip)
 	}
 	// The helper is built by hand (task 104): a missing binary means the stack
-	// cannot authenticate, not that jumper is broken.
+	// cannot authenticate, not that jumpr is broken.
 	helper := p.Auth.Helper.Command[0]
 	if !filepath.IsAbs(helper) {
 		helper = filepath.Join(root, helper)
@@ -344,7 +344,7 @@ func TestLabSSOProfileRedirectsWithoutCookie(t *testing.T) {
 }
 
 // TestLabSSOProfileHelperSucceeds proves the auth helper makes the profile work
-// on both servers, which is what `jumper doctor conn lab-sso …` reports.
+// on both servers, which is what `jumpr doctor conn lab-sso …` reports.
 func TestLabSSOProfileHelperSucceeds(t *testing.T) {
 	stack := loadLabStack(t)
 	labCookie(t)
@@ -513,7 +513,7 @@ func TestLabW1AlertToSilence(t *testing.T) {
 
 	planner := NewAlertmanagerPlanner(AlertmanagerPlannerOptions{
 		Servers: []AlertmanagerServer{{Name: stack.am.Name, Client: am}},
-		Creator: "jumper-lab",
+		Creator: "jumpr-lab",
 		Now:     time.Now,
 	})
 	busy := bus.New(bus.Options{Recorder: log, Redact: red, Now: time.Now})
@@ -525,7 +525,7 @@ func TestLabW1AlertToSilence(t *testing.T) {
 	defer cancel()
 
 	// Silence the alert through the bus: propose, confirm one target, run.
-	comment := "jumper lab W1 " + meta.ID
+	comment := "jumpr lab W1 " + meta.ID
 	create := action.Request{
 		SpecID: SpecSilenceCreate,
 		Targets: []action.Target{{

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend/fake"
-	"jumper/internal/resource"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/resource"
 )
 
 // TestAlertTableSubjectCarriesAlertName: the knowledge panel asks for the alert

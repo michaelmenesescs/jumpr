@@ -8,15 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/backend"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // pluginYAML is one valid plugin file. name and body let a test swap the
 // description (a harmless edit) or break the file.
 func pluginYAML(name, description string) string {
-	return `apiVersion: jumper/v1
+	return `apiVersion: jumpr/v1
 kind: Plugin
 name: ` + name + `
 description: ` + description + `
@@ -122,7 +122,7 @@ func TestReloadKeepsLastGoodVersionOnABrokenFile(t *testing.T) {
 	}
 
 	// An unknown field on line 3: the classic hand-edit mistake.
-	writePlugin(t, dir, "nginx-status", `apiVersion: jumper/v1
+	writePlugin(t, dir, "nginx-status", `apiVersion: jumpr/v1
 kind: Plugin
 nmae: nginx-status
 target: host
@@ -167,7 +167,7 @@ parse:
 // is still visible, with its path and line.
 func TestReloadListsAFileThatNeverLoaded(t *testing.T) {
 	dir := t.TempDir()
-	path := writePlugin(t, dir, "half-written", `apiVersion: jumper/v1
+	path := writePlugin(t, dir, "half-written", `apiVersion: jumpr/v1
 kind: Plugin
 name: half-written
 target: host
@@ -242,7 +242,7 @@ func TestReloadReportsANameCollision(t *testing.T) {
 // listed but claims no host kind (that path belongs to its own track).
 func TestReloadSkipsNonHostPlugins(t *testing.T) {
 	dir := t.TempDir()
-	writePlugin(t, dir, "lb-pool-members", `apiVersion: jumper/v1
+	writePlugin(t, dir, "lb-pool-members", `apiVersion: jumpr/v1
 kind: Plugin
 name: lb-pool-members
 description: load balancer members

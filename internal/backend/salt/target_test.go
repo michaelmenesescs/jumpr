@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 func mustSelector(t *testing.T, s string) resource.Selector {

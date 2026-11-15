@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // newTestLogger returns a debug logger writing JSON to buf.

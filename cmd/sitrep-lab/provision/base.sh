@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs as root inside a lab machine. Idempotent. Lab-only: real nodes get nothing installed by jumper.
+# Runs as root inside a lab machine. Idempotent. Lab-only: real nodes get nothing installed by jumpr.
 set -euo pipefail
 PUBKEY="$1"
 if command -v dnf >/dev/null; then

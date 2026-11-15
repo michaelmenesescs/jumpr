@@ -17,8 +17,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
 )
 
 const (

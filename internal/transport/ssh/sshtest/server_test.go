@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/transport/ssh/sshtest"
+	"jumpr/internal/transport/ssh/sshtest"
 
 	gossh "golang.org/x/crypto/ssh"
 )

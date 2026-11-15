@@ -10,8 +10,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/singleflight"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 const (

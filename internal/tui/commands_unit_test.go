@@ -7,13 +7,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui"
 )
 
 // unitHosts is the five-host target set the unit tests run on.

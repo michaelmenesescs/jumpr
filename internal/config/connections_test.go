@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestConnectionsPath(t *testing.T) {
 	p := ResolvePaths("/home/tester", "")
-	if got, want := p.ConnectionsPath(), filepath.Join("/home/tester/.config/jumper", ConnectionsFile); got != want {
+	if got, want := p.ConnectionsPath(), filepath.Join("/home/tester/.config/jumpr", ConnectionsFile); got != want {
 		t.Fatalf("ConnectionsPath() = %q, want %q", got, want)
 	}
 }

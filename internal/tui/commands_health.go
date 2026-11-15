@@ -10,9 +10,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/inventory"
-	"jumper/internal/render"
+	"jumpr/internal/backend"
+	"jumpr/internal/inventory"
+	"jumpr/internal/render"
 )
 
 const (

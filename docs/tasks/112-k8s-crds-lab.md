@@ -10,7 +10,7 @@ Any API resource is browsable; the lab proves W3.
 
 ## Files
 - create `internal/backend/k8s/dynamic.go`, `dynamic_test.go`, `lab_test.go` (`//go:build lab`)
-- modify `internal/app/core.go`, `lab/jumper/config.yaml` (`kubernetes.kubeconfig: lab/.keys/kubeconfig`),
+- modify `internal/app/core.go`, `lab/jumpr/config.yaml` (`kubernetes.kubeconfig: lab/.keys/kubeconfig`),
   `docs/HANDOFF.md`, `README.md`
 
 ## Requirements

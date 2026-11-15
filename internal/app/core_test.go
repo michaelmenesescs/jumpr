@@ -3,9 +3,9 @@ package app
 import (
 	"testing"
 
-	"jumper/internal/config"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh"
+	"jumpr/internal/config"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh"
 )
 
 // TestBuildExecSetWithoutRules checks the default composition: no ssh.transports

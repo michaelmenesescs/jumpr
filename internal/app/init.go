@@ -9,11 +9,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
 )
 
-// initTemplates holds the commented example configuration `jumper init`
+// initTemplates holds the commented example configuration `jumpr init`
 // writes. The files are the source of truth for a first run: the config
 // template lists every key of BUILD-PLAN §11 at its default value, and
 // init_test.go compares it against config.Default().
@@ -44,22 +44,22 @@ const initPluginsDir = "plugins"
 
 // Init writes the commented example configuration into the config directory
 // and returns the process exit code. It never overwrites a file: an existing
-// file is reported as skipped and left exactly as it is, so `jumper init` is
+// file is reported as skipped and left exactly as it is, so `jumpr init` is
 // safe to run again after an upgrade.
 //
 // It writes only to out (never to stdout/stderr) and reads nothing from the
-// environment; cmd/jumper supplies Home and ConfigDir.
+// environment; cmd/jumpr supplies Home and ConfigDir.
 func Init(o Options, out io.Writer) int {
 	if out == nil {
 		out = io.Discard
 	}
 	paths := config.ResolvePaths(o.Home, o.ConfigDir)
 	if paths.ConfigDir == "" {
-		fmt.Fprintln(out, "jumper init: no configuration directory")
+		fmt.Fprintln(out, "jumpr init: no configuration directory")
 		return 1
 	}
 	if err := os.MkdirAll(paths.ConfigDir, 0o700); err != nil {
-		fmt.Fprintf(out, "jumper init: %v\n", initError(paths.ConfigDir, err))
+		fmt.Fprintf(out, "jumpr init: %v\n", initError(paths.ConfigDir, err))
 		return 1
 	}
 
@@ -67,7 +67,7 @@ func Init(o Options, out io.Writer) int {
 	for _, f := range initFiles {
 		data, err := initTemplates.ReadFile("templates/" + f.Name)
 		if err != nil {
-			fmt.Fprintf(out, "jumper init: %v\n", initError("templates/"+f.Name, err))
+			fmt.Fprintf(out, "jumpr init: %v\n", initError("templates/"+f.Name, err))
 			return 1
 		}
 		path := filepath.Join(paths.ConfigDir, f.Name)
@@ -78,20 +78,20 @@ func Init(o Options, out io.Writer) int {
 		case errors.Is(err, fs.ErrExist):
 			fmt.Fprintf(out, "skipped  %s (already exists)\n", path)
 		default:
-			fmt.Fprintf(out, "jumper init: %v\n", initError(path, err))
+			fmt.Fprintf(out, "jumpr init: %v\n", initError(path, err))
 			return 1
 		}
 	}
 
 	pluginsPath := filepath.Join(paths.ConfigDir, initPluginsDir)
 	if err := os.MkdirAll(pluginsPath, 0o755); err != nil {
-		fmt.Fprintf(out, "jumper init: %v\n", initError(pluginsPath, err))
+		fmt.Fprintf(out, "jumpr init: %v\n", initError(pluginsPath, err))
 		return 1
 	}
 	fmt.Fprintf(out, "created  %s/\n", pluginsPath)
 
 	if created > 0 {
-		fmt.Fprintf(out, "\nnext: edit %s, then run `jumper doctor`\n",
+		fmt.Fprintf(out, "\nnext: edit %s, then run `jumpr doctor`\n",
 			filepath.Join(paths.ConfigDir, "config.yaml"))
 	}
 	return 0

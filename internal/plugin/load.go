@@ -18,7 +18,7 @@ import (
 	"github.com/itchyny/gojq"
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 var fieldNotFoundRe = regexp.MustCompile(`^field (\w+) not found in type `)

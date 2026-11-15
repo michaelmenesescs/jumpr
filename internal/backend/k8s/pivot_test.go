@@ -9,8 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // pivotInventory is a merged inventory holding one host that is also a node.

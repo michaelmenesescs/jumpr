@@ -15,11 +15,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/shq"
+	"jumpr/internal/shq"
 )
 
 // APIVersion is the only plugin schema version this loader understands.
-const APIVersion = "jumper/v1"
+const APIVersion = "jumpr/v1"
 
 // KindPlugin is the only kind a plugin file may declare.
 const KindPlugin = "Plugin"

@@ -20,8 +20,8 @@ BUILD-PLAN §11 (schema and defaults — implement every key shown there), SPEC 
 
 ## Requirements
 1. `type Paths struct { ConfigDir, CacheDir, KnowledgeRoot string }` and
-   `func ResolvePaths(home, configDirOverride string) Paths`: config dir default `<home>/.config/jumper`, cache
-   dir `<home>/.cache/jumper`. `home` is a parameter (rule §6.1: no `os.Getenv` here).
+   `func ResolvePaths(home, configDirOverride string) Paths`: config dir default `<home>/.config/jumpr`, cache
+   dir `<home>/.cache/jumpr`. `home` is a parameter (rule §6.1: no `os.Getenv` here).
 2. `type Config struct { UI, Mux, SSH, Inventory, Knowledge, Rollout, Salt, Interact }` with nested structs and
    `yaml:"…"` tags matching BUILD-PLAN §11 exactly.
 3. `type Duration time.Duration` implementing `yaml.Unmarshaler` (accepts `"10s"`, `"5m"`, `"2h"`) and
@@ -38,7 +38,7 @@ BUILD-PLAN §11 (schema and defaults — implement every key shown there), SPEC 
    into `Load` as a second parameter: `Load(path, home string)`.
 
 ## Out of scope
-`policy.yaml`, `connections.yaml`, `keymap.yaml`, plugins, `jumper init`, environments (`--env`).
+`policy.yaml`, `connections.yaml`, `keymap.yaml`, plugins, `jumpr init`, environments (`--env`).
 
 ## Acceptance
 ```

@@ -10,13 +10,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/bus/generic"
-	"jumper/internal/errs"
-	"jumper/internal/group"
-	"jumper/internal/render"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/generic"
+	"jumpr/internal/errs"
+	"jumpr/internal/group"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
 )
 
 // `:run` and its dialogs (SPEC §5 W5, §8.1). Every `:run` is a write by

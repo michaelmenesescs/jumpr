@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

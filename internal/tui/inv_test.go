@@ -11,16 +11,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	teatest "github.com/charmbracelet/x/exp/teatest"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/fake"
-	"jumper/internal/backend/linux"
-	"jumper/internal/investigation"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
-	"jumper/internal/tui/views"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/fake"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/investigation"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
+	"jumpr/internal/tui/views"
 )
 
 // invNow is the fixed clock of the investigation tests, so ids and timestamps

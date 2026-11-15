@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // sessionsDialog is the session list of task 082: every session with its window

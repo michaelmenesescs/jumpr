@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport"
 )
 
 // fakeExecutor is a stand-in for a real exec transport: it echoes stdin to

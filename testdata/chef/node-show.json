@@ -5,7 +5,7 @@
   "run_list": ["role[base]", "role[web]", "recipe[nginx::default]"],
   "normal": {
     "tags": ["web", "frontend"],
-    "jumper": {
+    "jumpr": {
       "owner": "platform"
     }
   },

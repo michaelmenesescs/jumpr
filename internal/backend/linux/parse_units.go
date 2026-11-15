@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Unit is one row of `systemctl list-units --all --plain --no-legend --no-pager`.

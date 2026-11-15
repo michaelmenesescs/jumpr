@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func mustWindow(t *testing.T, s *Session, name string, w, h int) (*Window, PaneID) {

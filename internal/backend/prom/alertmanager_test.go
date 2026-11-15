@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/httpx"
 )
 
 // amTestdata is where the Alertmanager fixtures live.

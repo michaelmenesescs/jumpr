@@ -16,7 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"jumper/internal/tui/theme"
+	"jumpr/internal/tui/theme"
 )
 
 // syncBuffer is the frame sink for a run with no TTY. Bubble Tea writes frames
@@ -194,7 +194,7 @@ func TestRunOverPipes(t *testing.T) {
 	resizes <- Size{Cols: 80, Rows: 24}
 	waitForFrame(t, out, off, "an 80-column status line", func(lines []string) bool {
 		for _, l := range lines {
-			if strings.HasPrefix(l, "jumper") && ansi.StringWidth(l) == 80 {
+			if strings.HasPrefix(l, "jumpr") && ansi.StringWidth(l) == 80 {
 				return true
 			}
 		}

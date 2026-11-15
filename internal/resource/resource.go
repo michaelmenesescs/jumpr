@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // HostID is the canonical identity of a machine: lower-case, as resolved by the inventory.

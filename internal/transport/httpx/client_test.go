@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // newClient builds a client from p with a backoff that does not wait, so retry
@@ -179,12 +179,12 @@ func TestClientExtraHeaders(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := &Profile{Headers: map[string]string{"X-Requested-By": "jumper"}}
+	p := &Profile{Headers: map[string]string{"X-Requested-By": "jumpr"}}
 	c := newClient(t, p, Deps{})
 	if _, _, err := get(t, c, srv.URL); err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got != "jumper" {
+	if got != "jumpr" {
 		t.Fatalf("X-Requested-By = %q", got)
 	}
 }
@@ -423,7 +423,7 @@ func TestClientGetAndPostJSON(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 				t.Errorf("decode request: %v", err)
 			}
-			if in["name"] != "jumper" {
+			if in["name"] != "jumpr" {
 				t.Errorf("request body = %v", in)
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -447,7 +447,7 @@ func TestClientGetAndPostJSON(t *testing.T) {
 	}
 
 	var created map[string]string
-	if err := c.PostJSON(context.Background(), srv.URL, map[string]string{"name": "jumper"}, &created); err != nil {
+	if err := c.PostJSON(context.Background(), srv.URL, map[string]string{"name": "jumpr"}, &created); err != nil {
 		t.Fatalf("PostJSON: %v", err)
 	}
 	if created["id"] != "42" {

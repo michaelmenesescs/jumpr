@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // checkRows compares a parse result with the expected rows, row by row, so a

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	sshx "jumper/internal/transport/ssh"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	sshx "jumpr/internal/transport/ssh"
 )
 
 // labTimeout bounds one command in these tests.

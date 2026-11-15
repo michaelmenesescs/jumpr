@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // Transport names a RouteRule may select. Native is the in-process SSH client;

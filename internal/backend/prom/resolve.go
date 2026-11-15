@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // DefaultHostLabelKeys are the alert label keys tried in order when the caller

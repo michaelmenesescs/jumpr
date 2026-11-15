@@ -1,7 +1,7 @@
 // salt-ssh awareness (SPEC §8.6, task 097).
 //
 // A Salt master may have a roster: a YAML file of hosts it can reach without a
-// minion installed. jumper reads it (over SSH, with sudo cat) and exposes the
+// minion installed. jumpr reads it (over SSH, with sudo cat) and exposes the
 // entries as the `salt-roster` inventory source. Execution through salt-ssh
 // stays refused unless the user opted in with salt.allow_salt_ssh: true,
 // because salt-ssh copies a runtime to the target.
@@ -18,9 +18,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/shq"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/shq"
 )
 
 const (

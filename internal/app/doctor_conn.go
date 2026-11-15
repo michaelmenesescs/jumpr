@@ -1,7 +1,7 @@
 package app
 
-// doctor.go implements `jumper doctor conn <profile> <url>`: the main tool for
-// adapting jumper to an environment (SPEC §7.2). It walks one connection
+// doctor.go implements `jumpr doctor conn <profile> <url>`: the main tool for
+// adapting jumpr to an environment (SPEC §7.2). It walks one connection
 // profile step by step — profile, proxy, DNS/connect, TLS, auth (including the
 // auth helper), the request itself — and prints `ok`/`FAIL` with a timing per
 // step. Credentials, cookie values and header values never reach the writer:
@@ -33,10 +33,10 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/transport/httpx"
 )
 
 const (
@@ -50,9 +50,9 @@ const (
 )
 
 // DoctorOptions is everything DoctorConn needs from the outside world. Nothing
-// here is read from the process environment: cmd/jumper fills it in.
+// here is read from the process environment: cmd/jumpr fills it in.
 type DoctorOptions struct {
-	// ConfigDir overrides ~/.config/jumper.
+	// ConfigDir overrides ~/.config/jumpr.
 	ConfigDir string
 	// Home is the user's home directory, for `~/` expansion.
 	Home string

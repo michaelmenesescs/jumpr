@@ -21,10 +21,10 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	sshpool "jumper/internal/transport/ssh"
-	"jumper/internal/transport/ssh/sshtest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	sshpool "jumpr/internal/transport/ssh"
+	"jumpr/internal/transport/ssh/sshtest"
 )
 
 // connectProxy is a minimal HTTP CONNECT proxy: it records the CONNECT requests
@@ -370,15 +370,15 @@ func TestProxySOCKS5Auth(t *testing.T) {
 		_, _ = io.WriteString(w, "ok")
 	}))
 	defer srv.Close()
-	proxy := startSOCKS5(t, "jumper", "pr0xy")
+	proxy := startSOCKS5(t, "jumpr", "pr0xy")
 
-	p := &Profile{Proxy: Proxy{Type: ProxySOCKS5, URL: "socks5://" + proxy.addr, Username: "jumper", Password: "pr0xy"}}
+	p := &Profile{Proxy: Proxy{Type: ProxySOCKS5, URL: "socks5://" + proxy.addr, Username: "jumpr", Password: "pr0xy"}}
 	c := newClient(t, p, Deps{})
 	if _, _, err := get(t, c, srv.URL); err != nil {
 		t.Fatalf("get with socks5 auth: %v", err)
 	}
 
-	bad := &Profile{Proxy: Proxy{Type: ProxySOCKS5, URL: "socks5://" + proxy.addr, Username: "jumper", Password: "wrong"}}
+	bad := &Profile{Proxy: Proxy{Type: ProxySOCKS5, URL: "socks5://" + proxy.addr, Username: "jumpr", Password: "wrong"}}
 	c = newClient(t, bad, Deps{})
 	_, _, err := get(t, c, srv.URL)
 	if err == nil {

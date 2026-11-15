@@ -7,10 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // depsFake is the unit fake plus the dependency batch.

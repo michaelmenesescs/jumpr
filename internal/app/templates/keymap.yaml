@@ -1,4 +1,4 @@
-# Key bindings — written once by `jumper init` (SPEC §13).
+# Key bindings — written once by `jumpr init` (SPEC §13).
 #
 # Every binding is rebindable. A binding is a list of Bubble Tea key names;
 # control keys are written ctrl+a, named keys enter, esc, up, down, pgup,

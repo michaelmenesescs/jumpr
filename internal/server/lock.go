@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // fileLock is the per-user server lock: an exclusive, non-blocking flock on
-// ~/.cache/jumper/server.lock. Holding it proves that no other server owns the
+// ~/.cache/jumpr/server.lock. Holding it proves that no other server owns the
 // socket, which is why it is taken before a stale socket file is removed.
 type fileLock struct {
 	f *os.File

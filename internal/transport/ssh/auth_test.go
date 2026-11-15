@@ -16,8 +16,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
-	"jumper/internal/errs"
-	"jumper/internal/interact"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
 )
 
 // newEd25519 returns a fresh key pair. Test keys are generated at run time and
@@ -302,7 +302,7 @@ func startAgent(t *testing.T, keys ...ed25519.PrivateKey) string {
 			t.Fatal(err)
 		}
 	}
-	dir, err := os.MkdirTemp("/tmp", "jumper-agent-")
+	dir, err := os.MkdirTemp("/tmp", "jumpr-agent-")
 	if err != nil {
 		t.Fatal(err)
 	}

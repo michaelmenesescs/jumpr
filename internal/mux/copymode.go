@@ -5,7 +5,7 @@ import (
 
 	"github.com/mattn/go-runewidth"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 // ANSI sequences copy mode uses for the selection and the cursor cell. They are

@@ -17,7 +17,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

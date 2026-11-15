@@ -5,7 +5,7 @@ Host target
 Host hop2
     HostName hop2.example.internal
     User jumpuser
-    ProxyJump jumper1@hop1:2200
+    ProxyJump jumpr1@hop1:2200
 
 Host hop1
     HostName hop1.example.internal

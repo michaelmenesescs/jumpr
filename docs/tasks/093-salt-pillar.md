@@ -38,5 +38,5 @@ go test -race ./internal/tui/views/ -run Pillar -v      # tree renders types and
 ```
 
 ## Pitfalls
-- The pillar passes through the master's job cache and the SSH stream regardless; jumper's promise is only that
+- The pillar passes through the master's job cache and the SSH stream regardless; jumpr's promise is only that
   it does not persist or display it by accident. State that in the reveal dialog.

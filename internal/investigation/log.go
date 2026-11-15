@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/errs"
-	"jumper/internal/group"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/errs"
+	"jumpr/internal/group"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
 )
 
 // FileLog is the recorder over a Markdown investigation root: it appends to the

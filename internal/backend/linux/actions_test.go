@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // unitRow builds a unit resource the way List does.

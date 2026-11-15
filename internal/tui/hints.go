@@ -3,8 +3,8 @@ package tui
 import (
 	"strings"
 
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 func renderHint(t *theme.Theme, h KeyHint) (string, int) {

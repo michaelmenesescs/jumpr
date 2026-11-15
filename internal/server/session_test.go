@@ -62,7 +62,7 @@ type sessionHarness struct {
 
 func newSessionHarness(t *testing.T) *sessionHarness {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "jumper-sess-")
+	dir, err := os.MkdirTemp("/tmp", "jumpr-sess-")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}

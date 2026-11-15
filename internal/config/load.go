@@ -11,14 +11,14 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
-// Paths are the directories jumper uses on the local machine.
+// Paths are the directories jumpr uses on the local machine.
 type Paths struct {
-	ConfigDir     string // ~/.config/jumper by default
-	CacheDir      string // ~/.cache/jumper
-	KnowledgeRoot string // knowledge.root, default ~/jumper
+	ConfigDir     string // ~/.config/jumpr by default
+	CacheDir      string // ~/.cache/jumpr
+	KnowledgeRoot string // knowledge.root, default ~/jumpr
 }
 
 // ResolvePaths returns the local paths for the given home directory. An empty
@@ -27,12 +27,12 @@ type Paths struct {
 func ResolvePaths(home, configDirOverride string) Paths {
 	configDir := ExpandHome(configDirOverride, home)
 	if configDir == "" {
-		configDir = filepath.Join(home, ".config", "jumper")
+		configDir = filepath.Join(home, ".config", "jumpr")
 	}
 	return Paths{
 		ConfigDir:     configDir,
-		CacheDir:      filepath.Join(home, ".cache", "jumper"),
-		KnowledgeRoot: filepath.Join(home, "jumper"),
+		CacheDir:      filepath.Join(home, ".cache", "jumpr"),
+		KnowledgeRoot: filepath.Join(home, "jumpr"),
 	}
 }
 

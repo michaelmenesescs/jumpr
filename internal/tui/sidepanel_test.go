@@ -10,12 +10,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"jumper/internal/investigation"
-	"jumper/internal/mux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/investigation"
+	"jumpr/internal/mux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // kbRecorder is an investigation recorder that also knows the Markdown root,

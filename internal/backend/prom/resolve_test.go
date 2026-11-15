@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/inventory"
-	"jumper/internal/resource"
+	"jumpr/internal/inventory"
+	"jumpr/internal/resource"
 )
 
 // testInventory is a fixed inventory with optional identity rewrites.

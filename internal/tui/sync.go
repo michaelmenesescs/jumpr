@@ -9,12 +9,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/investigation"
-	"jumper/internal/mux"
-	"jumper/internal/mux/termpane"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/investigation"
+	"jumpr/internal/mux"
+	"jumpr/internal/mux/termpane"
+	"jumpr/internal/resource"
 )
 
 // Synchronized input and the shell guard rails (SPEC §11.1, task 064).

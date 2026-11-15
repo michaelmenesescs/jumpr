@@ -9,20 +9,20 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/tui"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui"
 )
 
 const (
 	// logRotateBytes is where a log file is rotated: 10 MiB (task 126
 	// requirement 4).
 	logRotateBytes = 10 << 20
-	// logRotateKeep is how many rotated files are kept (jumper.log.1 … .3).
+	// logRotateKeep is how many rotated files are kept (jumpr.log.1 … .3).
 	logRotateKeep = 3
-	// jumperLogName is the client's debug log: <cache>/jumper.log.
-	jumperLogName = "jumper.log"
+	// jumprLogName is the client's debug log: <cache>/jumpr.log.
+	jumprLogName = "jumpr.log"
 	// commandLineCap bounds the command text one log line carries, after
 	// redaction. A line longer than this is cut, never split across lines.
 	commandLineCap = 512
@@ -32,7 +32,7 @@ const (
 // way out, and a rotating writer is not an *os.File.
 type logCloser interface{ Close() error }
 
-// newLogger returns the application logger: JSON to <cache>/jumper.log at
+// newLogger returns the application logger: JSON to <cache>/jumpr.log at
 // Debug level when debug is on, a discard handler otherwise. The file rotates
 // at 10 MiB and keeps three older files. A log file that cannot be opened
 // degrades to the discard handler; logging never stops the program.
@@ -46,7 +46,7 @@ func newLogger(cacheDir string, debug bool) *slog.Logger {
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return slog.New(slog.DiscardHandler)
 	}
-	f, err := openRotating(filepath.Join(cacheDir, jumperLogName), logRotateBytes, logRotateKeep, 0o644)
+	f, err := openRotating(filepath.Join(cacheDir, jumprLogName), logRotateBytes, logRotateKeep, 0o644)
 	if err != nil {
 		return slog.New(slog.DiscardHandler)
 	}

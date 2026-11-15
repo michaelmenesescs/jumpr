@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // ws is the test workstation every test runs against.
@@ -75,7 +75,7 @@ func TestRunnerCommandLine(t *testing.T) {
 	}
 }
 
-// TestRunnerErrorKinds checks knife's failure modes map onto jumper's error
+// TestRunnerErrorKinds checks knife's failure modes map onto jumpr's error
 // kinds (BUILD-PLAN §7, task 113 requirement 1).
 func TestRunnerErrorKinds(t *testing.T) {
 	cases := []struct {

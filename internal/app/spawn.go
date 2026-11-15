@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/safe"
+	"jumpr/internal/errs"
+	"jumpr/internal/safe"
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 	// serverLogLines is how much of the server log an error carries.
 	serverLogLines = 20
 	// serverEnvVar marks a process as the session server.
-	serverEnvVar = "JUMPER_SERVER"
+	serverEnvVar = "JUMPR_SERVER"
 	// serverLogName and serverStateName are the server's files in the cache
 	// directory: its log and what it records about itself.
 	serverLogName   = "server.log"
@@ -40,7 +40,7 @@ const (
 // §6: one server per user, started on demand). It first tries to dial; when
 // nothing answers it starts exe with args detached from this terminal — its own
 // session (setsid), stdin from /dev/null, stdout and stderr appended to logPath,
-// working directory /, and env plus JUMPER_SERVER=1 — and polls the socket every
+// working directory /, and env plus JUMPR_SERVER=1 — and polls the socket every
 // 50 ms for up to 5 s.
 //
 // It never waits for the server it started: the child outlives the client and
@@ -206,6 +206,9 @@ type ServerState struct {
 	ConfigDir string `json:"config_dir"`
 	Version   string `json:"version"`
 	PID       int    `json:"pid"`
+	// ReadOnly is whether the server was started with --readonly. A client that
+	// asks for --readonly must not attach to one that was not.
+	ReadOnly bool `json:"read_only"`
 }
 
 // LogPath is the server's log: <cache>/server.log.
@@ -265,5 +268,5 @@ func ConfigWarning(statePath, configDir string) string {
 	if filepath.Clean(st.ConfigDir) == filepath.Clean(configDir) {
 		return ""
 	}
-	return fmt.Sprintf("jumper: warning: the running server uses config directory %s", st.ConfigDir)
+	return fmt.Sprintf("jumpr: warning: the running server uses config directory %s", st.ConfigDir)
 }

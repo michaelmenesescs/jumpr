@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func td(name string) string { return filepath.Join("testdata", name) }
@@ -112,7 +112,7 @@ func TestChainTwoJumps(t *testing.T) {
 	if len(c) != 3 {
 		t.Fatalf("%+v", c)
 	}
-	if c[0].HostName != "hop1.example.internal" || c[0].User != "jumper1" || c[0].Port != 2200 {
+	if c[0].HostName != "hop1.example.internal" || c[0].User != "jumpr1" || c[0].Port != 2200 {
 		t.Fatalf("%+v", c[0])
 	}
 	if c[1].HostName != "hop2.example.internal" || c[1].User != "jumpuser" {

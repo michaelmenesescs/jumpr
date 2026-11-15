@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // dropInRecorder is an Executor that remembers every command it was handed.

@@ -5,12 +5,12 @@ import (
 	"path"
 	"strings"
 
-	"jumper/internal/group"
-	"jumper/internal/shq"
+	"jumpr/internal/group"
+	"jumpr/internal/shq"
 )
 
 // Where `systemctl edit <unit>` (without --full) puts a local override: the
-// unit's drop-in directory under /etc. jumper only ever names this path; it
+// unit's drop-in directory under /etc. jumpr only ever names this path; it
 // never writes it (SPEC §8.1.1, zero footprint).
 const (
 	dropInRoot = "/etc/systemd/system"
@@ -125,7 +125,7 @@ func dropInHeader(line string) (string, bool) {
 
 // DropInPreview is the read-only result of a draft override: what `systemctl
 // cat` would show with it, the warnings, and the commands that apply it by
-// hand. jumper never runs those commands and never writes on the node.
+// hand. jumpr never runs those commands and never writes on the node.
 type DropInPreview struct {
 	Unit     string
 	Path     string   // the drop-in file the draft would become
@@ -206,7 +206,7 @@ func catWithDropIn(cat, file, text string) string {
 // applyByHand is the block the user runs themselves: the editor route with the
 // content, and the file route (`tee`, `daemon-reload`, `restart`). The commands
 // are display text, assembled with shq so the unit name and the path are quoted
-// exactly as they would be if jumper ever ran them — which it does not.
+// exactly as they would be if jumpr ever ran them — which it does not.
 func applyByHand(unit, file, text string) string {
 	var b strings.Builder
 	b.WriteString("to apply by hand\n")

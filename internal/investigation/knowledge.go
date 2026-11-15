@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // The knowledge base is the half of the record that outlives one incident: the
@@ -111,7 +111,7 @@ type noteDoc struct {
 
 // BuildIndex walks <root>/knowledge/**.md and <root>/investigations/*.md. A
 // missing root is an empty index, not an error: the knowledge base is
-// optional and jumper has to start without one. Files that cannot be read or
+// optional and jumpr has to start without one. Files that cannot be read or
 // parsed are skipped; one bad note never breaks the index.
 func BuildIndex(root string) (*Index, error) {
 	const op = "investigation.build_index"
@@ -170,7 +170,7 @@ func BuildIndex(root string) (*Index, error) {
 	return ix, nil
 }
 
-// isNoteFile reports whether name is a Markdown file jumper indexes.
+// isNoteFile reports whether name is a Markdown file jumpr indexes.
 func isNoteFile(name string) bool {
 	return strings.HasSuffix(name, ".md") && !strings.HasPrefix(name, ".")
 }

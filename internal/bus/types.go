@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"jumper/internal/action"
+	"jumpr/internal/action"
 )
 
 // ConfirmLevel is how much confirmation an action needs.

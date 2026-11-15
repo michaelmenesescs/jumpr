@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
 )
 
 // backendName is used in every Ref and in error Ops.

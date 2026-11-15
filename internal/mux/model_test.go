@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/render"
+	"jumpr/internal/render"
 )
 
 // stub is a Content that renders its pane id and records everything it is sent.

@@ -1,6 +1,6 @@
 package mux
 
-import "jumper/internal/errs"
+import "jumpr/internal/errs"
 
 // Preset layouts cycled by NextLayout.
 const (

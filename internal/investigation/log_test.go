@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // fixedClock returns a now function stuck on one instant.

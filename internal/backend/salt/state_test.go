@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/group"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/group"
+	"jumpr/internal/resource"
 )
 
 // stateSample is a dry-run return with three states in an order that is not

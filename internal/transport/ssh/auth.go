@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
-	"jumper/internal/interact"
+	"jumpr/internal/interact"
 )
 
 const (

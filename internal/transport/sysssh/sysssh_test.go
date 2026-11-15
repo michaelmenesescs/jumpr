@@ -12,19 +12,19 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
-// TestMain makes the test binary double as the fake ssh: when JUMPER_FAKE_SSH
+// TestMain makes the test binary double as the fake ssh: when JUMPR_FAKE_SSH
 // is set — which only the Transport under test does, through the inherited
 // environment — the process behaves like /usr/bin/ssh and exits before any test
 // runs. That is the "re-execute itself as the fake via a path option" trick:
 // Options.SSHPath is os.Args[0], and no shell script is involved.
 func TestMain(m *testing.M) {
-	if os.Getenv("JUMPER_FAKE_SSH") == "1" {
+	if os.Getenv("JUMPR_FAKE_SSH") == "1" {
 		os.Exit(fakeSSH())
 	}
 	os.Exit(m.Run())
@@ -33,26 +33,26 @@ func TestMain(m *testing.M) {
 // fakeSSH is the fake ssh client. It records its argv, then writes the
 // configured streams and exits with the configured code.
 func fakeSSH() int {
-	if path := os.Getenv("JUMPER_FAKE_ARGV"); path != "" {
+	if path := os.Getenv("JUMPR_FAKE_ARGV"); path != "" {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err == nil {
 			_, _ = f.WriteString(strings.Join(os.Args[1:], "\x00") + "\n")
 			_ = f.Close()
 		}
 	}
-	if ms, err := strconv.Atoi(os.Getenv("JUMPER_FAKE_SLEEP_MS")); err == nil && ms > 0 {
+	if ms, err := strconv.Atoi(os.Getenv("JUMPR_FAKE_SLEEP_MS")); err == nil && ms > 0 {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
-	if s := os.Getenv("JUMPER_FAKE_STDOUT"); s != "" {
+	if s := os.Getenv("JUMPR_FAKE_STDOUT"); s != "" {
 		fmt.Fprint(os.Stdout, strings.ReplaceAll(s, `\n`, "\n"))
 	}
-	if s := os.Getenv("JUMPER_FAKE_STDERR"); s != "" {
+	if s := os.Getenv("JUMPR_FAKE_STDERR"); s != "" {
 		fmt.Fprint(os.Stderr, strings.ReplaceAll(s, `\n`, "\n"))
 	}
-	if os.Getenv("JUMPER_FAKE_ECHO_STDIN") == "1" {
+	if os.Getenv("JUMPR_FAKE_ECHO_STDIN") == "1" {
 		_, _ = io.Copy(os.Stdout, os.Stdin)
 	}
-	rc, _ := strconv.Atoi(os.Getenv("JUMPER_FAKE_EXIT"))
+	rc, _ := strconv.Atoi(os.Getenv("JUMPR_FAKE_EXIT"))
 	return rc
 }
 
@@ -69,12 +69,12 @@ type fakeEnv struct {
 func newFake(t *testing.T, env fakeEnv, o Options) (*Transport, string) {
 	t.Helper()
 	argvFile := t.TempDir() + "/argv"
-	t.Setenv("JUMPER_FAKE_SSH", "1")
-	t.Setenv("JUMPER_FAKE_STDOUT", env.stdout)
-	t.Setenv("JUMPER_FAKE_STDERR", env.stderr)
-	t.Setenv("JUMPER_FAKE_EXIT", env.exit)
-	t.Setenv("JUMPER_FAKE_SLEEP_MS", env.sleepMS)
-	t.Setenv("JUMPER_FAKE_ARGV", argvFile)
+	t.Setenv("JUMPR_FAKE_SSH", "1")
+	t.Setenv("JUMPR_FAKE_STDOUT", env.stdout)
+	t.Setenv("JUMPR_FAKE_STDERR", env.stderr)
+	t.Setenv("JUMPR_FAKE_EXIT", env.exit)
+	t.Setenv("JUMPR_FAKE_SLEEP_MS", env.sleepMS)
+	t.Setenv("JUMPR_FAKE_ARGV", argvFile)
 	o.SSHPath = os.Args[0]
 	if o.ConnectTimeout == 0 {
 		o.ConnectTimeout = 10 * time.Second

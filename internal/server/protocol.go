@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // ProtocolVersion is the version of the wire protocol below. If Hello.Protocol
 // differs the server replies EXIT{reason:"error"} and the client tells the user
-// to run "jumper kill-server" and start again.
+// to run "jumpr kill-server" and start again.
 const ProtocolVersion = 1
 
 // MaxPayload is the largest payload a frame may carry. A larger length field is

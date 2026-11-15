@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Probe names. They double as the Op of a parser error so the UI can say which

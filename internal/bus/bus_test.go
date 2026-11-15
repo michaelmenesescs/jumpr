@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus/bustest"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/action"
+	"jumpr/internal/bus/bustest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 // recording is a Recorder that remembers what it was given.

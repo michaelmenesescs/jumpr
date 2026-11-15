@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
 )
 
 const markerPrefix = "@@SITREP:"

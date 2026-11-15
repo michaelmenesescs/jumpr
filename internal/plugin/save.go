@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Saving a `:run` result as a plugin (SPEC §5 W5: "saved as a YAML plugin in
@@ -22,7 +22,7 @@ const (
 	// SaveExt is the extension of a plugin file.
 	SaveExt = ".yaml"
 	// DirName is the directory plugins live in, under the config directory
-	// (SPEC §12: ~/.config/jumper/plugins/*.yaml).
+	// (SPEC §12: ~/.config/jumpr/plugins/*.yaml).
 	DirName = "plugins"
 	// saveDescription is the description written into a saved plugin.
 	saveDescription = "saved from a :run result"

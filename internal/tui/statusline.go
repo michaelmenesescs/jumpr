@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/render"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/render"
+	"jumpr/internal/tui/theme"
 )
 
 // WindowTab is one window in the status line.
@@ -101,7 +101,7 @@ func RenderStatus(t *theme.Theme, d StatusData, w int) string {
 }
 
 func statusParts(set render.GlyphSet, t *theme.Theme, d StatusData, level int) (string, string) {
-	parts := []string{t.Accent.Bold(true).Render("jumper")}
+	parts := []string{t.Accent.Bold(true).Render("jumpr")}
 	if d.Session != "" {
 		parts = append(parts, t.Bold.Render(d.Session))
 	}

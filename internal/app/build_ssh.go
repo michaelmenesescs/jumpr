@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync"
 
-	"jumper/internal/config"
-	"jumper/internal/interact"
-	"jumper/internal/transport/ssh"
+	"jumpr/internal/config"
+	"jumpr/internal/interact"
+	"jumpr/internal/transport/ssh"
 )
 
 // agentSocket is the SSH_AUTH_SOCK the pool asks for at every dial. The path
@@ -60,7 +60,7 @@ type sshStack struct {
 }
 
 // buildSSH builds the stack with the caller's prompter and an agent socket
-// holder seeded from the environment. It is what `jumper doctor` uses.
+// holder seeded from the environment. It is what `jumpr doctor` uses.
 func buildSSH(cfg config.Config, o Options, log *slog.Logger) (*sshStack, error) {
 	return buildSSHWith(cfg, o, log, o.Prompter, newAgentSocket(o))
 }

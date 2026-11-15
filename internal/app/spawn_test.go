@@ -13,15 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/server"
+	"jumpr/internal/errs"
+	"jumpr/internal/server"
 )
 
 // TestSpawnHelperProcess is the process EnsureServer starts in these tests: the
 // test binary itself, told by the environment what to do. It is a no-op in a
 // normal run (the child is started with -test.run=TestSpawnHelperProcess).
 func TestSpawnHelperProcess(t *testing.T) {
-	switch os.Getenv("JUMPER_TEST_HELPER") {
+	switch os.Getenv("JUMPR_TEST_HELPER") {
 	case "sleep":
 		time.Sleep(5 * time.Second)
 	case "fail":
@@ -154,7 +154,7 @@ func TestSpawnServerState(t *testing.T) {
 		t.Fatalf("warning without a state file: %q", w)
 	}
 
-	st := ServerState{ConfigDir: "/home/tester/.config/jumper", Version: "1.2.3", PID: 42}
+	st := ServerState{ConfigDir: "/home/tester/.config/jumpr", Version: "1.2.3", PID: 42}
 	if err := WriteServerState(path, st); err != nil {
 		t.Fatalf("WriteServerState: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestSpawnServerState(t *testing.T) {
 		t.Fatalf("state file mode = %v", perm)
 	}
 
-	if w := ConfigWarning(path, "/home/tester/.config/jumper"); w != "" {
+	if w := ConfigWarning(path, "/home/tester/.config/jumpr"); w != "" {
 		t.Fatalf("warning for the same directory: %q", w)
 	}
 	w := ConfigWarning(path, "/home/tester/other")
@@ -185,13 +185,13 @@ func TestSpawnServerState(t *testing.T) {
 // TestSpawnServerEnv checks the environment of the started server: the client's,
 // with the marker set exactly once.
 func TestSpawnServerEnv(t *testing.T) {
-	env := serverEnv([]string{"HOME=/tmp/h", "JUMPER_SERVER=0", "TERM=dumb"})
+	env := serverEnv([]string{"HOME=/tmp/h", "JUMPR_SERVER=0", "TERM=dumb"})
 	var markers, homes int
 	for _, kv := range env {
 		switch {
-		case kv == "JUMPER_SERVER=1":
+		case kv == "JUMPR_SERVER=1":
 			markers++
-		case strings.HasPrefix(kv, "JUMPER_SERVER="):
+		case strings.HasPrefix(kv, "JUMPR_SERVER="):
 			t.Fatalf("a second marker survived: %q", kv)
 		case kv == "HOME=/tmp/h":
 			homes++
@@ -203,7 +203,7 @@ func TestSpawnServerEnv(t *testing.T) {
 }
 
 // TestSpawnEnsureServerStartsAndConnects is the whole on-demand start: it builds
-// the binary, lets EnsureServer spawn `jumper server` on a temp socket in --demo,
+// the binary, lets EnsureServer spawn `jumpr server` on a temp socket in --demo,
 // asks it for `ls`, creates a detached session, kills the server and checks that
 // the process is gone.
 //
@@ -217,9 +217,9 @@ func TestSpawnEnsureServerStartsAndConnects(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := shortDir(t)
-	exe := filepath.Join(dir, "jumper")
+	exe := filepath.Join(dir, "jumpr")
 	var build bytes.Buffer
-	cmd := exec.Command("go", "build", "-o", exe, "./cmd/jumper")
+	cmd := exec.Command("go", "build", "-o", exe, "./cmd/jumpr")
 	cmd.Dir = root
 	cmd.Stdout = &build
 	cmd.Stderr = &build
@@ -232,13 +232,13 @@ func TestSpawnEnsureServerStartsAndConnects(t *testing.T) {
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	cache := filepath.Join(home, ".cache", "jumper")
+	cache := filepath.Join(home, ".cache", "jumpr")
 	sock := filepath.Join(dir, "j.sock")
 	logPath := LogPath(cache)
 
 	// A private HOME keeps the server's cache, lock and log out of the real one.
 	env := replaceEnv(os.Environ(), "HOME", home)
-	env = replaceEnv(env, "JUMPER_SOCKET", "")
+	env = replaceEnv(env, "JUMPR_SOCKET", "")
 	env = replaceEnv(env, "SITREP", "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -335,10 +335,10 @@ func shortDir(t *testing.T) string {
 // helperEnv is the environment of the helper process: ours plus the marker that
 // decides what it does.
 func helperEnv(mode string) []string {
-	env := replaceEnv(os.Environ(), "JUMPER_TEST_HELPER", mode)
+	env := replaceEnv(os.Environ(), "JUMPR_TEST_HELPER", mode)
 	// -test.* flags a normal `go test` sets would make the child behave like
 	// the parent; only the helper test is asked for explicitly.
-	return replaceEnv(env, "JUMPER_SERVER", "")
+	return replaceEnv(env, "JUMPR_SERVER", "")
 }
 
 // replaceEnv sets key=value in env, dropping every earlier value of key.

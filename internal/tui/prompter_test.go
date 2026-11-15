@@ -11,10 +11,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
-	"jumper/internal/interact"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // replyNow is a fake send that answers every prompt at once with answer.

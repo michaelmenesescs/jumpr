@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

@@ -3,7 +3,7 @@ package shq
 import (
 	"strings"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const maxMsg = 200

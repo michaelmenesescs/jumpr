@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/transport"
+	"jumpr/internal/transport"
 )
 
 // shellLog drains one Shell in the background so a test can wait for output

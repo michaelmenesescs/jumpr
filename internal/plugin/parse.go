@@ -14,7 +14,7 @@ import (
 
 	"github.com/itchyny/gojq"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const (

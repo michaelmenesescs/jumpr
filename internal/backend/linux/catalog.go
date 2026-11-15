@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/group"
-	"jumper/internal/shq"
+	"jumpr/internal/errs"
+	"jumpr/internal/group"
+	"jumpr/internal/shq"
 )
 
 // Probe is one read-only catalog probe: a name, a one-line help, the remote

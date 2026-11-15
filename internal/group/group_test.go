@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 func hid(i int) resource.HostID { return resource.HostID(fmt.Sprintf("h%04d", i)) }

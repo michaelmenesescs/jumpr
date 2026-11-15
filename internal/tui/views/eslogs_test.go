@@ -9,12 +9,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/elastic"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/elastic"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // esRow builds one log row.

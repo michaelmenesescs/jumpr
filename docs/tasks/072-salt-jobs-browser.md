@@ -22,7 +22,7 @@ SPEC §5 W8, §8.6 (jobs browser).
    blank for history). `List` merges `Active` (always) with `ListJobs` for the query window (default: session
    window, else last 1 h). Running first, then newest first. `Args["minion"]` filters to jobs whose target list
    or returns include that minion (history filter is best effort on `Target`). `Args["fun"]` filters by function
-   prefix. Hide jumper's own polling noise: drop jobs whose function is `runner.jobs.*` or `saltutil.find_job`.
+   prefix. Hide jumpr's own polling noise: drop jobs whose function is `runner.jobs.*` or `saltutil.find_job`.
 2. Refresh: the table view's normal refresh; add an optional `AutoRefresh() time.Duration` method on views that
    the root honours with a `tea.Tick` (5 s for this kind while any job is running).
 3. Job detail view `views.NewSaltJob(env, saltBackend, jid)`:

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
-	sshcfg "jumper/internal/transport/ssh"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
+	sshcfg "jumpr/internal/transport/ssh"
+	"jumpr/internal/transport/transporttest"
 )
 
 // grainsFrom decodes a JSON object into Grains, failing the test on bad input.

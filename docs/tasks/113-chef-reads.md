@@ -34,7 +34,7 @@ registered; db-01's last run fails on purpose.
 ## Acceptance
 ```
 go test -race ./internal/backend/chef/ -v
-go run ./cmd/@@ capture chef --config-dir lab/jumper      # lab up
+go run ./cmd/@@ capture chef --config-dir lab/jumpr      # lab up
 ```
 
 ## Pitfalls

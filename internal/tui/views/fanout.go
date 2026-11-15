@@ -10,18 +10,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/plugin"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/plugin"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // fanoutBatchMax is the most results one FanoutBatchMsg carries (BUILD-PLAN §5:

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport/transporttest"
 )
 
 // cgtopOut is a real two-frame `systemd-cgtop -b -n 2` capture: the first frame

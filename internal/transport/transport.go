@@ -1,4 +1,4 @@
-// Package transport defines how jumper runs commands on remote hosts.
+// Package transport defines how jumpr runs commands on remote hosts.
 package transport
 
 import (
@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Command is one remote shell invocation. It runs as: sh -c <Script>,

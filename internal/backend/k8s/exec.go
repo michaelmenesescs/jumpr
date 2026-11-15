@@ -16,8 +16,8 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	kexec "k8s.io/client-go/util/exec"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport"
 )
 
 const (

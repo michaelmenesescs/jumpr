@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/server"
+	"jumpr/internal/errs"
+	"jumpr/internal/server"
 )
 
 // TestCLIParseTable covers every command and every flag: the parsing is pure,
@@ -180,7 +180,7 @@ func TestCLIParseTable(t *testing.T) {
 }
 
 // TestCLIParseErrors checks that everything the grammar does not allow is a
-// config error, which cmd/jumper turns into exit code 2.
+// config error, which cmd/jumpr turns into exit code 2.
 func TestCLIParseErrors(t *testing.T) {
 	cases := []struct {
 		name string
@@ -275,7 +275,7 @@ func TestCLIHello(t *testing.T) {
 	}
 }
 
-// TestCLISocketPath checks the resolution order: -S, then $JUMPER_SOCKET, then
+// TestCLISocketPath checks the resolution order: -S, then $JUMPR_SOCKET, then
 // the cache directory.
 func TestCLISocketPath(t *testing.T) {
 	inv, err := ParseCLI([]string{"-S", "/tmp/flag.sock"})
@@ -291,9 +291,9 @@ func TestCLISocketPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := SocketPath(inv, "/tmp/env.sock", "/home/tester"); got != "/tmp/env.sock" {
-		t.Fatalf("with $JUMPER_SOCKET: %q", got)
+		t.Fatalf("with $JUMPR_SOCKET: %q", got)
 	}
-	if got, want := SocketPath(inv, "", "/home/tester"), "/home/tester/.cache/jumper/jumper.sock"; got != want {
+	if got, want := SocketPath(inv, "", "/home/tester"), "/home/tester/.cache/jumpr/jumpr.sock"; got != want {
 		t.Fatalf("default = %q, want %q", got, want)
 	}
 
@@ -311,7 +311,7 @@ func TestCLICheckSocketPath(t *testing.T) {
 	if err := CheckSocketPath(""); err == nil {
 		t.Fatal("an empty path was accepted")
 	}
-	if err := CheckSocketPath("/tmp/jumper.sock"); err != nil {
+	if err := CheckSocketPath("/tmp/jumpr.sock"); err != nil {
 		t.Fatalf("a normal path was rejected: %v", err)
 	}
 	long := "/tmp/" + strings.Repeat("x", MaxSocketPath)
@@ -322,7 +322,7 @@ func TestCLICheckSocketPath(t *testing.T) {
 	}
 }
 
-// TestCLISessionLines checks the `jumper ls` output, which is tmux's:
+// TestCLISessionLines checks the `jumpr ls` output, which is tmux's:
 // main: 2 windows (created Nov 12 14:02) (attached)
 func TestCLISessionLines(t *testing.T) {
 	created := time.Date(2026, 11, 12, 14, 2, 0, 0, time.Local)

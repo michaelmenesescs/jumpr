@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/inventory"
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/inventory"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 	// labDomain is the suffix of every lab host (SPEC §22).
 	labDomain = ".lab.example.internal"
 	// driftedMotd is the comment the drift test appends to the Salt-managed motd.
-	driftedMotd = "# jumper lab drift"
+	driftedMotd = "# jumpr lab drift"
 )
 
 // labEnv is the Salt stack the lab tests share: the runner to the master, the

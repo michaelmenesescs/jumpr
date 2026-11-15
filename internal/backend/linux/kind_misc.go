@@ -5,11 +5,11 @@ import (
 	"sort"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/fanout"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/backend"
+	"jumpr/internal/fanout"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 const (

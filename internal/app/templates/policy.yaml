@@ -1,10 +1,10 @@
-# Action policy — written once by `jumper init` (SPEC §11).
+# Action policy — written once by `jumpr init` (SPEC §11).
 #
 # This is a guard rail against mistakes, not a sandbox: every write, from any
 # backend or plugin, is checked against it before it runs. Edit it to match how
 # much rope you want. Unknown keys are errors.
 
-# Refuse every write. `jumper --readonly` does the same for one run.
+# Refuse every write. `jumpr --readonly` does the same for one run.
 readonly: false
 
 # Refuse an action that targets more than this many hosts. 0 = no limit.

@@ -14,19 +14,19 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/errs"
-	"jumper/internal/redact"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
 )
 
 const (
 	// SecretEnvPrefix prefixes the environment form of a secret:
-	// JUMPER_SECRET_<NAME>, with the name upper-cased and anything that is not
+	// JUMPR_SECRET_<NAME>, with the name upper-cased and anything that is not
 	// a letter or digit turned into an underscore.
-	SecretEnvPrefix = "JUMPER_SECRET_"
+	SecretEnvPrefix = "JUMPR_SECRET_"
 	// SecurityBin is the macOS Keychain CLI.
 	SecurityBin = "/usr/bin/security"
-	// KeychainService is the `-s` jumper looks a secret up under.
-	KeychainService = "jumper"
+	// KeychainService is the `-s` jumpr looks a secret up under.
+	KeychainService = "jumpr"
 	// SecretTimeout caps one Keychain or command lookup.
 	SecretTimeout = 15 * time.Second
 	// secretOutputCap caps what a secret command may print.
@@ -57,7 +57,7 @@ type Secrets struct {
 	// Security is the argv prefix used for a Keychain lookup. The literal
 	// token {name} is replaced by the secret name; without it the name is
 	// appended as the last argument. The empty value means the default
-	// `/usr/bin/security find-generic-password -s jumper -a {name} -w`.
+	// `/usr/bin/security find-generic-password -s jumpr -a {name} -w`.
 	Security []string
 	// Timeout caps one Keychain or command lookup. Zero means SecretTimeout.
 	Timeout time.Duration

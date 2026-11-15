@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 
-	"jumper/internal/testload"
+	"jumpr/internal/testload"
 )
 
 // Values used below are deliberately fake test data, not real credentials.

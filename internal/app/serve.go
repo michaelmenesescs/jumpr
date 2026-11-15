@@ -11,16 +11,16 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/interact"
-	"jumper/internal/mux"
-	"jumper/internal/safe"
-	"jumper/internal/server"
-	"jumper/internal/tui"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
+	"jumpr/internal/mux"
+	"jumpr/internal/safe"
+	"jumpr/internal/server"
+	"jumpr/internal/tui"
 )
 
-// ServerOptions is what a `jumper server` run needs: the same Options a
+// ServerOptions is what a `jumpr server` run needs: the same Options a
 // standalone run takes, plus the socket it listens on. The socket is resolved by
 // the caller, so this file never reads the environment or the command line.
 type ServerOptions struct {
@@ -92,7 +92,7 @@ func RunServer(ctx context.Context, o ServerOptions) (err error) {
 	// What this process is worth recording: a client whose --config-dir differs
 	// gets a warning line before it attaches (task 081 requirement 6).
 	statePath := StatePath(paths.CacheDir)
-	st := ServerState{ConfigDir: paths.ConfigDir, Version: o.Version, PID: os.Getpid()}
+	st := ServerState{ConfigDir: paths.ConfigDir, Version: o.Version, PID: os.Getpid(), ReadOnly: o.ReadOnly}
 	if werr := WriteServerState(statePath, st); werr != nil {
 		logger.Warn("server state not written", "path", statePath, "err", werr)
 	} else {

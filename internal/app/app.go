@@ -2,7 +2,7 @@
 // per-process core (transports, inventory, backends, policy), then one session
 // with its own bus, environment, root model and Bubble Tea program, and runs it
 // until the user quits (BUILD-PLAN §6). It is the only package besides
-// cmd/jumper that may touch os.Stdin/Stdout/Stderr (BUILD-PLAN §6.1); it only
+// cmd/jumpr that may touch os.Stdin/Stdout/Stderr (BUILD-PLAN §6.1); it only
 // reads the ones handed to Run.
 package app
 
@@ -15,19 +15,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/interact"
-	"jumper/internal/mux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/safe"
-	"jumper/internal/tui"
-	"jumper/internal/tui/views"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
+	"jumpr/internal/mux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/safe"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/views"
 )
 
 // Options is everything Run needs from the outside world. Nothing here is read
-// from the process environment: cmd/jumper fills it in.
+// from the process environment: cmd/jumpr fills it in.
 type Options struct {
 	In        io.Reader
 	Out       io.Writer
@@ -46,7 +46,7 @@ type Options struct {
 	// prompter is built, which shows a dialog.
 	Prompter interact.Prompter
 
-	// Size is the terminal size to attach with. cmd/jumper reads it from the
+	// Size is the terminal size to attach with. cmd/jumpr reads it from the
 	// terminal with golang.org/x/term; nil means the default 80×24 (a run over
 	// pipes has no terminal to ask). Bubble Tea cannot detect it any more: the
 	// session's output is a switchable pipe, not a TTY.
@@ -174,12 +174,12 @@ func restoreSession(root *tui.Root, path string) {
 }
 
 // resolveGlyphs resolves the active glyph set once, at startup. A non-empty
-// JUMPER_GLYPHS value wins over the config; "auto" and an empty value mean
+// JUMPR_GLYPHS value wins over the config; "auto" and an empty value mean
 // unicode. An unknown value in either place is an errs.Config error naming its
 // source, never a silent fallback. It is the only place the UI's glyph set is
 // read from the environment (BUILD-PLAN §6.1 puts os.Getenv in internal/app).
 func resolveGlyphs(cfg, env string) (render.GlyphSet, error) {
-	name, source := env, "JUMPER_GLYPHS"
+	name, source := env, "JUMPR_GLYPHS"
 	if name == "" {
 		name, source = cfg, "ui.glyphs"
 	}

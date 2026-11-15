@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/transporttest"
 )
 
 func TestNodegroupsParse(t *testing.T) {

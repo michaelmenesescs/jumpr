@@ -7,13 +7,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/linux"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport/transporttest"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport/transporttest"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // fileTestEnv wires a real Linux backend over a scripted transport into an Env,
@@ -215,7 +215,7 @@ func TestFileCommandBinaryRefused(t *testing.T) {
 	ex.On("stat -c", transporttest.Reply{Stdout: "16 root:root 644 2026-11-12 10:31:02.000000000 +0000\n"})
 	ex.On("head -c", transporttest.Reply{Stdout: "\x7fELF\x02\x01\x01\x00binary body"})
 
-	msg := runLine(t, fileTestCommands(t), env, `file /usr/bin/jumper --host web-01`)
+	msg := runLine(t, fileTestCommands(t), env, `file /usr/bin/jumpr --host web-01`)
 	flash, ok := msg.(FlashMsg)
 	if !ok {
 		t.Fatalf("message = %T, want FlashMsg", msg)

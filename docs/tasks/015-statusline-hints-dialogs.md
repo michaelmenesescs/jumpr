@@ -22,7 +22,7 @@ SPEC §13 (status line: green ok, half degraded, red down, grey unconfigured). M
    string; Window string; Targets int; Health []HealthDot; ReadOnly bool; Sync int }`, `WindowTab{Index int; Name
    string; Active bool}`, `HealthDot{Name string; State backend.HealthState}`.
 2. `func RenderStatus(t *theme.Theme, d StatusData, w int) string` — exactly `w` cells, one line. Left to right:
-   `jumper`, session name, window tabs (`0:hosts*`), then `inv:<id>`, `window:<label>`, `targets:<n>`, then
+   `jumpr`, session name, window tabs (`0:hosts*`), then `inv:<id>`, `window:<label>`, `targets:<n>`, then
    right-aligned: `RO` badge if read-only, `SYNC ×n` badge if `Sync > 0`, the prefix (`^A`), health dots
    (`●salt ●prom ◐grafana`, glyphs: OK `●` green, degraded `◐` yellow, down `●` red, unconfigured `○` grey).
    When too narrow, drop in this order: context, window label, health names (keep dots), window tabs except the

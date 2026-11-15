@@ -5,9 +5,9 @@ import (
 	"context"
 	"sync"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // defaultConcurrency is used when Options.Concurrency is zero (BUILD-PLAN §8: global fan-out 64).

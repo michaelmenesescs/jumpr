@@ -5,13 +5,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/bus"
-	"jumper/internal/fanout"
-	"jumper/internal/interact"
-	"jumper/internal/investigation"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
+	"jumpr/internal/backend"
+	"jumpr/internal/bus"
+	"jumpr/internal/fanout"
+	"jumpr/internal/interact"
+	"jumpr/internal/investigation"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
 )
 
 // Navigation (emitted by views and commands; handled by the focused view pane's stack)

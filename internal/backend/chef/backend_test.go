@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/transporttest"
 )
 
 // newTestBackend returns a backend over the lab fixtures with a fixed clock.

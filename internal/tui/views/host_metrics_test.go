@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/backend/prom"
-	"jumper/internal/investigation"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend/prom"
+	"jumpr/internal/investigation"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // TestHostMetricsSection renders one configured column with its value and

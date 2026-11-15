@@ -9,8 +9,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
-	"jumper/internal/interact"
+	"jumpr/internal/errs"
+	"jumpr/internal/interact"
 )
 
 // defaultPromptTimeout is used when NewPrompter is given a non-positive

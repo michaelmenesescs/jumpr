@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/server"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/server"
 )
 
-// Command is one subcommand of `jumper [global flags] [command] [flags]`
+// Command is one subcommand of `jumpr [global flags] [command] [flags]`
 // (SPEC §21.4). An invocation with no command word attaches.
 type Command string
 
@@ -39,7 +39,7 @@ const (
 )
 
 // Invocation is a parsed command line. Parsing is pure: nothing here reads the
-// environment or the filesystem, so cmd/jumper passes $JUMPER_SOCKET and the
+// environment or the filesystem, so cmd/jumpr passes $JUMPR_SOCKET and the
 // paths in.
 type Invocation struct {
 	// Command is the subcommand; CommandAttach when no command word was given.
@@ -48,7 +48,7 @@ type Invocation struct {
 	ConfigDir string
 	// Debug is --debug: write the debug log.
 	Debug bool
-	// Socket is -S/--socket. Empty means $JUMPER_SOCKET, then the cache dir.
+	// Socket is -S/--socket. Empty means $JUMPR_SOCKET, then the cache dir.
 	Socket string
 	// Standalone is --standalone (or --demo, which implies it): one process,
 	// no server.
@@ -77,7 +77,7 @@ type Invocation struct {
 }
 
 // ParseCLI parses args (without the program name). Unknown commands and flags
-// are *errs.Error with kind Config, which cmd/jumper turns into exit code 2.
+// are *errs.Error with kind Config, which cmd/jumpr turns into exit code 2.
 func ParseCLI(args []string) (Invocation, error) {
 	inv := Invocation{Command: CommandAttach}
 
@@ -291,8 +291,8 @@ func Paths(inv Invocation, home string) config.Paths {
 	return config.ResolvePaths(home, inv.ConfigDir)
 }
 
-// SocketPath resolves the server socket: -S, then $JUMPER_SOCKET, then
-// <cache>/jumper.sock (BUILD-PLAN §6). envSocket is passed in, never read here.
+// SocketPath resolves the server socket: -S, then $JUMPR_SOCKET, then
+// <cache>/jumpr.sock (BUILD-PLAN §6). envSocket is passed in, never read here.
 func SocketPath(inv Invocation, envSocket, home string) string {
 	if inv.Socket != "" {
 		return inv.Socket
@@ -300,7 +300,7 @@ func SocketPath(inv Invocation, envSocket, home string) string {
 	if envSocket != "" {
 		return envSocket
 	}
-	return filepath.Join(config.ResolvePaths(home, inv.ConfigDir).CacheDir, "jumper.sock")
+	return filepath.Join(config.ResolvePaths(home, inv.ConfigDir).CacheDir, "jumpr.sock")
 }
 
 // MaxSocketPath is the longest usable unix socket path: macOS `sun_path` is 104
@@ -319,7 +319,7 @@ func CheckSocketPath(path string) error {
 	return nil
 }
 
-// FormatSessionLine renders one `jumper ls` line, as tmux does:
+// FormatSessionLine renders one `jumpr ls` line, as tmux does:
 //
 //	main: 2 windows (created Nov 12 14:02) (attached)
 func FormatSessionLine(s server.SessionInfo) string {
@@ -337,7 +337,7 @@ func FormatSessionLine(s server.SessionInfo) string {
 
 // Usage is the text `-h`, `--help` and a bad command line print.
 func Usage() string {
-	return "usage: jumper [global flags] [command] [flags]\n" +
+	return "usage: jumpr [global flags] [command] [flags]\n" +
 		"\n" +
 		"commands:\n" +
 		"  (none)                  attach to the last session, or create \"main\"\n" +
@@ -353,9 +353,9 @@ func Usage() string {
 		"  version                 print the version\n" +
 		"\n" +
 		"global flags:\n" +
-		"  --config-dir DIR        configuration directory (default ~/.config/jumper)\n" +
+		"  --config-dir DIR        configuration directory (default ~/.config/jumpr)\n" +
 		"  --debug                 write the debug log\n" +
-		"  -S, --socket PATH       server socket (default ~/.cache/jumper/jumper.sock)\n" +
+		"  -S, --socket PATH       server socket (default ~/.cache/jumpr/jumpr.sock)\n" +
 		"  --standalone            one process, no session server\n" +
 		"  --demo                  run the built-in fake world (implies --standalone)\n" +
 		"  --readonly              start read-only: every write is denied\n" +

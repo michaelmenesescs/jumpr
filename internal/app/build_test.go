@@ -17,13 +17,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	gossh "golang.org/x/crypto/ssh"
 
-	"jumper/internal/config"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh/sshtest"
-	"jumper/internal/tui"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/config"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh/sshtest"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/theme"
 )
 
 // buildWait bounds how long the test waits for one command to come back.
@@ -202,7 +202,7 @@ func TestBuildDemoUsesFakeBackend(t *testing.T) {
 	theme.SetProfile("none")
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
-	if err := os.MkdirAll(filepath.Join(home, ".config", "jumper"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, ".config", "jumpr"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	cfg := config.Default()

@@ -11,14 +11,14 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // KindSaltEvents is the factory key of the event screen (task 096). It is a
@@ -77,7 +77,7 @@ type saltEventsBatchMsg struct {
 
 // SaltEvents is `:events` (SPEC §8.6 "Events"): the master's event bus live in
 // a pane. It follows the newest event, filters by text, toggles kinds, hides
-// jumper's own polling runners and pauses without losing what arrives. It is a
+// jumpr's own polling runners and pauses without losing what arrives. It is a
 // tui.View; the stream runs in a tea.Cmd and is tied to the pane's context.
 type SaltEvents struct {
 	env    *tui.Env
@@ -102,7 +102,7 @@ type SaltEvents struct {
 	// hidden are the kind toggles of `1`–`6`, indexed like
 	// saltEventsToggleKinds. true means the kind is hidden.
 	hidden [6]bool
-	// hideOwn hides jumper's own polling runner events; `h` toggles it.
+	// hideOwn hides jumpr's own polling runner events; `h` toggles it.
 	hideOwn bool
 	// ended is true when the stream closed by itself, so the screen can offer
 	// a reconnect.

@@ -11,12 +11,12 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/bus"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/bus"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/transporttest"
 )
 
 // loadedManager writes defs into a temp plugins directory, loads them and

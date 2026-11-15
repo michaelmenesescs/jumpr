@@ -3,12 +3,12 @@
 # The lab's observability stack (Prometheus, Alertmanager, Grafana,
 # Elasticsearch) sits behind a Go mock SSO proxy that only answers requests
 # carrying its session cookie. `lab-sso` is the profile every M8 lab test and
-# `jumper doctor conn` use. The auth helper is the example helper from task 099:
+# `jumpr doctor conn` use. The auth helper is the example helper from task 099:
 #
 #   go build -o lab/.keys/auth-helper ./examples/auth-helper-cookie
-#   export JUMPER_AUTH_COOKIE=<the cookie the mock proxy hands out>
+#   export JUMPR_AUTH_COOKIE=<the cookie the mock proxy hands out>
 #
-# The helper reads JUMPER_AUTH_COOKIE (or the macOS Keychain) and prints the
+# The helper reads JUMPR_AUTH_COOKIE (or the macOS Keychain) and prints the
 # helper JSON of SPEC §7.2, which is exactly the extension point a real SSO
 # setup uses: nothing about the profile is lab-specific except the address.
 #

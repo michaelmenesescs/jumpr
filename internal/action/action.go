@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Actor says who asked. "human", "plugin:<name>", "agent:<name>".

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // bodyOf encodes a search body for a structural assertion.

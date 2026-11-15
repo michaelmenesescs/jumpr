@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 const (

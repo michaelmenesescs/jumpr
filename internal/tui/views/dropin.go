@@ -8,18 +8,18 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/linux"
-	"jumper/internal/investigation"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/investigation"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/theme"
 )
 
 // dropInBanner is the first line of the preview and the whole point of the
-// screen: jumper shows the change, the user applies it.
-const dropInBanner = "preview only — jumper does not write files on nodes"
+// screen: jumpr shows the change, the user applies it.
+const dropInBanner = "preview only — jumpr does not write files on nodes"
 
 // dropInDefault is the draft a unit without an override starts from.
 const dropInDefault = "[Service]\n"

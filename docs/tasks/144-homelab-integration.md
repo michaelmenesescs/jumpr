@@ -9,7 +9,7 @@
 The user's own targets, already reachable from this laptop:
 
 - `ssh macmini` → **Ubuntu 24.04.5 LTS, x86_64, systemd 255, journalctl present** (Tailscale 100.120.74.69, user `mike`).
-  This is the jumper target: systemd, journald, `/proc`, `ss`.
+  This is the jumpr target: systemd, journald, `/proc`, `ss`.
 - `ssh mini` → **Darwin 24.6.0 arm64** (the M4 Mac mini). A macOS *target* is out of scope — SPEC §3 excludes
   non-systemd nodes — so it is a client host and a future `launchd` backend, nothing more. Do not write systemd probes
   against it.
@@ -26,14 +26,14 @@ so the parsers and the backend are not refactored the moment they meet reality.
 
 ## Requirements
 1. **Skip cleanly, never fail the default suite.** No file here may compile into `go test ./...`. Every test starts with
-   `host := os.Getenv("JUMPER_HOMELAB_UBUNTU"); if host == "" { t.Skip("JUMPER_HOMELAB_UBUNTU not set") }` and then a
+   `host := os.Getenv("JUMPR_HOMELAB_UBUNTU"); if host == "" { t.Skip("JUMPR_HOMELAB_UBUNTU not set") }` and then a
    dial with a 3 s timeout; unreachable → `t.Skipf`, not `t.Fatal` (a laptop away from the tailnet must still pass CI).
 2. **Read-only, always.** Only these commands may run remotely: `id -un`, `uname -sr`, `cat /proc/loadavg`,
    `systemctl list-units`, `systemctl show <unit>`, `journalctl -o json -n 50`, `ss -tunap`, `ps -eo …`, `sudo -n true`.
    Add a test that asserts the probe batch under test contains no `systemctl start|stop|restart|enable|disable`, `kill`,
    or `rm`.
 3. Tests, each ≤ 10 s per remote call:
-   - `TestHomelabSSHConfigResolve`: `internal/sshcfg` resolves `JUMPER_HOMELAB_UBUNTU` to a non-empty user + host +
+   - `TestHomelabSSHConfigResolve`: `internal/sshcfg` resolves `JUMPR_HOMELAB_UBUNTU` to a non-empty user + host +
      port 22; the alias must come from the real `~/.ssh/config`, not a fixture.
    - `TestHomelabExecRoundTrip`: dialer + `Executor` run `id -un`; output is non-empty, no trailing escape bytes,
      exit code 0; a deliberately failing command (`sh -c 'exit 127'`) is classified by `internal/shq.Classify` as
@@ -58,7 +58,7 @@ AWS, macOS/launchd targets, sudo-dependent probes, anything that writes to the r
 ## Acceptance
 ```
 make check                                   # unchanged, must stay green without a network
-JUMPER_HOMELAB_UBUNTU=macmini make homelab-test    # all pass, or skip with a stated reason
+JUMPR_HOMELAB_UBUNTU=macmini make homelab-test    # all pass, or skip with a stated reason
 ```
 
 ## Pitfalls

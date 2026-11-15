@@ -13,14 +13,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/fuzzy"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/fuzzy"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
 )
 
 // hostErr is one failed batch of a streaming List.

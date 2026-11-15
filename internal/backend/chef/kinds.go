@@ -3,7 +3,7 @@ package chef
 import (
 	"strings"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // Canonical kind names served by this backend.

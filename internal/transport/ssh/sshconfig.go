@@ -13,7 +13,7 @@ import (
 
 	"github.com/kevinburke/ssh_config"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 const maxChain = 5

@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // echoOpener is a stream opener backed by an in-memory pair that echoes what it

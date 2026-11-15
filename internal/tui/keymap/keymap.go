@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Binding is one action and the Bubble Tea keys that trigger it.

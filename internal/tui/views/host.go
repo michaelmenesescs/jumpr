@@ -8,17 +8,17 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend"
-	"jumper/internal/backend/elastic"
-	"jumper/internal/backend/k8s"
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/prom"
-	"jumper/internal/errs"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/backend"
+	"jumpr/internal/backend/elastic"
+	"jumpr/internal/backend/k8s"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/prom"
+	"jumpr/internal/errs"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // hostLoadTimeout bounds the overview Get a host view runs. BUILD-PLAN §8: exec

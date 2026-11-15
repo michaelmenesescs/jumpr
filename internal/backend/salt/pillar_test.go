@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/transporttest"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/transporttest"
 )
 
 // pillarJobReply renders a jobs.list_job answer whose function is a pillar

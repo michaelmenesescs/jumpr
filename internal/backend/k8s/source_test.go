@@ -8,8 +8,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"jumper/internal/errs"
-	"jumper/internal/inventory"
+	"jumpr/internal/errs"
+	"jumpr/internal/inventory"
 )
 
 // sourceNow is the clock the source tests run against.

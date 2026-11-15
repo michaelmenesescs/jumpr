@@ -33,7 +33,7 @@ func TestLoadSpecExamples(t *testing.T) {
 	if !ok {
 		t.Fatal("nginx-status (SPEC §12 first example) did not load")
 	}
-	if nginx.APIVersion != "jumper/v1" || nginx.Kind != "Plugin" {
+	if nginx.APIVersion != "jumpr/v1" || nginx.Kind != "Plugin" {
 		t.Errorf("nginx-status header = %q/%q", nginx.APIVersion, nginx.Kind)
 	}
 	if nginx.Target != TargetHost || !nginx.Privileged {
@@ -234,7 +234,7 @@ func TestLoadUnknownFieldIsStrict(t *testing.T) {
 
 func TestLoadSyntaxErrorHasLine(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, dir, "syntax.yaml", "apiVersion: jumper/v1\nkind: Plugin\nname: [oops\n")
+	writeFile(t, dir, "syntax.yaml", "apiVersion: jumpr/v1\nkind: Plugin\nname: [oops\n")
 	_, problems := LoadDir(dir)
 	if len(problems) != 1 {
 		t.Fatalf("problems = %v, want 1", problems)
@@ -293,7 +293,7 @@ func TestValidateParseRules(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			body := "apiVersion: jumper/v1\nkind: Plugin\nname: p\ntarget: host\ncommand: uptime\nparse:\n  " +
+			body := "apiVersion: jumpr/v1\nkind: Plugin\nname: p\ntarget: host\ncommand: uptime\nparse:\n  " +
 				strings.ReplaceAll(tc.parse, "\n", "\n  ") + "\n"
 			writeFile(t, dir, "p.yaml", body)
 			_, problems := LoadDir(dir)
@@ -378,7 +378,7 @@ func TestValidateTemplateForms(t *testing.T) {
 }
 
 func TestValidateActionRules(t *testing.T) {
-	base := "apiVersion: jumper/v1\nkind: Plugin\nname: a\ntarget: host\ncommand: uptime\nparse:\n  type: lines\n"
+	base := "apiVersion: jumpr/v1\nkind: Plugin\nname: a\ntarget: host\ncommand: uptime\nparse:\n  type: lines\n"
 	tests := []struct {
 		name  string
 		body  string
@@ -413,7 +413,7 @@ func TestValidateActionRules(t *testing.T) {
 }
 
 func TestValidateRequestRules(t *testing.T) {
-	base := "apiVersion: jumper/v1\nkind: Plugin\nname: h\ntarget: http\nparse:\n  type: json\n"
+	base := "apiVersion: jumpr/v1\nkind: Plugin\nname: h\ntarget: http\nparse:\n  type: json\n"
 	tests := []struct {
 		name  string
 		body  string
@@ -519,7 +519,7 @@ func TestWatchStopsOnCancel(t *testing.T) {
 	}
 }
 
-const validHostPlugin = `apiVersion: jumper/v1
+const validHostPlugin = `apiVersion: jumpr/v1
 kind: Plugin
 name: ok-plugin
 description: a valid host plugin

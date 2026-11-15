@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // Executor defaults. BUILD-PLAN §4.3 defines the Command contract; §8.6 the
@@ -282,7 +282,7 @@ func (e *Executor) missing(job *Job, ctx context.Context, host resource.HostID) 
 
 // call builds the Salt call that carries script. The command line is always
 // cmd.run_all with the base64 script in the cmd kwarg; shq quotes the kwarg
-// word, so no layer between jumper and the minion can split it.
+// word, so no layer between jumpr and the minion can split it.
 func (e *Executor) call(script string, timeout time.Duration) (Call, *errs.Error) {
 	payload := base64.StdEncoding.EncodeToString([]byte(lcAllPrefix + script))
 	if len(payload) > maxScriptBase64 {

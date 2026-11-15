@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 func TestDatasourceShapes(t *testing.T) {

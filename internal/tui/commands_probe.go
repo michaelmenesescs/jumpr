@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // FanoutOpener builds the grouped fan-out view one `:probe <name>` run opens.

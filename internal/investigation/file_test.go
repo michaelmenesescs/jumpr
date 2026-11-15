@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
-	"jumper/internal/action"
-	"jumper/internal/errs"
+	"jumpr/internal/action"
+	"jumpr/internal/errs"
 
-	"jumper/internal/redact"
-	"jumper/internal/resource"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
 )
 
 // update rewrites testdata/golden-*.md instead of comparing, in the house style

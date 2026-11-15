@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
 )
 
 // Spec IDs offered by this backend. They all share the "salt." prefix, which is

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 // sourceHosts is one source's last good host list, in source order.

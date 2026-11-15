@@ -11,7 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // stateStub is a Content whose saved state is fixed, so a round trip can be

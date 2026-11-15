@@ -1,7 +1,7 @@
-# jumper test lab
+# jumpr test lab
 
 Local OrbStack machines that stand in for a real fleet: a bastion, a Salt master, web/db nodes (Rocky 9 + Ubuntu),
-a two-node k3s cluster, and a Chef workstation. Everything here is lab-only. jumper itself never installs anything
+a two-node k3s cluster, and a Chef workstation. Everything here is lab-only. jumpr itself never installs anything
 on nodes.
 
 ```sh

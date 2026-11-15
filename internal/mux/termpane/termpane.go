@@ -15,12 +15,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"jumper/internal/errs"
-	"jumper/internal/mux"
-	"jumper/internal/mux/vt"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/errs"
+	"jumpr/internal/mux"
+	"jumpr/internal/mux/vt"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 const (

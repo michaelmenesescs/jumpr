@@ -1,6 +1,6 @@
 // Package devtools holds the repository's development tooling: recording real
 // lab output into testdata/ and sanitizing it so it can be committed. Nothing
-// here is part of the jumper binary.
+// here is part of the jumpr binary.
 //
 // Everything takes writers as parameters and returns errors; the command in
 // cmd/ owns os.Stdin/Stdout/Stderr and os.Args (BUILD-PLAN §6.1).
@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // labDomain is the suffix every lab host carries (SPEC §22). Captures keep it:

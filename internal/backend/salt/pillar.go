@@ -10,12 +10,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Pillar reads (SPEC §8.6 "Pillar"): pillar.items and pillar.get.
 //
-// jumper's promise is narrow and it is kept here: a pillar value is turned
+// jumpr's promise is narrow and it is kept here: a pillar value is turned
 // into a type and a length the moment it arrives, and the bytes it came in
 // are zeroed before this file returns. Nothing in this file logs, records or
 // returns a value — except PillarValue, which hands exactly one value to the
@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	// minionIDRe is the shape of a minion id jumper will address: no shell
+	// minionIDRe is the shape of a minion id jumpr will address: no shell
 	// metacharacters, no slashes, no leading dash.
 	minionIDRe = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
 	// pillarPathRe is the shape of a colon-separated pillar key path.

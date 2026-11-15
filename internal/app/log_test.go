@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport"
 )
 
 // The debug log of task 126: one redacted line per remote command, and a file
@@ -70,9 +70,9 @@ func TestLogRemoteCommandRedacted(t *testing.T) {
 		t.Fatalf("Exec returned rc %d, want the scripted 3", res.RC)
 	}
 
-	raw, err := os.ReadFile(filepath.Join(dir, jumperLogName))
+	raw, err := os.ReadFile(filepath.Join(dir, jumprLogName))
 	if err != nil {
-		t.Fatalf("read %s: %v", jumperLogName, err)
+		t.Fatalf("read %s: %v", jumprLogName, err)
 	}
 	text := string(raw)
 	for _, want := range []string{
@@ -120,11 +120,11 @@ func TestLogLineIsCapped(t *testing.T) {
 	}
 }
 
-// TestLogRotationKeepsThree is requirement 4 for the client log: jumper.log
+// TestLogRotationKeepsThree is requirement 4 for the client log: jumpr.log
 // rotates at 10 MiB and three older files are kept.
 func TestLogRotationKeepsThree(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, jumperLogName)
+	path := filepath.Join(dir, jumprLogName)
 	w, err := openRotating(path, logRotateBytes, logRotateKeep, 0o644)
 	if err != nil {
 		t.Fatalf("openRotating: %v", err)
@@ -201,7 +201,7 @@ func TestLogDisabledWithoutDebug(t *testing.T) {
 	dir := t.TempDir()
 	logger := newLogger(dir, false)
 	logger.Debug("this must not reach a file")
-	if _, err := os.Stat(filepath.Join(dir, jumperLogName)); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir, jumprLogName)); !os.IsNotExist(err) {
 		t.Fatalf("a log file was created without --debug (err = %v)", err)
 	}
 }

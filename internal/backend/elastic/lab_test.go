@@ -4,21 +4,21 @@
 // Elasticsearch behind the mock SSO proxy (task 122).
 //
 // These tests are ordinary Go tests behind the `lab` build tag. They skip with
-// "lab observability stack not running" unless the lab is up, lab/jumper names
+// "lab observability stack not running" unless the lab is up, lab/jumpr names
 // an Elasticsearch cluster with at least one log source, the `lab-sso` auth
 // helper is built, the cluster accepts a TCP connection and
-// JUMPER_AUTH_COOKIE holds the cookie the mock proxy hands out. Nothing here
+// JUMPR_AUTH_COOKIE holds the cookie the mock proxy hands out. Nothing here
 // runs a proxy or a log shipper: both belong to the lab track (SPEC §22).
 //
 // The contract these tests expect from the lab stack is documented in
 // README.md ("Lab observability stack"):
 //
 //   - Elasticsearch serves the configured log source's index pattern behind the
-//     mock SSO proxy, with the ECS-ish field names of lab/jumper/config.yaml;
+//     mock SSO proxy, with the ECS-ish field names of lab/jumpr/config.yaml;
 //   - the nginx of a faulted web host writes a line for the `haproxy-443` fault
 //     (nginx cannot bind :443), and the lab ships its logs into Elasticsearch.
 //
-// Both tests drive jumper's packages, not the TUI: the backend built from the
+// Both tests drive jumpr's packages, not the TUI: the backend built from the
 // same config entry and connection profile the app builds, and the same
 // resource.Query `:logs` sends.
 package elastic
@@ -34,12 +34,12 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/config"
-	"jumper/internal/labtest"
-	"jumper/internal/redact"
-	"jumper/internal/resource"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/backend"
+	"jumpr/internal/config"
+	"jumpr/internal/labtest"
+	"jumpr/internal/redact"
+	"jumpr/internal/resource"
+	"jumpr/internal/transport/httpx"
 )
 
 const (
@@ -49,7 +49,7 @@ const (
 	// labProfile is the connection profile the lab's stack uses.
 	labProfile = "lab-sso"
 	// labCookieVar is what examples/auth-helper-cookie reads.
-	labCookieVar = "JUMPER_AUTH_COOKIE"
+	labCookieVar = "JUMPR_AUTH_COOKIE"
 	// labFault is the fault that makes a web host's nginx fail.
 	labFault = "haproxy-443"
 	// labLogWait is how long a line may take to reach the index: the shipper's
@@ -81,7 +81,7 @@ type labStack struct {
 	backend *Backend
 }
 
-// loadLabStack loads lab/jumper, moves to the repository root (the profile's
+// loadLabStack loads lab/jumpr, moves to the repository root (the profile's
 // helper path is relative to it) and skips unless the stack is up.
 func loadLabStack(t *testing.T) *labStack {
 	t.Helper()
@@ -89,7 +89,7 @@ func loadLabStack(t *testing.T) *labStack {
 	root := labtest.Root(t)
 
 	if len(cfg.Elasticsearch) == 0 {
-		t.Skipf("%s: lab/jumper/config.yaml configures no elasticsearch cluster", labSkip)
+		t.Skipf("%s: lab/jumpr/config.yaml configures no elasticsearch cluster", labSkip)
 	}
 	entry := cfg.Elasticsearch[0]
 	if len(entry.Sources) == 0 {
@@ -100,13 +100,13 @@ func loadLabStack(t *testing.T) *labStack {
 	if err != nil {
 		t.Fatalf("lab: home directory: %v", err)
 	}
-	profiles, err := config.LoadConnections(filepath.Join("lab", "jumper", "connections.yaml"), home)
+	profiles, err := config.LoadConnections(filepath.Join("lab", "jumpr", "connections.yaml"), home)
 	if err != nil {
 		t.Fatalf("lab: connections: %v", err)
 	}
 	p, ok := profiles[labProfile]
 	if !ok || p == nil {
-		t.Skipf("%s: lab/jumper/connections.yaml has no %q profile", labSkip, labProfile)
+		t.Skipf("%s: lab/jumpr/connections.yaml has no %q profile", labSkip, labProfile)
 	}
 	if p.Auth.Helper == nil || len(p.Auth.Helper.Command) == 0 {
 		t.Fatalf("lab: profile %q has no auth helper", labProfile)

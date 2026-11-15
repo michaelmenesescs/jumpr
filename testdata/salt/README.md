@@ -1,7 +1,7 @@
 # Salt golden files
 
 Captured from the lab's Salt master (`salt.lab.example.internal`) by
-`go run ./cmd/sitrep-lab capture salt --config-dir lab/jumper`.
+`go run ./cmd/sitrep-lab capture salt --config-dir lab/jumpr`.
 
 Every file is the Salt CLI's own output, passed through `devtools.Sanitize`.
 `pillar-items.json` is additionally passed through `devtools.ScrubValues`, so

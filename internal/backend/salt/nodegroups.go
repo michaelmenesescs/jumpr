@@ -2,7 +2,7 @@
 //
 // A nodegroup is a named target expression the master's config defines; it is
 // read with `salt-run config.get nodegroups` and resolved to members with
-// `salt … --preview-target -N <name>`, so jumper never guesses what a group
+// `salt … --preview-target -N <name>`, so jumpr never guesses what a group
 // contains. Beacons and schedules are per-minion read-only lists, asked for
 // with `return_yaml=False` so the master answers with plain data instead of a
 // YAML document.
@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"strings"
 
-	"jumper/internal/errs"
-	"jumper/internal/resource"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
 )
 
 const (

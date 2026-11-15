@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh"
 )
 
 // labDomain is the FQDN suffix of every lab machine.
@@ -39,7 +39,7 @@ type labEnv struct {
 // lab is created with `go run ./cmd/@@ up`.
 func newLabEnv(t *testing.T) *labEnv {
 	t.Helper()
-	cfg := os.Getenv("JUMPER_LAB_SSH_CONFIG")
+	cfg := os.Getenv("JUMPR_LAB_SSH_CONFIG")
 	if cfg == "" {
 		cfg = filepath.Join("..", "..", "..", "lab", "ssh_config")
 	}

@@ -4,12 +4,12 @@ _Generated from the built-in defaults by `go test ./internal/tui/keymap/ -update
 Do not edit by hand: change the bindings, then regenerate._
 
 Every binding below can be overridden in `keymap.yaml` in the configuration
-directory (`~/.config/jumper/keymap.yaml`) by its name, without rebuilding
-jumper. The prefix key itself is `mux.prefix` in `config.yaml` (default `C-a`).
+directory (`~/.config/jumpr/keymap.yaml`) by its name, without rebuilding
+jumpr. The prefix key itself is `mux.prefix` in `config.yaml` (default `C-a`).
 
 A key list replaces the default list completely, so name every key you want
 to keep. An unknown name or a key bound to two actions is a configuration
-error naming the line to fix; `:keys` shows the map jumper is running with.
+error naming the line to fix; `:keys` shows the map jumpr is running with.
 
 ## View and global bindings
 

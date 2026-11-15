@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/errs"
-	"jumper/internal/transport/httpx"
+	"jumpr/internal/errs"
+	"jumpr/internal/transport/httpx"
 )
 
 // MaxPoints is the most points a range query asks for: a braille chart cannot
@@ -483,7 +483,7 @@ type rawSeries struct {
 	Values [][]json.RawMessage `json:"values"`
 }
 
-// rawTarget is the subset of a target jumper shows.
+// rawTarget is the subset of a target jumpr shows.
 type rawTarget struct {
 	Labels     map[string]string `json:"labels"`
 	ScrapeURL  string            `json:"scrapeUrl"`

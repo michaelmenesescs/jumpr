@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/fanout"
-	"jumper/internal/probe"
-	"jumper/internal/resource"
-	"jumper/internal/shq"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/fanout"
+	"jumpr/internal/probe"
+	"jumpr/internal/resource"
+	"jumpr/internal/shq"
 )
 
 // Section IDs of the dependency and timer batches.

@@ -40,11 +40,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"jumper/internal/action"
-	"jumper/internal/backend"
-	"jumper/internal/errs"
-	"jumper/internal/resource"
-	"jumper/internal/safe"
+	"jumpr/internal/action"
+	"jumpr/internal/backend"
+	"jumpr/internal/errs"
+	"jumpr/internal/resource"
+	"jumpr/internal/safe"
 )
 
 const (
@@ -566,7 +566,7 @@ func minimalColumns(namespaced bool) []resource.Column {
 	return append(cols, resource.Column{ID: nameColumnID, Title: "NAME"})
 }
 
-// columnsFromTable turns the server's column definitions into jumper columns.
+// columnsFromTable turns the server's column definitions into jumpr columns.
 // A number is right-aligned (task 112, Pitfalls); a `date` format is a time.
 func columnsFromTable(defs []metav1.TableColumnDefinition, namespaced bool) []resource.Column {
 	cols := make([]resource.Column, 0, len(defs)+1)

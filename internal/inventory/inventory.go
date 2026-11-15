@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/resource"
+	"jumpr/internal/resource"
 )
 
 type Host struct {

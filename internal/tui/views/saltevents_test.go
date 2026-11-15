@@ -9,10 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/backend/linux"
-	"jumper/internal/backend/salt"
-	"jumper/internal/resource"
-	"jumper/internal/tui"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/backend/salt"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui"
 )
 
 // ---- fixtures ----
@@ -244,13 +244,13 @@ func TestSaltEventsHidesOwnPollingRunners(t *testing.T) {
 		viewEvent(t, "salt/run/20261113010321987654/new", `{"fun": "state.orchestrate", "jid": "20261113010321987654"}`),
 		jobNew(t, "20261113010101123456", "state.apply", "web-01"),
 	)
-	// jumper's own polling runner is hidden by default.
+	// jumpr's own polling runner is hidden by default.
 	if len(v.view) != 2 {
 		t.Fatalf("rows = %d, want 2 (%+v)", len(v.view), v.view)
 	}
 	for _, ev := range v.view {
 		if ev.Kind == salt.EventRunner && ev.Fun == "manage.status" {
-			t.Error("jumper's own runner event is visible")
+			t.Error("jumpr's own runner event is visible")
 		}
 	}
 	// h shows them.

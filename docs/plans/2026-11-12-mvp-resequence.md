@@ -1,4 +1,4 @@
-# jumper — MVP re-sequence: pods + VMs, personal use, with AI
+# jumpr — MVP re-sequence: pods + VMs, personal use, with AI
 
 Status: **proposal, not committed to the task index.** Nothing here is executed yet.
 Written 2026-11-12 against `docs/SPEC.md` v0.2, `docs/BUILD-PLAN.md`, `docs/tasks/README.md` (001–014 done).
@@ -77,7 +77,7 @@ elegance this week, take the alternative and note the dependency relaxation in H
 
 Definition of done, stated as behaviour on your own infrastructure:
 
-1. `jumper` opens on a kube context; `:pods`, `:deploy`, `:nodes`, `:events` list and stream.
+1. `jumpr` opens on a kube context; `:pods`, `:deploy`, `:nodes`, `:events` list and stream.
 2. Enter on a pod → describe, YAML, logs (follow, filter, time window).
 3. `:ssh web-01` opens a pane; `:hosts` lists the fleet; `:units`, `:processes`, `:sockets`, `:journal` work.
 4. Enter on a pod **in a pane** keeps the pod table visible next to it — the mux thesis, not a tab bar.
@@ -114,7 +114,7 @@ Design constraints that come from this repo, not from AI fashion:
 | 130 | Suggestion parser + validator | `internal/ai/suggest.go` | `:` lines extracted from free text; unparseable selectors rejected with `errs.Config`; a suggestion naming an unknown kind is dropped, not offered |
 | 131 | AI pane | `internal/tui/views/ai.go` | streaming through `tui.NextBatch`; a suggestion line is offered as a runnable command (`enter` = run, `c` = copy); `esc` returns focus; 80 ms/frame budget holds with a 4,000-line transcript |
 | 132 | Proposals as bus actions (post-v0.1) | `internal/ai/tools.go`, `internal/bus` | a proposal creates a `pending` action with `actor=ai`; nothing executes without a confirmation dialog; policy denials surface in the TUI |
-| 133 | `jumper doctor ai` | `internal/app`, `cmd/jumper` | reports endpoint, model list, round-trip latency, and a one-line failure reason |
+| 133 | `jumpr doctor ai` | `internal/app`, `cmd/jumpr` | reports endpoint, model list, round-trip latency, and a one-line failure reason |
 | 134 | Recorded-fixture tests | `internal/ai/testdata/*.json`, `//go:build ai` live test | `go test ./...` needs no network; the `ai`-tagged test hits the local endpoint when it is up and skips cleanly when it is not |
 
 **Contract amendments needed before 128** (two, both small, both must be deliberate rather than discovered mid-task):
@@ -128,18 +128,18 @@ Do these as a single `docs:` commit before 128, so the freeze rule keeps meaning
 
 ---
 
-## Rename: jumper → jumper
+## Rename: jumpr → jumpr
 
-You named the tool jumper; the repo, module, binary, config dir, cache dir, crash dir and env prefix all say jumper.
+You named the tool jumpr; the repo, module, binary, config dir, cache dir, crash dir and env prefix all say jumpr.
 Doing it now is mechanical and cheap; doing it after 60 more tasks is a bigger mechanical change and a docs rewrite.
 
 Suggested single task, `000 — rename`, before 015 lands (015/016 add more user-facing strings):
 
-- `go.mod`: `module jumper` → `module github.com/<you>/jumper`, then rewrite every import path.
-- `cmd/jumper` → `cmd/jumper`; `Makefile` targets and `build` output; `.gitignore`.
-- Config/cache/crash paths: `~/.config/jumper` → `~/.config/jumper`, `~/.cache/jumper` → `~/.cache/jumper`,
-  env prefix `JUMPER_` → `JUMPER_`.
-- Docs: SPEC, BUILD-PLAN, AGENTS.md, HANDOFF, all 127 task files (mostly the word "jumper" in prose and paths).
+- `go.mod`: `module jumpr` → `module github.com/<you>/jumpr`, then rewrite every import path.
+- `cmd/jumpr` → `cmd/jumpr`; `Makefile` targets and `build` output; `.gitignore`.
+- Config/cache/crash paths: `~/.config/jumpr` → `~/.config/jumpr`, `~/.cache/jumpr` → `~/.cache/jumpr`,
+  env prefix `JUMPR_` → `JUMPR_`.
+- Docs: SPEC, BUILD-PLAN, AGENTS.md, HANDOFF, all 127 task files (mostly the word "jumpr" in prose and paths).
 - Keep the repo **directory** name as-is until you decide where it lives; a directory is not an API.
 
 Two things the rename decision forces, both yours:
@@ -149,7 +149,7 @@ Two things the rename decision forces, both yours:
   stays, because it costs nothing and the tool may still be used at work.
 - **The `@@` and `@@` binaries** belong to the lab track; renaming them touches `cmd/@@/` and
   `lab/`, which the implementation rules say not to edit. That is a lab-track request, or a rename that leaves them
-  alone for now (they are dev-only). Recommend: rename `jumper` only, leave the lab binaries until the lab track moves.
+  alone for now (they are dev-only). Recommend: rename `jumpr` only, leave the lab binaries until the lab track moves.
 
 ---
 

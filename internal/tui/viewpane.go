@@ -8,11 +8,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"jumper/internal/mux"
-	"jumper/internal/render"
-	"jumper/internal/resource"
-	"jumper/internal/tui/keymap"
-	"jumper/internal/tui/theme"
+	"jumpr/internal/mux"
+	"jumpr/internal/render"
+	"jumpr/internal/resource"
+	"jumpr/internal/tui/keymap"
+	"jumpr/internal/tui/theme"
 )
 
 // contextSetter is implemented by a view that starts background work and must
@@ -28,7 +28,7 @@ type filterState interface{ FilterState() string }
 // command line, so the pane can be rebuilt after a restart.
 type commandLiner interface{ CommandLine() string }
 
-// ViewPane is the mux.Content that shows jumper views: one Stack of them, one
+// ViewPane is the mux.Content that shows jumpr views: one Stack of them, one
 // breadcrumb line on top. It owns a context derived from the session's; Close
 // cancels it, which stops every stream the views started.
 type ViewPane struct {

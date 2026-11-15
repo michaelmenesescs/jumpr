@@ -21,7 +21,7 @@ These are the project's existing rules (`AGENTS.md`, `docs/BUILD-PLAN.md` §10),
 not new ones:
 
 - **Zero footprint on nodes.** Nothing installed, no file written, no daemon
-  started. Only pre-existing binaries and APIs, reached through transport jumper
+  started. Only pre-existing binaries and APIs, reached through transport jumpr
   already has (SSH exec/stream) or over the API server.
 - **Our own clients.** We query APIs ourselves (client-go, HTTP, gRPC over the
   transport we own). Shelling out to `kubectl`/`cilium`/`hubble` on the
@@ -67,7 +67,7 @@ Honest limits, stated up front:
    which of these subcommands actually support `-o json`, and their exact shapes.
    Verify on the lab cluster; never parse a format we have not captured.
 2. Whether the relay is reachable directly or only through a port-forward, and
-   whether jumper can create one via the API's `pods/portforward` subresource
+   whether jumpr can create one via the API's `pods/portforward` subresource
    (SPDY) without extra dependencies.
 3. Whether `hubble.api.v1.Observer/GetFlows` proto can be vendored from the
    Cilium repo at a pinned version and compiled with what client-go already
@@ -167,7 +167,7 @@ records behind the aggregate (the last 50, redacted).
 
 ## 5. Tracing
 
-"Tracing" here has to be two honest levels, because jumper cannot inject context
+"Tracing" here has to be two honest levels, because jumpr cannot inject context
 into an application without instrumentation:
 
 **Level 1 — flow trace (always available).** Given a selected edge or pod, walk
@@ -186,7 +186,7 @@ for namespace X (records a cluster change)".
 Explicitly out of scope: OTLP/Jaeger ingestion and trace-context propagation.
 That needs app instrumentation or a collector, which is a different product.
 
-## 6. Where it plugs into jumper
+## 6. Where it plugs into jumpr
 
 | Piece | Where | Notes |
 |---|---|---|
@@ -262,7 +262,7 @@ full feature, or ~5 days for a useful v1 that stops after 150.
    dependencies. The relay means one stream for everything but adds gRPC +
    protobuf modules. Recommendation: **agent-only v1**, add relay once the graph
    is proven.
-2. **L7 visibility:** may jumper enable L7 policy/visibility on a namespace (a
+2. **L7 visibility:** may jumpr enable L7 policy/visibility on a namespace (a
    recorded, confirmed cluster write, per rule 9), or must L7 stay something you
    enable yourself? Recommendation: yes, but only as an explicit, logged action
    with the policy text shown first.

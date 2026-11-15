@@ -22,21 +22,21 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/action"
-	"jumper/internal/backend/linux"
-	"jumper/internal/bus"
-	"jumper/internal/bus/generic"
-	"jumper/internal/config"
-	"jumper/internal/fanout"
-	"jumper/internal/group"
-	"jumper/internal/inventory"
-	"jumper/internal/investigation"
-	"jumper/internal/labtest"
-	"jumper/internal/resource"
-	"jumper/internal/targets"
-	"jumper/internal/transport"
-	"jumper/internal/transport/ssh"
-	"jumper/internal/tui"
+	"jumpr/internal/action"
+	"jumpr/internal/backend/linux"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/generic"
+	"jumpr/internal/config"
+	"jumpr/internal/fanout"
+	"jumpr/internal/group"
+	"jumpr/internal/inventory"
+	"jumpr/internal/investigation"
+	"jumpr/internal/labtest"
+	"jumpr/internal/resource"
+	"jumpr/internal/targets"
+	"jumpr/internal/transport"
+	"jumpr/internal/transport/ssh"
+	"jumpr/internal/tui"
 )
 
 const (
@@ -111,7 +111,7 @@ func newLabW1(t *testing.T) *labW1 {
 	}
 	session := &tui.SessionState{Name: "lab"}
 	paths := config.Paths{
-		ConfigDir:     filepath.Join("lab", "jumper"),
+		ConfigDir:     filepath.Join("lab", "jumpr"),
 		CacheDir:      t.TempDir(),
 		KnowledgeRoot: cfg.Knowledge.Root,
 	}

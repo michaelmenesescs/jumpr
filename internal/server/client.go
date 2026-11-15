@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 // Timeouts and buffer sizes of the client (BUILD-PLAN §6, §6.2).
@@ -34,7 +34,7 @@ const (
 	clientPostamble = "\x1b[?1049l\x1b[?25h\x1b[?2004l\x1b[0m"
 )
 
-// ClientOptions carries everything the client needs from the OS. cmd/jumper
+// ClientOptions carries everything the client needs from the OS. cmd/jumpr
 // injects all of it, so this package never touches os.Stdin, os.Stdout or the
 // terminal (BUILD-PLAN §6.1). Nil MakeRaw and nil Size are allowed: no raw
 // mode, and a size of 0×0.
@@ -360,7 +360,7 @@ func Control(ctx context.Context, socketPath string, h Hello) (Result, error) {
 	}
 }
 
-// UserMessage is the line cmd/jumper prints after Attach returns.
+// UserMessage is the line cmd/jumpr prints after Attach returns.
 func (e Exit) UserMessage() string {
 	switch e.Reason {
 	case "detached":

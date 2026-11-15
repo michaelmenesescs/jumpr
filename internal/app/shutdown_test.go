@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"jumper/internal/action"
-	"jumper/internal/bus"
-	"jumper/internal/bus/bustest"
-	"jumper/internal/resource"
-	"jumper/internal/server"
+	"jumpr/internal/action"
+	"jumpr/internal/bus"
+	"jumpr/internal/bus/bustest"
+	"jumpr/internal/resource"
+	"jumpr/internal/server"
 )
 
 // Shutdown of task 126 requirement 5: kill-server and SIGTERM (the server's
@@ -60,8 +60,8 @@ func newServerFixture(t *testing.T, hosts int) serverFixture {
 	return serverFixture{
 		home:      home,
 		configDir: cfgDir,
-		cacheDir:  filepath.Join(home, ".cache", "jumper"),
-		socket:    filepath.Join(dir, "jumper.sock"),
+		cacheDir:  filepath.Join(home, ".cache", "jumpr"),
+		socket:    filepath.Join(dir, "jumpr.sock"),
 		env:       map[string]string{"USER": "tester"},
 	}
 }
@@ -109,7 +109,7 @@ func waitStopped(t *testing.T, errc <-chan error, since time.Time) {
 	}
 }
 
-// TestShutdownKillServerWithinDeadline is the `jumper kill-server` half: a
+// TestShutdownKillServerWithinDeadline is the `jumpr kill-server` half: a
 // running session does not hold the process open.
 func TestShutdownKillServerWithinDeadline(t *testing.T) {
 	f := newServerFixture(t, 3)
@@ -135,7 +135,7 @@ func TestShutdownKillServerWithinDeadline(t *testing.T) {
 	}
 }
 
-// TestShutdownSignalWithinDeadline is the SIGTERM half: cmd/jumper turns the
+// TestShutdownSignalWithinDeadline is the SIGTERM half: cmd/jumpr turns the
 // signal into a canceled context, and the server must stop inside three
 // seconds even with a session running.
 func TestShutdownSignalWithinDeadline(t *testing.T) {

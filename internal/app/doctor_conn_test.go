@@ -166,7 +166,7 @@ connections:
 }
 
 func TestDoctorConnHelper(t *testing.T) {
-	t.Setenv("JUMPER_DOCTOR_HELPER", "1")
+	t.Setenv("JUMPR_DOCTOR_HELPER", "1")
 	var sawHeader, sawCookie bool
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sawHeader = r.Header.Get("Authorization") == "Bearer helper-secret-token"
@@ -223,7 +223,7 @@ connections:
 // TestDoctorConnHelperProcess is not a real test: it is the auth helper the
 // TestDoctorConnHelper profile runs, re-executing the test binary on demand.
 func TestDoctorConnHelperProcess(t *testing.T) {
-	if os.Getenv("JUMPER_DOCTOR_HELPER") != "1" {
+	if os.Getenv("JUMPR_DOCTOR_HELPER") != "1" {
 		t.Skip("auth helper subprocess only")
 	}
 	fmt.Print(`{"headers":{"Authorization":"Bearer helper-secret-token"},` +
@@ -237,7 +237,7 @@ func TestDoctorConnHelperProcess(t *testing.T) {
 // binary on demand. It exits non-zero after printing a JSON doc, so the probe
 // must not accept the run.
 func TestDoctorConnHelperProcessFail(t *testing.T) {
-	if os.Getenv("JUMPER_DOCTOR_HELPER_FAIL") != "1" {
+	if os.Getenv("JUMPR_DOCTOR_HELPER_FAIL") != "1" {
 		t.Skip("failing auth helper subprocess only")
 	}
 	fmt.Print(`{"headers":{"Authorization":"Bearer never-used"}}`)
@@ -246,7 +246,7 @@ func TestDoctorConnHelperProcessFail(t *testing.T) {
 }
 
 func TestDoctorConnHelperFailure(t *testing.T) {
-	t.Setenv("JUMPER_DOCTOR_HELPER_FAIL", "1")
+	t.Setenv("JUMPR_DOCTOR_HELPER_FAIL", "1")
 	var sawAuth string
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sawAuth = r.Header.Get("Authorization")

@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"jumper/internal/fuzzy"
-	"jumper/internal/render"
+	"jumpr/internal/fuzzy"
+	"jumpr/internal/render"
 )
 
 const (

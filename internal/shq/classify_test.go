@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"jumper/internal/errs"
+	"jumpr/internal/errs"
 )
 
 func TestClassify(t *testing.T) {
