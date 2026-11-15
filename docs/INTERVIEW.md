@@ -62,3 +62,28 @@ User approved moving forward ("ok let's try it"). New and sharpened requirements
 - Process: a stronger model scopes the end-to-end build; a fast agent (Hermes running DeepSeek V4.1 Flash) does the
   implementation; a **mock k8s cluster and dedicated lab infra** are set up locally so the tool can be tested and
   refined against something real.
+
+## Follow-up — 2026-11-14 (after consolidating on the laptop and renaming to jumpr)
+
+New direction, in the user's words where possible:
+
+- "I want jumpr to be my **cybersecurity tool** and also **agentic debugging tool** which integrate k8s and other
+  services to have **one system**. Instead of jumping to different windows you should see everything via jumpr."
+- "+ the **application level request flow** for applications when connected to k8s clusters or linux clusters,
+  **systemd tree**, let's think outside of the box."
+- "Can we see the **systemctl units in the tree**." → the systemd tree is the first visible deliverable of the graph
+  milestone (task 163).
+
+Answers to the four decisions the assistant asked for:
+
+| Question | Answer |
+|---|---|
+| Zero footprint absolute, or eBPF allowed? | **eBPF opt-in.** Only a `bpftrace` already on the node, never installed, off by default, consent per host. |
+| Defensive only, or active checks? | **Defensive only.** Read-only posture and hunting from evidence jumpr already reads. No scanning, no exploitation. |
+| Agent model | **Local by default** (OpenAI-compatible endpoint on the laptop: LM Studio / llama.cpp). Remote models only by explicit opt-in. |
+| Neutral repo | **Keep neutral.** `example.internal`, no employer names, hosts or conventions. |
+
+Unifying idea the user accepted: one **live system graph** (request → LB → ingress → service → pod/process → unit →
+cgroup → sockets → upstreams → node → identity). Debugging (request flow, systemd tree) and security (exposure,
+identity, blast radius, hunting) are lenses on the same graph; the agent and `jumpr mcp` walk it with the same
+read-only tools.

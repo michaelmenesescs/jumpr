@@ -35,7 +35,7 @@ One file per implementation task, in order. This index is the single place where
     - a dependency outside BUILD-PLAN §10 seems necessary;
     - the task and the spec contradict each other.
 
-Statuses: `todo` · `in-progress` · `done` · `blocked`.
+Statuses: `todo` · `in-progress` · `done` · `blocked` · `draft` (scope only; expand before starting — see the file's banner).
 
 ## Parallel work
 
@@ -251,3 +251,72 @@ only by tasks 001, 098, 105 and 115.
 | [142](142-glyph-wiring.md) | Wire the glyph set end to end (config → app → views) | 016, 141, 015 | — | done |
 | [143](143-cmdbar-navigation.md) | `:kind` from the command bar switches the view (fix) | 016, 022, 014 | — | done |
 | [144](144-homelab-integration.md) | Homelab integration suite (real Ubuntu 24.04 over SSH) | 031, 033, 035, 038, 040, 041, 042, 052 | — | done |
+
+
+## v0.3 — one system (SPEC §23–§27, BUILD-PLAN §14)
+
+Order: M14 → M15 → M16 → M17 → M18 → M19. M17 can start after M15, in parallel with M16.
+
+### M14 — Groundwork for v0.3
+
+Fix what the 2026-11-14 lab run found. The review follow-ups 154–158 (`docs/plans/2026-11-13-code-review.md`) also belong here; their task files are still to be written.
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [145](145-salt-hosts-by-name.md) | Salt hosts are dialled by an SSH-resolvable name, not a raw IP | 069, 044 | M14-A | todo |
+| [146](146-identityfile-cumulative.md) | `IdentityFile` accumulates across ssh_config files, like OpenSSH | 028, 031 | M14-A | todo |
+| [147](147-cinc-19-output.md) | Chef: Cinc Client 19 output and the lab drift fixture | 113, 114 | M14-A | todo |
+
+### M15 — System graph + systemd tree (SPEC §23)
+
+First visible deliverable: `:tree` (163), the user's ask "see the systemctl units in the tree".
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [160](160-graph-core.md) | `internal/graph`: nodes, edges, evidence, walks; fake collector for `--demo` | 005, 007 | — | todo |
+| [161](161-graph-wiring.md) | Graph in the session server: scheduler, `GraphRequestMsg`, `Env.Graph` | 160, 083 | — | todo |
+| [162](162-collector-systemd.md) | systemd collector: slices, targets, units, processes | 161, 041, 090 | M15-A | todo |
+| [163](163-tree-view.md) | `:tree`: the systemd tree for a host and for a fleet | 162 | — | todo |
+| [164](164-collector-procsock-fleet.md) | Sockets, processes and the fleet join (`connects` across hosts) | 162, 043 | — | todo |
+| [165](165-collector-k8s.md) | Kubernetes collector: ingress → service → endpoints → pods → nodes → hosts | 161, 106, 111 | M15-A | todo |
+| [166](166-collector-proxy-config.md) | Proxy config collector: nginx and haproxy routes | 164 | — | todo |
+| [167](167-service-map-view.md) | `:map`: the service map across Linux and Kubernetes | 163, 164, 165, 166 | — | todo |
+
+### M16 — Request flow (SPEC §24) — draft
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [170](170-flow-resolver.md) | Flow resolver: entry resolution and the route walk | 167 | — | draft |
+| [171](171-flow-overlay-red.md) | Flow overlay: rate, errors, latency per hop | 170, 101 | — | draft |
+| [172](172-traces-backend.md) | Traces: Jaeger / Tempo API backend and span waterfall | 098, 170 | — | draft |
+| [173](173-flow-view.md) | `:flow` view | 170, 171 | — | draft |
+| [174](174-ebpf-optin.md) | Opt-in eBPF: embedded bpftrace programs with consent | 164, 061 | — | draft |
+
+### M17 — Security lens, defensive only (SPEC §25) — draft
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [180](180-security-framework.md) | Security: check framework and `:findings` | 167 | — | draft |
+| [181](181-security-host-posture.md) | Host posture checks | 180 | — | draft |
+| [182](182-security-k8s-posture.md) | Kubernetes posture checks | 180, 165 | — | draft |
+| [183](183-identity-blast-radius.md) | Identity edges and `:blast` | 180, 164, 165 | — | draft |
+| [184](184-hunting.md) | Hunting: auth, lineage, network, change | 180, 191 | — | draft |
+| [185](185-security-report.md) | Findings into investigations and a report export | 181, 182, 183, 184 | — | draft |
+
+### M18 — Time travel (SPEC §26) — draft
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [190](190-snapshot-store.md) | Snapshot store | 167 | — | draft |
+| [191](191-diff-baseline.md) | Baselines and `:diff` | 190 | — | draft |
+| [192](192-changes-timeline.md) | `:changes` timeline | 191, 072, 114 | — | draft |
+
+### M19 — Agent + MCP, local by default (SPEC §27) — draft
+
+| ID | Title | Depends on | Parallel group | Status |
+|---|---|---|---|---|
+| [195](195-tool-registry.md) | Agent tool registry | 167, 180, 191 | — | draft |
+| [196](196-mcp-server.md) | `jumpr mcp`: stdio MCP server | 195, 083 | — | draft |
+| [197](197-llm-client.md) | Local-first LLM client | 195 | — | draft |
+| [198](198-agent-pane.md) | Agent loop and `:ask` pane | 197, 061 | — | draft |
+| [199](199-agent-lab-eval.md) | Agent evaluation scenarios on the lab | 198 | — | draft |

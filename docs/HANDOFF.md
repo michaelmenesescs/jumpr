@@ -1,6 +1,45 @@
 # Handoff — pick up here
 
-_Last updated: 2026-11-12 (task 014 done; M0 in progress)_
+_Last updated: 2026-11-14 (consolidated on the laptop, renamed to jumpr, v0.3 planned — read "v0.3 — start here")_
+
+
+## v0.3 — start here (2026-11-14)
+
+**Where the code lives now:** the laptop (`~/workspace/sitrep`) is canonical. Commit `898b9da` = the mini's `main`
+(`29862a2`, 132/132 tasks) + the mini's uncommitted work (read-only guard; app/serve/spawn and k8s kind changes) +
+`ui.color: auto` resolved from `TERM`/`COLORTERM`/`NO_COLOR` (the detached session server had no TTY, so it never
+coloured) + the rename **jumper → jumpr** everywhere. The old laptop line is branch `backup/laptop-main-2026-11-14`.
+`origin` (the mini) has not been updated.
+
+**Verified on the laptop, 2026-11-14:** `make check` green before and after the rename; e2e PTY suite 3/3
+(detach/reattach, client killed, resize); homelab suite against `macmini` green; `jumpr doctor` with
+`~/.config/jumpr`: salt 7/7 minions, chef 4 nodes, colour 24-bit. **Lab suite: 26 pass, 10 fail, 14 skip** — the
+failures are tasks 145 (salt hosts dialled by IP, 5 tests), 146 (first-file-only `IdentityFile`, found by doctor),
+147 (Cinc 19, 2 tests) and lab requests L1 (2 tests) and L7 (1 test) below.
+
+**Observed, not yet a task:** a jumpr process started under a tmux server got `connect: no route to host` for
+192.168.x addresses while the same binary outside tmux reached them (macOS Local Network privacy for third-party
+binaries). Document in the user docs; `jumpr doctor` could detect it (dial the bastion and report EHOSTUNREACH with a
+hint).
+
+**Direction (INTERVIEW "Follow-up — 2026-11-14"):** one live system graph; systemd tree, service map, request flow,
+defensive security lens, time travel, local-first agent + `jumpr mcp`. eBPF opt-in only; defensive only; neutral.
+SPEC v0.3 §23–§27, BUILD-PLAN §2 (M14–M19) and §14 (contracts), task index "v0.3".
+
+**Next task:** 145, 146, 147 (parallel group M14-A), then **160 → 161 → 162 → 163** — 163 is `:tree`, the first
+thing the user asked to see. Tasks 170–199 are `draft`: expand each milestone's files when it starts.
+
+### Requests to the lab track (v0.3)
+
+| ID | Request | Needed by |
+|---|---|---|
+| L1 | `fault haproxy-443` must exit 0 when nginx fails to start — that failure *is* the fault (it currently fails TestLabW1NginxConflict and TestLabFailedUnitsAfterFault) | M14 |
+| L2 | A small demo app, "shop": on VMs `web-0x` nginx → `cart` service (systemd unit, any tiny HTTP server already in the distro or a Go binary built by the lab tool) → postgres on `db-01`; on k3s the same as a Deployment + Service + Ingress `shop.lab.example.internal` | 164, 165, 170 |
+| L3 | `fault flow-latency`: add latency on one hop of "shop" (e.g. `tc qdisc netem` on db-01) with `--undo` | 171 |
+| L4 | Optional tracing container (Jaeger all-in-one) and the demo app emitting traces | 172 |
+| L5 | `bpftrace` installed on one lab host only (`web-03`), so eBPF is tested both present and absent | 174 |
+| L6 | Security faults: `sec-host` (PermitRootLogin yes, sudoers wildcard, world-writable drop-in, extra SUID), `sec-k8s` (privileged pod with hostPath, broad ClusterRoleBinding), `sec-hunt` (shell spawned under nginx, new listener, unexpected authorized key); all with `--undo` | 181–184 |
+| L7 | TestLabSaltKeyAcceptThroughBus: key `jumpr-stray` never becomes pending — check the stray-minion provisioning after the rename | M14 |
 
 ## State
 

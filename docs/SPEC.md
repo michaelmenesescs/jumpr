@@ -1,11 +1,24 @@
-# jumpr — Specification v0.2
+# jumpr — Specification v0.3
 
 > Working name. An agentless, client-side **shell for SREs**: k9s + isd + tmux + Salt/Chef and Linux tooling in one
 > terminal, with nothing required on the servers.
-> Status: DRAFT for build · 2026-11-12 · Owner: Michael
+> Status: DRAFT for build · v0.2 2026-11-12, v0.3 2026-11-14 · Owner: Michael
 > How it gets built: `docs/BUILD-PLAN.md` (contracts, milestones) and `docs/tasks/` (one file per task).
 
 ## Changelog
+
+**v0.3 (2026-11-14)** — "one system" (see `INTERVIEW.md`, "Follow-up — 2026-11-14"):
+
+- jumpr is now also a **defensive security tool** and an **agentic debugging tool**, built on one **live system
+  graph** of everything it can read (§23).
+- New views on the graph: the **systemd tree** of a host or fleet (§23.3), the **service map**, and **request flow**
+  hop by hop for applications on Linux fleets and Kubernetes (§24).
+- **Security lens**: exposure, identity, blast radius and hunting; defensive only (§25).
+- **Time travel**: graph snapshots, baselines and diffs (§26).
+- **Agent and MCP**: a local-by-default agent pane and `jumpr mcp`, sharing one read-only tool registry (§27). §17
+  (AI-readiness) is superseded by §27; the v0.2 non-goal "built-in LLM chat" is lifted.
+- Principle 1 gains one opt-in exception: transient eBPF via a `bpftrace` already on the node (§2, §24.4).
+- Sections §1–§22 keep their numbers; §23–§27 are new.
 
 **v0.2 (2026-11-12)** — after the mockup review (see `INTERVIEW.md`, "Follow-up"):
 
@@ -56,7 +69,9 @@ you can reach with SSH, a kubeconfig or an HTTP API can be plugged in as a backe
 ## 2. Design principles
 
 1. **Zero footprint on nodes.** Nothing is installed, copied, or left behind. Only SSH plus binaries already present
-   on RHEL 8+ / Ubuntu 20.04+. No temp files are written on the remote side.
+   on RHEL 8+ / Ubuntu 20.04+. No temp files are written on the remote side. *One opt-in exception (v0.3):* if the
+   user enables eBPF and consents for a host, jumpr may run a `bpftrace` that is **already installed** there, with a
+   hard time cap, output to stdout only; the kernel program ends with the process (§24.4).
 2. **Client-side everything.** All parsing, joining, diffing and rendering happen on the laptop.
 3. **Reliable before clever.** Every remote call has a timeout. The UI never blocks. Partial results are shown,
    labelled, and still useful. When something fails, it says exactly what and where.
@@ -83,7 +98,9 @@ you can reach with SSH, a kubeconfig or an HTTP API can be plugged in as a backe
 - Being a general-purpose terminal multiplexer. Panes exist to debug infrastructure; local shell panes are a
   convenience, not a tmux replacement.
 - Multiple clients mirroring one session, and remote (network) attach.
-- Built-in LLM chat (deferred; see §17).
+- Offensive security: port scanning, exploitation, credential attacks, evasion. jumpr is **defensive only**; its
+  security lens reads evidence over the same read-only probes as everything else (§25).
+- Remote LLMs by default. The agent talks to a local endpoint unless the user explicitly opts in (§27).
 - Replacing Salt or Chef. It drives their existing CLIs; it does not reimplement state logic.
 
 ## 4. Constraints
@@ -665,6 +682,8 @@ border is highlighted. See §21 for windows, panes and the prefix key.
 
 ## 17. AI-readiness (not in v1, designed for)
 
+> Superseded by §27 in v0.3. Kept for history; where they differ, §27 wins.
+
 - The Action Bus already records an `actor`. A future `jumpr mcp` subcommand exposes a stdio MCP server whose tools
   map 1:1 to bus operations (list, get, probe, query, search, propose_action).
 - Policy from the interview: **agents read freely; every write requires approval in the TUI**. Agent writes appear as
@@ -881,3 +900,209 @@ lab exactly as against production: over SSH through the bastion, nothing install
   `BUILD-PLAN.md` §2) and at least one `TestLab…` test. Parser goldens are captured from the lab's three distros.
 - The lab is a development aid only. Nothing in the product depends on it, and no lab hostnames or keys are
   secrets (the key is generated locally and git-ignored).
+
+---
+
+# Part II — One system (v0.3)
+
+## 23. The system graph
+
+Today jumpr shows lists: hosts, units, pods, minions, jobs, alerts. v0.3 joins everything it can read into one
+**live graph**, held in the session server (so every pane, the agent and `jumpr mcp` see the same thing):
+
+```
+request ─► DNS ─► LB / proxy ─► ingress ─► Service ─► EndpointSlice ─► pod ─► container ─► process
+                                                                                   │
+host ◄─ node ◄──────────────────────────────────────────────────────── unit ◄─ cgroup
+  │                                                                       │
+  └─► listeners / sockets ─► peer socket on another host ─► that host's process ─► its unit …
+identity: users, sudo rules, SSH keys (fingerprints), k8s ServiceAccounts, RBAC bindings, Salt/Chef as admin paths
+```
+
+### 23.1 Rules
+
+1. **Evidence on every edge.** Each edge carries where it came from (`ss` on web-01 at 14:02, `nginx -T`, an
+   EndpointSlice, a trace, eBPF), and a confidence: **observed** (a live socket or trace saw it), **configured** (a
+   config file or object says it), **inferred** (joined by address). Views show the confidence; the agent cites it.
+2. **Built from probes jumpr already has.** Collectors reuse the backends' read-only probes (§8). The graph adds
+   joins, not new remote commands, except where §23.2 lists one.
+3. **Lazy and scoped.** Nothing is collected for the whole fleet at startup. A view asks for the part it needs
+   (one host's tree, one service's neighbours, one flow) and the graph fills in, streaming, with per-host errors
+   shown inline exactly like tables do today.
+4. **Bounded.** Node and edge counts, probe output and refresh rates have limits (`graph:` config); exceeding a
+   limit truncates with a visible banner, never blocks the UI.
+5. **Redacted.** Attributes pass through `internal/redact` before they are stored (command lines and environments
+   included).
+
+### 23.2 Collectors (first set)
+
+| Collector | Reads | Produces |
+|---|---|---|
+| systemd | `systemctl list-units --all --plain`, `systemctl show` (batched: `Id Slice ControlGroup MainPID Requires Wants After TriggeredBy Triggers ActiveState SubState`), `systemd-cgls --no-pager --full --all` | slice/target/unit nodes, `contains`/`requires`/`wants`/`triggers` edges, unit → process |
+| process + sockets | `ps -eo …` (§8.1), `ss -tanpiOH` / `ss -uanpH` | process nodes, listeners, connections |
+| fleet join | the socket tables of every host in scope | `connects` edges from one host's process to the listener on another host (confidence observed when both ends are seen, inferred when only one is) |
+| kubernetes | Ingress, Service, EndpointSlice, Pod, Node, ServiceAccount, (Cluster)RoleBinding | `routes`/`selects`/`runs-on`/`as` edges; node → host pivot (task 111) |
+| proxy config | `sudo -n nginx -T`, `haproxy -c -f` + the config file, read-only | `routes` edges from listeners to upstreams, with the matching `server_name`/path |
+| Salt / Chef | grains, roles, last job / last run | labels and `managed-by` edges; changes for §26 |
+
+### 23.3 The systemd tree — `:tree [host|selector]`
+
+The user's first ask: **see the systemctl units as a tree**.
+
+- **Cgroup layout (default, `c`):** `-.slice` → `system.slice` / `user.slice` / `machine.slice` / `init.scope` → each
+  unit → its processes (pid, user, cpu, rss, command) → each process's listeners and connections → the peer
+  (`→ db-01:5432 postgres.service`), which `Enter` opens on the other host.
+- **Dependency layout (`d`):** `default.target` → targets → units, from `Requires`/`Wants`; `D` reverses
+  ("what pulls this in").
+- **Status flows up:** a failed unit marks every ancestor (`system.slice ● 2 failed`), so a collapsed tree still
+  shows where the problem is. Failed and activating units sort first within a level.
+- **Keys:** `space`/`l` expand, `h` collapse, `L`/`H` expand/collapse all, `/` filter (keeps ancestors of matches),
+  `f` failed-only, `Enter` opens the existing unit detail (§8.1.1), `j` journal, `s` sockets, `x` actions through
+  the bus, `p` pin the unit into the side panel.
+- **Fleet mode:** `:tree role=web` merges the trees of every host in the set. Each unit shows `3/3 active` or
+  `2/3 active · 1 failed (web-02)`; units present on only some hosts are marked `partial`. `Enter` on a fleet row
+  opens the per-host breakdown. This is the isd view no single-host tool can give.
+- Units with no processes (targets, mounts, inactive services) are shown but dimmed; `a` hides them.
+
+### 23.4 The service map — `:map [selector|namespace]`
+
+A left-to-right layered drawing of the graph in scope: entry points (ingresses, LBs, listeners reachable from
+outside the set) on the left, data stores on the right. Nodes are boxes with status; edges show confidence (solid
+observed, dashed configured, dotted inferred) and, when metrics exist, rate and error ratio. `Enter` on a node
+opens its native view (pod, unit, host); `t` toggles between application and infrastructure grouping.
+
+## 24. Request flow — `:flow <url | host:port | service | pod>`
+
+Answers "where does this request go and where does it hurt?", hop by hop, for applications on Linux fleets and on
+Kubernetes.
+
+### 24.1 Resolution
+
+1. Resolve the entry: a URL's host via the bastion's resolver (`getent ahosts`, run on the bastion), a k8s
+   Ingress/Service by name, or a listener.
+2. Walk `routes` and `connects` edges from the entry, following proxy rules for the request's host and path
+   (`server_name`, `location`, haproxy ACLs, Ingress rules, Service selectors).
+3. Stop at data stores, external addresses, or the hop limit (default 12). Fan-out (one upstream pool of 5 pods)
+   is shown as one hop with members.
+
+### 24.2 What each hop shows
+
+Name and kind, the member that served it, the evidence and confidence of the edge into it, and an overlay in the
+current time window: request rate, error ratio and latency (p50/p95) when Prometheus has them (mesh metrics such as
+`istio_requests_total`, ingress-nginx, or node_exporter/RED-style series a plugin maps); otherwise local signals
+(socket backlog, retransmits from `ss -i`, error lines from the unit's journal, restarts). The worst hop is
+highlighted. `Enter` opens the hop's native view; `l` its logs in the window; `T` the traces that crossed it.
+
+### 24.3 Traces
+
+When a Jaeger or Tempo API is configured (connection profiles, §7.2), `:traces <service>` lists recent traces and
+renders one as a span waterfall; spans link to graph nodes by service name and pod/host attributes. No tracing
+backend is required for §24.1–24.2.
+
+### 24.4 eBPF (opt-in)
+
+Off by default (`ebpf.enabled: false`). When enabled, and only on a host where `command -v bpftrace` succeeds and
+`sudo -n` works, jumpr may run **fixed, embedded** bpftrace programs (no user-supplied programs in v0.3):
+
+| Program | Gives |
+|---|---|
+| tcp connect / accept with latency | observed `connects` edges and per-edge latency without any tracing |
+| tcp retransmits | which edge is lossy |
+| execve | process launches for hunting (§25.4) |
+
+- First use per host per session asks for consent in a dialog (host, program, duration); the answer and the run
+  are recorded in the audit log.
+- Hard cap: default 10 s, maximum 60 s per run; the process is killed when the view closes or the cap hits.
+- Nothing is written on the node; `bpftrace -e` reads its program from the command line. Treated by the policy as a
+  **privileged read**: allowed in read-only mode only if `ebpf.allow_readonly: true`.
+
+## 25. Security lens (defensive only)
+
+jumpr reads; it never scans, exploits or alters to test. Every check runs over the same read-only probes and the
+graph, and every finding points at its evidence.
+
+### 25.1 Findings — `:findings [selector]`
+
+A table of findings: severity, check, subject (host, unit, pod, user, key), evidence summary, first seen, and an
+ATT&CK technique ID where one applies (public taxonomy, neutral). `Enter` shows the evidence and the graph
+neighbourhood; `i` attaches it to the current investigation; `b` opens the blast radius (§25.3). Findings are
+deduplicated across hosts and grouped like probe output ("4 hosts: PermitRootLogin yes").
+
+### 25.2 Checks (first set)
+
+| Area | Checks |
+|---|---|
+| Exposure | listeners on `0.0.0.0`/`::` per host, new since baseline; k8s NodePort/LoadBalancer Services; Ingress without TLS; privileged ports owned by unexpected units |
+| Host posture | `sshd -T` (sudo): root login, password auth, ciphers; sudoers NOPASSWD rules with wildcards; world-writable unit files and drop-ins; SUID/SGID files outside the package database (bounded `find -xdev`, on demand only); kernel `sysctl` hardening keys; failed and masked security units (auditd, firewalld/ufw) |
+| Identity | users with a login shell; `authorized_keys` fingerprints per user and host (fingerprints only, never key material), keys present on many hosts, keys not in the user's allow-list |
+| Kubernetes | privileged / hostPath / hostNetwork / hostPID pods; containers running as root; automounted ServiceAccount tokens with bound RBAC; ClusterRoleBindings to broad roles; namespaces without NetworkPolicy; `:latest` and unpinned images |
+| Config management | Salt/Chef drift on security-relevant states; failed runs; pending or rejected Salt keys |
+
+Checks are Go code (`internal/security`), each with an ID, a severity, an explanation and a remediation hint. A
+remediation that changes anything is a normal action through the bus (§11), never automatic.
+
+### 25.3 Blast radius — `:blast <node>`
+
+"If this pod / host / key / user is compromised, what can it reach and who can it become?" A walk over two edge
+families: **reachability** (`connects`, `routes`, listeners exposed to the set) and **identity** (`can-login` via
+SSH keys, `can-sudo`, ServiceAccount → RBAC → verbs on resources, Salt/Chef as fleet-wide admin paths). Output is
+the reachable set ranked by sensitivity (data stores, secrets-bearing nodes, control planes) with the shortest path
+to each and the evidence on every step.
+
+### 25.4 Hunting
+
+On demand, for a target set and the current time window:
+
+- auth: `journalctl` for sshd and sudo (failed bursts, new source addresses, sudo by unusual users);
+- process lineage: shells or interpreters spawned by network daemons (`nginx`→`sh`), processes from `/tmp` or
+  `/dev/shm`, deleted executables (`/proc/<pid>/exe (deleted)`);
+- network: outbound connections to peers not in the baseline graph; listeners that appeared since baseline;
+- change: new or modified units, timers and drop-ins since baseline (§26);
+- eBPF execve stream when enabled (§24.4).
+
+Results are findings (§25.1) with severity `info` unless a check marks them higher.
+
+## 26. Time travel
+
+- **Snapshots:** the graph in scope is saved as a compressed snapshot (on demand with `:snap`, and automatically
+  when an investigation opens and closes). Stored locally under the cache dir, redacted, with a retention limit.
+- **Baselines:** `:baseline save <name> [selector]` pins a snapshot as "known good". Security checks and hunting
+  compare against the active baseline.
+- **Diff:** `:diff <window|snapshot|baseline>` lists added, removed and changed nodes and edges (new listeners,
+  new peers, units that changed state, pods rescheduled, RBAC changes).
+- **Changes timeline:** `:changes <window>` merges change events jumpr can read: k8s rollouts and events, unit
+  start/stop from journald, Salt jobs, Chef runs, package changes when the `pkg` kind is loaded. The first question
+  in any incident or investigation: "what changed?"
+
+## 27. Agent and MCP
+
+### 27.1 One tool registry
+
+The agent pane and `jumpr mcp` call the **same** tools, which map to existing read paths: `kinds`, `list`, `get`,
+`probe` (named read-only probes only), `graph_neighbours`, `tree`, `flow`, `findings`, `blast`, `diff`, `changes`,
+`logs`, `note` (append to the investigation) and `propose_action`. Every call carries `actor=agent:<name>` and is
+recorded in the investigation timeline.
+
+### 27.2 Writes
+
+Agents read freely within the policy. `propose_action` never runs anything: it creates a **pending action** that
+appears in the TUI queue and goes through the usual plan → confirm → canary → rolling flow (§11). Read-only mode
+denies proposals outright.
+
+### 27.3 Agent pane — `:ask <question>`
+
+- Talks to an **OpenAI-compatible chat endpoint on the laptop** (LM Studio, llama.cpp server) by default; the URL
+  must be loopback unless `agent.allow_remote: true`. Remote providers are opt-in, with the key from the Keychain or
+  an auth helper, never stored by jumpr.
+- Everything sent to the model passes through `internal/redact` first.
+- The pane streams the agent's plan, each tool call (collapsed, expandable) and the answer, with citations to the
+  evidence (graph edges, log lines, probe outputs). Step, token and time budgets are configurable with safe
+  defaults; hitting one stops the run and says so.
+- The current investigation and matched knowledge notes are given as context (§10), so the agent learns from past
+  incidents the user wrote down.
+
+### 27.4 `jumpr mcp`
+
+A stdio MCP server that attaches to the running session server (starting it if needed), so an external agent
+(Claude Code, Hermes) sees the same graph, tools and approval queue as the TUI. `--readonly` denies proposals. The
+protocol is implemented with the standard library (JSON-RPC over stdio); no SDK dependency.

@@ -48,6 +48,12 @@ SPEC §22; all lab commands assume `go run ./cmd/@@ up` has run and `lab/ssh_con
 | M10 | Chef + YAML plugins | 113–118 | knife reads, drift, `chef-client --why-run` through the bus; declarative plugins; save `:run` as a plugin. | `:chef nodes` → `:plugins` → run `nginx-status` |
 | M11 | Grafana + Elasticsearch | 119–122 | Dashboards rendered in the TUI; ES log search and tail inside an investigation. | `:dash` → open → `:logs web-01` |
 | M12 | Hardening | 123–127 | 2,000-host scale test, `init`/`doctor`, system-ssh fallback, crash safety, release build, user docs. | `make scale-test`; `jumpr doctor` |
+| M14 | Groundwork (v0.3) | 145–147 (+154–158) | Salt hosts by name, cumulative `IdentityFile`, Cinc 19 output; the review follow-ups. Every lab test green. | `make lab-test` → no FAIL |
+| M15 | System graph + systemd tree | 160–167 | `:tree` on a host or fleet (units → processes → sockets → peers); `:map` service map across Linux and k8s; evidence and confidence on every edge. | `:tree web-01` → `f` → `Enter` nginx; `:tree role=web`; `:map` |
+| M16 | Request flow | 170–174 | `:flow https://shop.lab.example.internal/` hop by hop with RED overlay; traces; opt-in eBPF connects. | `:flow https://shop.lab.example.internal/cart` → worst hop → `l` |
+| M17 | Security lens | 180–185 | `:findings`, host/k8s posture, identity, `:blast`, hunting; ATT&CK tags; findings into investigations. | `go run ./cmd/@@ fault sec-exposed` → `:findings` → `b` |
+| M18 | Time travel | 190–192 | Snapshots, baselines, `:diff`, `:changes`. | `:baseline save good` → fault → `:diff good` |
+| M19 | Agent + MCP | 195–199 | `:ask` with a local model; `jumpr mcp` for external agents; proposals land in the approval queue. | `:ask why does /cart return 502?` |
 
 Order rationale: M1 before SSH because every later view is drawn inside a pane and it is cheap while the code is
 small. M3 before Salt because every Salt write must go through the bus. M5 after M4 because detach adds no new
@@ -1402,3 +1408,214 @@ loaded by their own tasks.
   `198.51.100.0/24` or `10.x` lab ranges only.
 - Helper tooling is Go only (D13). Golden files are refreshed with `go test ./... -run <Test> -update` (a `-update` test flag defined in the package test), never with a script.
 - Commit message: `task NNN: <what changed>`; one commit per task.
+
+## 14. v0.3 contracts — one system (SPEC §23–§27)
+
+New packages only; nothing in §4–§11 changes. These contracts are frozen once task 160 lands, with the same rule as
+§4 (AGENTS.md rule 2). Milestones M16–M19 add their own subsections here in their first task (170, 180, 190, 195)
+before any code is written; until then their task files are `draft`.
+
+### 14.1 Package layout additions
+
+```
+internal/graph            node/edge/evidence types, the in-memory Graph, walks          (task 160)
+internal/graph/collect    collectors: systemd, procsock, fleetjoin, k8s, proxycfg         (162, 164–166)
+internal/tui/views        tree.go (`:tree`), graphmap.go (`:map`)                          (163, 167)
+internal/app              graph wiring: one Graph per session server, collector scheduler  (161)
+internal/flow             request-flow resolver and overlays                               (170–173, draft)
+internal/ebpf             embedded bpftrace programs, consent, runner                      (174, draft)
+internal/security         checks, findings, blast radius, hunting                          (180–185, draft)
+internal/snapshot         snapshot store, baselines, diff, change timeline                 (190–192, draft)
+internal/agent            tool registry, LLM client, agent loop                            (195, 197–198, draft)
+internal/mcp              stdio MCP server over the tool registry                          (196, draft)
+```
+
+### 14.2 `internal/graph`
+
+```go
+package graph
+
+type NodeKind string // "host" "slice" "target" "unit" "process" "listener" "conn" "pod" "container"
+                     // "service" "ingress" "endpoint" "node" "user" "sshkey" "serviceaccount" "role" "external"
+
+// NodeID is stable across refreshes: "<kind>:<scope>/<name>", e.g. "unit:web-01.lab.example.internal/nginx.service",
+// "process:web-01.lab.example.internal/1234@<starttime>", "pod:shop/cart-7d9f-abc12". Build it with ID, never by hand.
+type NodeID string
+
+func ID(kind NodeKind, scope, name string) NodeID
+
+type Node struct {
+	ID     NodeID
+	Kind   NodeKind
+	Host   resource.HostID   // empty for cluster-scoped nodes
+	Ref    resource.Ref      // the native resource to open on Enter; zero if none
+	Label  string            // one line, shown in views
+	Status resource.Status
+	Attrs  map[string]string // redacted before Upsert; small (≤ 32 keys, ≤ 256 bytes per value)
+	Seen   time.Time
+}
+
+type EdgeKind string // "contains" "requires" "wants" "triggers" "runs" "listens" "connects" "routes"
+                     // "selects" "runs-on" "as" "can-login" "can-sudo" "grants" "managed-by"
+
+type Confidence int
+
+const (
+	Inferred   Confidence = iota // joined by address or name only
+	Configured                   // a config file or API object says so
+	Observed                     // a live socket, trace or eBPF event saw it
+)
+
+type Evidence struct {
+	Source     string          // "systemctl" "systemd-cgls" "ss" "nginx -T" "k8s:EndpointSlice" "trace" "ebpf:tcpconnect"
+	Host       resource.HostID // where it was read; empty for API sources
+	Excerpt    string          // ≤ 512 bytes, redacted
+	At         time.Time
+	Confidence Confidence
+}
+
+type Edge struct {
+	From, To NodeID
+	Kind     EdgeKind
+	Evidence []Evidence       // newest first, ≤ 8 kept
+	Attrs    map[string]string
+}
+
+// Confidence of an edge is the highest confidence among its evidence.
+func (e Edge) Confidence() Confidence
+
+// Graph is safe for concurrent use. Upserts merge: attrs are replaced key by key, evidence is prepended.
+type Graph struct{ /* private: one sync.RWMutex, maps by ID and by (from,kind) / (to,kind) */ }
+
+type Limits struct{ MaxNodes, MaxEdges int } // from config graph.max_nodes / graph.max_edges
+
+func New(l Limits, now func() time.Time) *Graph
+func (g *Graph) UpsertNode(n Node) bool                 // false when MaxNodes would be exceeded (Truncated() becomes true)
+func (g *Graph) UpsertEdge(e Edge) bool                 // both ends must exist; false otherwise
+func (g *Graph) Node(id NodeID) (Node, bool)
+func (g *Graph) Out(id NodeID, kinds ...EdgeKind) []Edge // sorted by To
+func (g *Graph) In(id NodeID, kinds ...EdgeKind) []Edge  // sorted by From
+func (g *Graph) Prune(scope Scope, olderThan time.Time) int // drop nodes in scope not Seen since olderThan, and their edges
+func (g *Graph) Truncated() bool
+func (g *Graph) Version() uint64                        // increments on every change; views poll it cheaply
+
+// Scope names the part of the graph a collector fills or a view asks for.
+type Scope struct {
+	Hosts     []resource.HostID
+	Namespace string // k8s; empty = all the backend allows
+	Layers    []string // "systemd" "procsock" "fleet" "k8s" "proxy"
+}
+
+// Walk is a breadth-first walk from start along the given edge kinds and direction, up to depth, visiting each node once.
+type Direction int
+
+const (
+	Forward Direction = iota
+	Reverse
+)
+
+type Step struct {
+	Node  Node
+	Via   *Edge // nil for the start node
+	Depth int
+}
+
+func (g *Graph) Walk(start NodeID, dir Direction, depth int, kinds ...EdgeKind) []Step
+
+// Sink is what collectors write to. The scheduler wraps Graph in a Sink that also counts per-host errors.
+type Sink interface {
+	Node(Node)
+	Edge(Edge)
+	HostErr(host resource.HostID, err error) // *errs.Error
+}
+```
+
+### 14.3 `internal/graph/collect`
+
+```go
+package collect
+
+// Collector fills one layer of the graph for a scope. It reads only through transport.Executor (read-only probes
+// built with shq) or a backend's read API; it never runs an action.Step. Collect returns when done or ctx ends;
+// per-host failures go to sink.HostErr and never stop other hosts.
+type Collector interface {
+	Layer() string // "systemd" "procsock" "fleet" "k8s" "proxy"
+	Collect(ctx context.Context, scope graph.Scope, sink graph.Sink) error
+}
+```
+
+- `systemd` (task 162): one batched probe per host (§14.5); emits `host`, `slice`, `target`, `unit`, `process`
+  nodes and `contains`, `requires`, `wants`, `triggers`, `runs` edges.
+- `procsock` (164): `ss` + `ps` per host; emits `listener` and `conn` nodes, `listens` and `connects` edges to the
+  local process; a `conn` whose peer is outside the scope becomes an `external` node.
+- `fleet` (164): pure join over the graph after `procsock`; turns `conn(a→ip:port)` + `listener(ip:port on b)` into
+  `connects` edges between processes, confidence Observed when b also has the reverse `conn`, else Inferred. Address
+  ↔ host mapping comes from inventory (`HostName`, interface addresses read by `procsock`).
+- `k8s` (165): reads through the k8s backend's informers / list calls; emits `ingress`, `service`, `endpoint`,
+  `pod`, `container`, `node`, `serviceaccount` nodes and `routes`, `selects`, `runs-on`, `as` edges; `node` →
+  `host` via the task-111 pivot.
+- `proxy` (166): `sudo -n nginx -T` and the haproxy config named by `systemctl show haproxy -p ExecStart`; parsed
+  client side (no remote templating); emits `routes` edges from `listener` to upstream addresses with
+  `server_name`/`path` attrs, confidence Configured.
+
+### 14.4 Wiring (task 161)
+
+- The session server owns one `*graph.Graph` and one scheduler. Views request a scope with
+  `tui.GraphRequestMsg{Scope}` → scheduler runs the needed collectors (singleflight per host+layer, at most
+  `graph.refresh` often) → views re-render when `Graph.Version()` changes (polled on the existing tick; no new
+  message per update).
+- `tui.Env` gains one field, `Graph GraphReader` (read-only interface: `Node`, `Out`, `In`, `Walk`, `Version`,
+  `Truncated`, `HostErrs(scope)`), and the scheduler is reached through a `tui.GraphRequester` interface. These
+  are **additions** to `tui.Env`, not changes to existing fields.
+- The standalone and demo modes build the same pieces in-process; the demo world gets a fake collector (task 160)
+  so `--demo` shows a tree and a map with no SSH.
+
+### 14.5 The systemd probe (task 162)
+
+One SSH round trip per host, built with `shq` as a sectioned batch (same section framing as the overview probe):
+
+| Section | Command |
+|---|---|
+| `units` | `systemctl list-units --all --plain --no-legend --no-pager` |
+| `show` | `systemctl show --no-pager -p Id,Slice,ControlGroup,MainPID,ActiveState,SubState,Requires,Wants,TriggeredBy,Triggers,Description '*'`† |
+| `cgls` | `systemd-cgls --no-pager --full --all` |
+| `default` | `systemctl get-default` |
+
+† `systemctl show '*'` matches loaded units on systemd ≥ 230; on hosts where it prints nothing, fall back to
+`systemctl show` with the unit names from `units` in batches of 200 (one more round trip). Output size is bounded by
+`ssh.max_output`; a truncated section sets a `truncated` attr on the host node and the view says so.
+
+### 14.6 Configuration additions (v0.3)
+
+New top-level sections; existing keys are unchanged. `Validate()` rules in brackets.
+
+```yaml
+graph:
+  max_nodes: 200000        # [> 0]
+  max_edges: 600000        # [> 0]
+  refresh: 15s             # minimum interval between collections of the same host+layer [≥ 1s]
+  prune_after: 10m         # nodes not seen for this long are dropped from live views [> refresh]
+ebpf:                      # task 174 (draft)
+  enabled: false
+  allow_readonly: false
+  max_duration: 60s        # [1s..60s]
+security:                  # tasks 180–185 (draft)
+  allowed_keys: []         # SSH key fingerprints expected on hosts; others become findings
+  sensitive: []            # selectors marking nodes as sensitive for :blast ranking
+snapshots:                 # tasks 190–192 (draft)
+  keep: 50
+  max_bytes: 268435456
+agent:                     # tasks 195–199 (draft)
+  url: http://127.0.0.1:1234/v1   # OpenAI-compatible; loopback only unless allow_remote [loopback check]
+  model: ""                       # empty = the endpoint's default/loaded model
+  allow_remote: false
+  auth: {}                        # helper command for a remote provider's key; never stored
+  max_steps: 20
+  max_tokens: 200000
+  timeout: 5m
+```
+
+### 14.7 Dependencies
+
+None. MCP (JSON-RPC over stdio), the OpenAI-compatible client (HTTP + SSE), snapshot compression (`compress/gzip`)
+and graph layout are standard library. `bpftrace` is a program on the node, not a dependency.
