@@ -10,3 +10,5 @@
 /lab/.knowledge/
 *.test
 coverage.out
+/sitrep
+/sitrep-lab

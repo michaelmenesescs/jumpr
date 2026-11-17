@@ -264,7 +264,7 @@ func (c *Client) connectLocked(contextName string) error {
 	c.built = true
 	c.buildErr = nil
 	if !c.nsExplicit {
-		c.namespace = defaultNamespace
+		c.namespace = "" // a context that names no namespace browses all of them, like k9s
 		if kc.Namespace != "" {
 			c.namespace = kc.Namespace
 		}

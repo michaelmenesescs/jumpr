@@ -82,6 +82,22 @@ func (s *Stack) Replace(v View) tea.Cmd {
 	return v.Init()
 }
 
+// Reset closes every view and makes v the only one, returning its Init
+// command. The tool rail uses it: a new tool starts a new breadcrumb trail.
+func (s *Stack) Reset(v View) tea.Cmd {
+	if v == nil {
+		return nil
+	}
+	for i, old := range s.views {
+		if old != v {
+			s.closeView(old)
+		}
+		s.views[i] = nil
+	}
+	s.views = append(s.views[:0], v)
+	return v.Init()
+}
+
 // closeView releases a view's resources: views that hold streams cancel them in
 // Close (io.Closer), so a popped journal stops following.
 func (s *Stack) closeView(v View) {

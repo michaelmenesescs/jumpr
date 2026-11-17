@@ -25,7 +25,7 @@ func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 		return KindMinion, true
 	case "salt-key", "keys":
 		return KindKey, true
-	case "salt-job", "jobs", "job":
+	case "salt-job", "salt-jobs", "sjobs":
 		return KindJobs, true
 	case "salt-sls", "states", "sls":
 		return KindSls, true
@@ -71,7 +71,7 @@ func kindSpecs() []resource.KindSpec {
 		},
 		{
 			Name:    KindJobs,
-			Aliases: []string{"jobs", "job"},
+			Aliases: []string{"salt-jobs", "sjobs"},
 			Title:   "Salt jobs",
 			Scope:   resource.ScopeGlobal,
 			Columns: []resource.Column{

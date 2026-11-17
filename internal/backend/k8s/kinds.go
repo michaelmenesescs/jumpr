@@ -54,6 +54,17 @@ func age(id, title string, width int) resource.Column {
 // kindDefs returns every kind the backend serves, in the order SPEC §8.2
 // lists them. Aliases are kubectl's.
 func kindDefs() []kindDef {
+	defs := typedKindDefs()
+	for i := range defs {
+		if p := kindPlural(defs[i].spec.Name); p != "" {
+			defs[i].spec.Aliases = append(append([]string(nil), defs[i].spec.Aliases...), p)
+		}
+	}
+	return defs
+}
+
+// typedKindDefs lists the typed kinds without their plural aliases.
+func typedKindDefs() []kindDef {
 	return []kindDef{
 		{
 			spec: resource.KindSpec{
@@ -433,6 +444,21 @@ func kindSpecs() []resource.KindSpec {
 		out[i] = def.spec
 	}
 	return out
+}
+
+// kindPlural is the kubectl resource name of a typed kind ("pods" for "pod"). The
+// typed kinds claim it, so `:pods` means core pods and never a discovered
+// resource of the same name in another API group (metrics.k8s.io has one).
+// "events" is left alone: `:events` is the Salt event bus command.
+func kindPlural(name resource.KindName) string {
+	switch n := string(name); {
+	case n == "event" || strings.HasSuffix(n, "s") && n != "ingress":
+		return ""
+	case n == "ingress":
+		return "ingresses"
+	default:
+		return n + "s"
+	}
 }
 
 // storeKey is the informer store key of one object: "namespace/name" for a

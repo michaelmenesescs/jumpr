@@ -671,22 +671,22 @@ func TestRowsSkipUnknownObject(t *testing.T) {
 // and columns that a row builder fills.
 func TestKindSpecs(t *testing.T) {
 	want := map[resource.KindName][]string{
-		"pod":                   {"po"},
-		"deployment":            {"deploy"},
-		"statefulset":           {"sts"},
-		"daemonset":             {"ds"},
-		"job":                   {},
-		"cronjob":               {"cj"},
-		"node":                  {"no"},
-		"service":               {"svc"},
+		"pod":                   {"po", "pods"},
+		"deployment":            {"deploy", "deployments"},
+		"statefulset":           {"sts", "statefulsets"},
+		"daemonset":             {"ds", "daemonsets"},
+		"job":                   {"jobs"},
+		"cronjob":               {"cj", "cronjobs"},
+		"node":                  {"no", "nodes"},
+		"service":               {"svc", "services"},
 		"endpoints":             {"ep"},
-		"ingress":               {"ing"},
-		"configmap":             {"cm"},
-		"secret":                {},
+		"ingress":               {"ing", "ingresses"},
+		"configmap":             {"cm", "configmaps"},
+		"secret":                {"secrets"},
 		"event":                 {"ev"},
-		"namespace":             {"ns"},
-		"persistentvolumeclaim": {"pvc"},
-		"persistentvolume":      {"pv"},
+		"namespace":             {"ns", "namespaces"},
+		"persistentvolumeclaim": {"pvc", "persistentvolumeclaims"},
+		"persistentvolume":      {"pv", "persistentvolumes"},
 	}
 	seen := map[string]bool{}
 	for _, spec := range kindSpecs() {

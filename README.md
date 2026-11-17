@@ -1,28 +1,137 @@
 # jumpr
 
-**It feels like k9s + isd-tui + tmux + the Salt and Chef CLIs + everyday Linux tools, and it needs
-nothing on the servers.** One central terminal interface you control, learn once, and operate any
-infrastructure through: from an alert to the hosts behind it, to the units, processes, sockets,
-logs and metrics on those hosts, to the pods on them, to the config management that put them
-there — and then to the fix, with everything you did written down.
+**One terminal multitool for operating infrastructure: Kubernetes (the way k9s browses it), systemd
+(the way isd browses it), networking, a service map and configuration checks — over plain SSH and a
+kubeconfig, with nothing installed on any server.**
 
-Agentless and client-side: SSH plus commands that already exist on RHEL 8+/Ubuntu 20.04+, a
-kubeconfig or an HTTP API when you configure one. Nothing is installed, copied or left behind on a
-node.
+```
+ jumpr  main  0:*  ctx:lab  targets:0                                        ●linux ●salt ●chef ●k8s
+ units (2) · /ssh
+ FLEET             │ UNIT            LOAD    ACTIVE  SUB      │ ssh.service
+   hosts           │ ssh.service     loaded  active  running  │  1 status  2 show  3 cat  4 journal  5 deps
+ SYSTEMD           │ ssh.socket      loaded  active  running  │ state      active (running)
+ ▸ units           │                                          │ since      2026-11-12 18:19:18 (4d 3h)
+   timers          │                                          │ main pid   5910
+   journal         │                                          │ memory     11.6 MiB
+ KUBERNETES        │                                          │ unit file  enabled  /usr/lib/systemd/…
+   pods            │                                          │
+   services        │                                          │ ── systemctl status ──
+ NETWORK           │                                          │ * ssh.service - OpenBSD Secure Shell server
+   sockets …       │                                          │      Loaded: loaded (…; enabled)
+ SERVICE MAP       │                                          │
+ CHECKS            │                                          │
+ <enter> open  <j> journal  </> filter  <tab> tools  <:> cmd  <?> help
+```
+
+Three columns, always:
+
+- **Tool rail (left).** Every tool and its views, visible. `tab` moves into it, `j`/`k` and `enter`
+  open a view, `tab` or `esc` goes back. An entry nothing answers for (no cluster, no Salt) is faint.
+- **List (middle).** The k9s-style table: `/` filter, `ctrl+f` fuzzy, sort, marks, `x` actions.
+- **Live preview (right).** What `enter` would open for the selected row, loading as the cursor
+  rests: a unit's status/journal/cat/deps, a host's overview, a pod's describe/YAML/events. `enter`
+  takes it full width. `ctrl+p` hides the preview, `ctrl+n` the rail, `K` shows the knowledge panel.
+
+Everything in the rail is also a `:` command, so nothing is only reachable by mouse-memory.
+
+## The tools
+
+| Tool | Views | Notes |
+|---|---|---|
+| **Fleet** | `:hosts`, `:targets` | Hosts from `ssh_config`, Salt, Chef, k8s nodes; load, memory, PSI, failed units. |
+| **Systemd** | `:units`, `:timers`, `:journal`, `:process` | isd-style: filter the unit list, read status/journal/unit file/dependencies beside it. |
+| **Kubernetes** | `:pods`, `:deployments`, `:services`, `:ingresses`, `:nodes`, `:event`, every CRD | kubectl names and short names (`:po`, `:svc`, `:deploy`); all namespaces unless the context or `:ns` says otherwise; `enter` = describe / YAML / events. |
+| **Network** | `:sockets`, `:interfaces`, `:routes`, `:neigh`, `:probe firewall`, `:probe connections`, `:endpoints`, `:networkpolicies` | Plus two active checks, below. |
+| **Service map** | `:map`, `:map k8s`, `:map hosts` | What talks to what; see below. |
+| **Checks** | `:salt state` (dry run, grouped by identical diff), `:chef drift`, `:probe` | Configuration drift from the tools that own the configuration. |
+
+### Network checks
+
+```
+:reach db.example.internal:5432 [--tls] [--http]
+```
+From every target host (or the whole inventory when no targets are set): resolve the name, ask the
+kernel for the route, open one TCP connection, optionally read the TLS certificate dates and the
+HTTP status. Results are grouped by identical output, so "nine hosts can, one cannot" is one screen.
+
+```
+:trace web-01 db-01 5432
+```
+One path, both ends, and a verdict. The far end reports what listens on the port (and under which
+address), which firewall rules name it, and its real address — an inventory name is often an SSH
+alias DNS has never heard of. Then the near end resolves, routes and connects. The last line says
+where it breaks: name resolution, routing, nothing listening, **bound to loopback only**, or
+filtered in between.
+
+### Service map
+
+`:map` draws one tree per entry point, and every edge says how it is known:
+
+```
+Ingress shop/shop  shop.example.internal
+└─▶ Service shop/web  :80   [declared · ingress rule · shop.example.internal/]
+    └─▶ Deployment shop/web  2/2 pods ready  :8080/TCP   [declared · selector · app=web]
+        └─▶ Deployment shop/cart  :8080/TCP   [observed · hubble · 124 forwarded, 2 DROPPED]
+
+Unit cart.service on web-01
+└─▶ Unit postgresql@16-main.service on db-01  :5432/TCP   [observed · socket · 2 forwarded]
+```
+
+- **With Cilium:** jumpr asks each Cilium agent pod for its recent Hubble flows through the pod exec
+  API (`hubble observe`), and draws workload → workload edges with forwarded and dropped counts.
+- **Without Cilium:** the same map from what every cluster has — Ingress rules, Service selectors,
+  and containers whose environment or arguments name another Service. These edges are marked
+  *declared*: configuration that says traffic should flow, not traffic that was seen.
+- **Hosts:** each host lists its sockets once. A listening socket names the systemd unit that owns
+  it; an established connection to another host's listener is an edge between the two units.
+
+Nothing is installed anywhere and nothing is written; the map is as fresh as the moment you ask.
+
+## Words
+
+jumpr uses each system's own word and never borrows one for another:
+
+| Word | Means | Never means |
+|---|---|---|
+| **host** | a machine jumpr reaches over SSH | a Kubernetes node (though `h` pivots from a node to its host) |
+| **node** | a Kubernetes node (`:nodes`); Chef's are `:chef-nodes` | an SSH host |
+| **unit** | a systemd unit (`nginx.service`, `ssh.socket`) | a Kubernetes anything |
+| **service** | a Kubernetes Service object (`:services`) | a systemd `.service` — that is a unit |
+| **pod / container** | a pod, and a container inside it | a process on a host |
+| **process** | a process on a host; in the map, only when its unit is unknown | |
+| **socket** | a listening or connected socket on a host | a systemd `.socket` unit — that is a unit |
+| **minion / job** | Salt's: `:minions`, `:salt-jobs` | a Kubernetes Job (`:jobs`) |
+
+Kubernetes owns the bare kubectl names. Salt and Chef kinds are prefixed (`:salt-jobs`,
+`:chef-nodes`, `:chef-roles`, `:chef-envs`) so a CRD or a core kind can never be shadowed.
 
 ## Quick start
 
 ```sh
-tar xzf jumpr-v1.2.3-darwin-arm64.tar.gz && install -m 0755 jumpr ~/bin/jumpr
+make build && install -m 0755 jumpr ~/.local/bin/jumpr
 jumpr --demo                 # the built-in fake fleet: the interface, no configuration
 jumpr init                   # ~/.config/jumpr/{config,connections,policy,keymap}.yaml
-$EDITOR ~/.config/jumpr/config.yaml   # ssh.config_files: [~/.ssh/config]
+$EDITOR ~/.config/jumpr/config.yaml   # ssh.config_files, kubernetes.kubeconfig, salt.master …
 jumpr doctor                 # checks config, SSH, agent, bastions, backends
-jumpr                        # :hosts role=web  →  enter  →  u/j/p/s  →  x  (actions)
+jumpr                        # tab → pick a tool; or :pods, :units, :map, :trace a b 443
 ```
 
-`:kind selector` is the interface, `C-a` is the tmux-style prefix, `?` is help. Detach with
-`C-a d`; the session keeps running and `jumpr` attaches again.
+`C-a` is the tmux-style prefix (panes, windows, detach with `C-a d`), `?` is help.
+
+## State of this build (2026-11-16)
+
+Verified: `make check` green (gofmt, vet, 44 packages of tests); the shell, Kubernetes, units,
+`:map`, `:trace` and `:reach` exercised by hand against the OrbStack lab (10 hosts, Salt, Chef, k3s).
+
+Known gaps, honestly:
+
+- **Hubble edges are untested against a live Cilium cluster** — the lab's k3s runs flannel. The flow
+  parser and the graph are unit-tested with recorded `hubble observe -o jsonpb` lines; the exec
+  path to the agent pod has not met a real agent.
+- The service map is a text tree, not a drawn graph, and it is a snapshot (no live refresh).
+- `:reach` and `:trace` are commands with typed arguments, not forms.
+- Kubernetes lists show a stray SSH error row for an unreachable inventory host.
+- The docs below this section predate the rail and still describe the `:`-only interface.
 
 ## Documentation
 
@@ -137,7 +246,7 @@ any node.
 ## Commands worth knowing
 
 ```
-:hosts [selector]      :units :proc :sockets :journal :alerts :minions :keys :jobs
+:hosts [selector]      :units :proc :sockets :journal :alerts :minions :keys :salt-jobs
 :probe [--via ssh|salt] <name>
 :run [--sudo] [--via ssh|salt] [--no-rollout] <command…>
 :salt state [sls]      # dry run on the session targets, grouped by identical diff
@@ -156,7 +265,7 @@ the only environment the `TestLab…` tests talk to.
 go run ./cmd/@@ up                       # create + provision (idempotent)
 go run ./cmd/@@ status
 make build
-./jumpr --config-dir lab/jumpr         # M4 demo: :minions → :jobs → :hosts salt.role=web
+./jumpr --config-dir lab/jumpr         # M4 demo: :minions → :salt-jobs → :hosts salt.role=web
                                          #          → :salt state → x apply → :run --via salt 'uptime'
 make lab-test                            # lab-only suite; skips when the lab is down
 go run ./cmd/@@ down                     # stop the lab

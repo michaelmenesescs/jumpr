@@ -46,6 +46,14 @@ type ViewPane struct {
 	panel   *sidePanel
 	panelOn bool
 	w       int
+
+	// rail is the tool rail on the left; resetNext makes the next view the
+	// rail opened replace the whole stack instead of piling onto it.
+	rail      *navRail
+	railOn    bool
+	resetNext bool
+	// preview is the live detail of the selected row, right of a list.
+	preview preview
 }
 
 var _ mux.Content = (*ViewPane)(nil)
@@ -63,7 +71,9 @@ func NewViewPane(env *Env, id mux.PaneID, ctx context.Context, root View) *ViewP
 		ctx:     pctx,
 		cancel:  cancel,
 		stack:   NewStack(root),
-		panelOn: true,
+		rail:    newNavRail(env),
+		railOn:  true,
+		preview: preview{on: true},
 	}
 	if root := knowledgeRoot(env); root != "" {
 		p.panel = newSidePanel(env, root)
@@ -87,6 +97,7 @@ func (p *ViewPane) Init() tea.Cmd {
 	if top != nil {
 		cmd = mux.ForPane(p.id, top.Init())
 	}
+	cmd = tea.Batch(cmd, mux.ForPane(p.id, p.trackPreview()))
 	if p.panel == nil {
 		return cmd
 	}
@@ -103,6 +114,14 @@ func (p *ViewPane) Update(msg tea.Msg) (mux.Content, tea.Cmd) {
 	if r, ok := msg.(knowledgeRememberMsg); ok {
 		return p, mux.ForPane(p.id, p.rememberCmd(r))
 	}
+	if cmd, handled := p.handlePreviewMsg(msg); handled {
+		return p, mux.ForPane(p.id, cmd)
+	}
+	if k, ok := msg.(tea.KeyMsg); ok {
+		if cmd, handled := p.handleShellKey(k); handled {
+			return p, mux.ForPane(p.id, cmd)
+		}
+	}
 	if p.panel != nil {
 		if cmd, handled := p.panel.handleMsg(msg); handled {
 			return p, mux.ForPane(p.id, cmd)
@@ -114,18 +133,79 @@ func (p *ViewPane) Update(msg tea.Msg) (mux.Content, tea.Cmd) {
 		}
 	}
 	var cmd tea.Cmd
-	if q, ok := msg.(OpenQueryMsg); ok {
-		v, err := p.viewFor(q.Query)
+	switch m := msg.(type) {
+	case OpenQueryMsg:
+		v, err := p.viewFor(m.Query)
 		if err != nil {
 			cmd = Flash(FlashError, "%v", err)
 		} else {
 			p.attach(v)
-			cmd = p.stack.Push(v)
+			cmd = p.open(v)
 		}
-	} else {
+	case PushViewMsg:
+		if p.resetNext && m.View != nil {
+			p.attach(m.View)
+			cmd = p.open(m.View)
+		} else {
+			cmd = p.stack.Update(msg)
+		}
+	default:
 		cmd = p.stack.Update(msg)
 	}
+	if pc := p.trackPreview(); pc != nil {
+		cmd = tea.Batch(cmd, pc)
+	}
 	return p, mux.ForPane(p.id, p.trackSubject(cmd))
+}
+
+// open pushes v, or makes it the only view of the stack when the tool rail
+// asked for it: choosing a tool starts a fresh trail of breadcrumbs.
+func (p *ViewPane) open(v View) tea.Cmd {
+	if p.resetNext {
+		p.resetNext = false
+		return p.stack.Reset(v)
+	}
+	return p.stack.Push(v)
+}
+
+// handleShellKey gives the rail its keys: tab enters it, and while it has
+// focus it owns every key. ctrl+p toggles the preview, ctrl+n the rail.
+func (p *ViewPane) handleShellKey(k tea.KeyMsg) (tea.Cmd, bool) {
+	if p.rail == nil {
+		return nil, false
+	}
+	key := k.String()
+	if p.rail.focused {
+		cmd, opened := p.rail.handleKey(k)
+		if opened {
+			p.resetNext = true
+		}
+		return cmd, true
+	}
+	// Any key typed into the view ends a rail request that opened nothing.
+	p.resetNext = false
+	if p.Capturing() || (p.panel != nil && p.panel.focused) {
+		return nil, false
+	}
+	switch key {
+	case "tab":
+		if p.railVisible() {
+			p.rail.focused = true
+			return nil, true
+		}
+	case "ctrl+p":
+		p.preview.on = !p.preview.on
+		return tea.Batch(p.trackPreview(), Flash(FlashInfo, "preview %s", onOff(p.preview.on))), true
+	case "ctrl+n":
+		p.railOn = !p.railOn
+		return Flash(FlashInfo, "tool rail %s", onOff(p.railOn)), true
+	}
+	return nil, false
+}
+
+// railVisible reports whether the rail fits and is switched on.
+func (p *ViewPane) railVisible() bool {
+	return p.rail != nil && p.railOn && p.w >= railMinWidth
 }
 
 // trackSubject asks the panel to re-match when the top view's subject changed,
@@ -158,15 +238,10 @@ func (p *ViewPane) handlePanelKey(k tea.KeyMsg) (tea.Cmd, bool) {
 	if p.env != nil && p.env.Keys != nil {
 		keys = p.env.Keys
 	}
-	if key == "tab" && p.panelVisible() {
-		p.panel.focused = true
-		return nil, true
-	}
 	if keys.Knowledge.Matches(key) {
+		// K shows the panel and moves into it; K again hides it.
 		p.panelOn = !p.panelOn
-		if !p.panelOn {
-			p.panel.focused = false
-		}
+		p.panel.focused = p.panelOn && p.w >= panelMinWidth
 		return Flash(FlashInfo, "knowledge panel %s", onOff(p.panelOn)), true
 	}
 	return nil, false
@@ -224,13 +299,30 @@ func (p *ViewPane) View(w, h int) string {
 	if h == 1 {
 		return line
 	}
-	if !p.panelVisible() {
-		return line + "\n" + p.stack.Render(w, h-1)
+	bh := h - 1
+	mainW := w
+	var left, right string
+	if p.railVisible() {
+		left = p.rail.Render(railWidth, bh)
+		mainW -= railWidth
 	}
-	body := w - panelWidth
-	main := p.stack.Render(body, h-1)
-	side := p.panel.Render(panelWidth, h-1)
-	return line + "\n" + joinRows(main, side, h-1)
+	switch {
+	case p.panelVisible():
+		right = p.panel.Render(panelWidth, bh)
+		mainW -= panelWidth
+	case p.previewVisible(mainW):
+		pw := mainW * 55 / 100
+		right = p.renderPreview(pw, bh)
+		mainW -= pw
+	}
+	body := p.stack.Render(mainW, bh)
+	if left != "" {
+		body = joinRows(left, body, bh)
+	}
+	if right != "" {
+		body = joinRows(body, right, bh)
+	}
+	return line + "\n" + body
 }
 
 // joinRows puts two equally tall blocks side by side.
@@ -349,6 +441,7 @@ func (p *ViewPane) State() mux.ContentState {
 
 // Close cancels the pane context, which stops every stream the views started.
 func (p *ViewPane) Close() error {
+	p.preview.close()
 	p.cancel()
 	return nil
 }
@@ -363,6 +456,9 @@ func (p *ViewPane) Capturing() bool {
 
 // Hints are the top view's hints.
 func (p *ViewPane) Hints() []KeyHint {
+	if p.rail != nil && p.rail.focused {
+		return p.rail.hints()
+	}
 	if top := p.stack.Top(); top != nil {
 		return top.Hints()
 	}
@@ -381,7 +477,7 @@ func (p *ViewPane) Subject() Subject {
 // pane it was wrapped for. The mux model installs it as its root predicate.
 func IsRootMsg(msg tea.Msg) bool {
 	switch msg.(type) {
-	case FlashMsg, OpenDialogMsg, CloseDialogMsg, RunCommandMsg, WindowChangedMsg, mux.OpMsg, tea.QuitMsg:
+	case FlashMsg, OpenDialogMsg, CloseDialogMsg, RunCommandMsg, OpenCommandBarMsg, WindowChangedMsg, mux.OpMsg, tea.QuitMsg:
 		return true
 	}
 	return false

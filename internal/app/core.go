@@ -1189,7 +1189,15 @@ func (c *Core) wireExtraBackends() {
 		} else if dyn != nil {
 			reg = dyn
 		}
-		if rerr := c.Registry.Register(reg); rerr != nil {
+		rerr := c.Registry.Register(reg)
+		if rerr != nil && dyn != nil {
+			// A discovered kind or alias that another backend already owns
+			// must not cost the whole cluster: fall back to the typed kinds.
+			warn("kubernetes", rerr)
+			dyn = nil
+			rerr = c.Registry.Register(b)
+		}
+		if rerr != nil {
 			warn("kubernetes", rerr)
 		} else {
 			c.k8s = true

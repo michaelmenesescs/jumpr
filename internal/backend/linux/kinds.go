@@ -84,7 +84,7 @@ func kindSpecs() []resource.KindSpec {
 			Title:   "Hosts",
 			Scope:   resource.ScopeGlobal,
 			Columns: []resource.Column{
-				{ID: "host", Title: "HOST", Width: 16},
+				{ID: "host", Title: "HOST", Width: 26},
 				{ID: "load", Title: "LOAD", Width: 6, Align: resource.AlignRight, Kind: resource.ColNumber},
 				{ID: "mem", Title: "MEM%", Width: 6, Align: resource.AlignRight, Kind: resource.ColPercent},
 				{ID: "psi_io", Title: "PSI-IO", Width: 7, Align: resource.AlignRight, Kind: resource.ColPercent},
@@ -210,7 +210,7 @@ func kindSpecs() []resource.KindSpec {
 		},
 		{
 			Name:    KindInterface,
-			Aliases: []string{"interfaces", "if", "ifaces", "ip"},
+			Aliases: []string{"interfaces", "if", "ifaces"},
 			Title:   "Interfaces",
 			Scope:   resource.ScopeHost,
 			Columns: []resource.Column{

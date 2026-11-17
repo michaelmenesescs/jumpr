@@ -435,7 +435,7 @@ func (b *jobStubBackend) Health(context.Context) backend.Health {
 func jobsTestSpec() resource.KindSpec {
 	return resource.KindSpec{
 		Name:    salt.KindJobs,
-		Aliases: []string{"jobs", "job"},
+		Aliases: []string{"salt-jobs", "sjobs"},
 		Title:   "Salt jobs",
 		Scope:   resource.ScopeGlobal,
 		Columns: []resource.Column{

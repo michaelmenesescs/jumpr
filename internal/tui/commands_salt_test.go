@@ -71,7 +71,7 @@ func (f *saltFake) Kinds() []resource.KindSpec {
 		},
 		{
 			Name:    salt.KindJobs,
-			Aliases: []string{"jobs", "job"},
+			Aliases: []string{"salt-jobs", "sjobs"},
 			Title:   "Salt jobs",
 			Scope:   resource.ScopeGlobal,
 			Columns: []resource.Column{{ID: "jid", Title: "JID", Width: 22}},
@@ -307,8 +307,8 @@ func TestSaltKindsResolveAliases(t *testing.T) {
 	}{
 		{"minions", salt.KindMinion, nil},
 		{"keys", salt.KindKey, nil},
-		{"jobs", salt.KindJobs, nil},
-		{"jobs --arg fun=state.", salt.KindJobs, map[string]string{"fun": "state."}},
+		{"salt-jobs", salt.KindJobs, nil},
+		{"sjobs --arg fun=state.", salt.KindJobs, map[string]string{"fun": "state."}},
 	}
 	for _, c := range cases {
 		t.Run(c.line, func(t *testing.T) {

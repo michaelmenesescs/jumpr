@@ -171,6 +171,12 @@ var _ tea.Model = (*Root)(nil)
 // the Bubble Tea key string of the session prefix ("ctrl+a"); empty means the
 // default.
 func NewRoot(env *Env, cmds *Commands, defaultFactory Factory, start resource.Query, prefixKey string) *Root {
+	if env != nil && env.RailCommands == nil && cmds != nil {
+		env.RailCommands = func(name string) bool {
+			_, ok := cmds.Lookup(name)
+			return ok
+		}
+	}
 	if prefixKey == "" {
 		prefixKey = defaultPrefix
 	}
@@ -1080,6 +1086,11 @@ func (r *Root) handleMsg(msg tea.Msg) tea.Cmd {
 		return r.openRunList()
 	case OpenDialogMsg:
 		r.dialog = m.Dialog
+		return nil
+	case OpenCommandBarMsg:
+		if r.bar != nil {
+			r.bar.Open(m.Prefill)
+		}
 		return nil
 	case RunCommandMsg:
 		if r.cmds == nil {

@@ -57,6 +57,10 @@ type CloseDialogMsg struct{}
 // RunCommandMsg executes a `:` command line as if typed.
 type RunCommandMsg struct{ Line string }
 
+// OpenCommandBarMsg opens the command bar with Prefill typed in, for a
+// command that needs arguments only the user knows (`:trace a b 443`).
+type OpenCommandBarMsg struct{ Prefill string }
+
 // Session state changes (root updates Env.Session, then rebroadcasts to all panes)
 
 // TargetsChangedMsg reports a new target set for the session. The root stores

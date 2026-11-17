@@ -360,6 +360,12 @@ func (c *Core) buildSession(s *Session) (*tui.Env, *tui.Commands, *tui.Root, err
 	if err := tui.RegisterProbeCommands(cmds, fanoutOpener); err != nil {
 		return nil, nil, nil, err
 	}
+	if err := tui.RegisterNetCommands(cmds, fanoutOpener); err != nil {
+		return nil, nil, nil, err
+	}
+	if err := tui.RegisterMapCommand(cmds); err != nil {
+		return nil, nil, nil, err
+	}
 	if err := tui.RegisterSaltCommands(cmds, s.bus); err != nil {
 		return nil, nil, nil, err
 	}

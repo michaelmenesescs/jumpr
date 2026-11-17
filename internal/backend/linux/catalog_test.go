@@ -44,6 +44,7 @@ func TestCatalogNames(t *testing.T) {
 	want := []string{
 		"failed-units", "uptime", "kernel", "os",
 		"listeners", "disk-full", "time-sync", "salt-minion",
+		"firewall", "connections",
 	}
 	probes := Catalog()
 	if len(probes) != len(want) {

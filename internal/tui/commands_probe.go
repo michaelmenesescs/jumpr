@@ -96,9 +96,9 @@ func runProbe(env *Env, args string, open FanoutOpener) tea.Cmd {
 	if !ok {
 		return Flash(FlashError, "unknown probe %q; :probe lists them", name)
 	}
-	hosts := sessionHosts(env)
+	hosts := probeHosts(env)
 	if len(hosts) == 0 {
-		return Flash(FlashError, "no targets; try :hosts <selector> first")
+		return Flash(FlashError, "no hosts to run on: the inventory is empty")
 	}
 	if open == nil {
 		return Flash(FlashError, "no fan-out view for probes")

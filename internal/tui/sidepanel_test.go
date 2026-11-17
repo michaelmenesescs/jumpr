@@ -106,6 +106,8 @@ func kbPane(t *testing.T, env *Env, subject Subject) (*ViewPane, *paneView) {
 	root := &paneView{crumb: "hosts", line: "host", subject: subject}
 	p := NewViewPane(env, 1, context.Background(), root)
 	t.Cleanup(func() { _ = p.Close() })
+	// These tests are about the panel, which is off until K asks for it.
+	p.panelOn = true
 	pump(t, p, p.Init())
 	return p, root
 }
@@ -245,12 +247,11 @@ func TestSidePanelTabFocusOpensNote(t *testing.T) {
 	const w, h = 110, 16
 	p.View(w, h) // the panel has to be drawn once before tab can find it
 
-	_, cmd := p.Update(tea.KeyMsg{Type: tea.KeyTab})
-	if cmd != nil {
-		t.Fatalf("tab produced %T, want no command", cmd())
-	}
+	// K hides the panel; K again shows it and moves the keyboard into it.
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("K")})
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("K")})
 	if !p.panel.focused {
-		t.Fatal("tab did not move focus into the panel")
+		t.Fatal("K did not move focus into the panel")
 	}
 
 	// While focused, the panel owns the keys: a movement key never reaches the
@@ -263,7 +264,7 @@ func TestSidePanelTabFocusOpensNote(t *testing.T) {
 	}
 
 	// enter opens the note in a text view.
-	_, cmd = p.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	msg := runPaneCmd(t, cmd)
 	push, ok := msg.(PushViewMsg)
 	if !ok {
@@ -287,11 +288,12 @@ func TestSidePanelTabFocusOpensNote(t *testing.T) {
 		t.Fatalf("stack length = %d, want the view back", p.stack.Len())
 	}
 
-	// tab in, tab out.
+	// K, K in; tab out.
 	p.View(w, h)
-	p.Update(tea.KeyMsg{Type: tea.KeyTab})
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("K")})
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("K")})
 	if !p.panel.focused {
-		t.Fatal("tab did not focus the panel again")
+		t.Fatal("K did not focus the panel again")
 	}
 	p.Update(tea.KeyMsg{Type: tea.KeyTab})
 	if p.panel.focused {

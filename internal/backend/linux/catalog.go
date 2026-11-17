@@ -43,6 +43,13 @@ const (
 	// percentage is matched as a pattern rather than compared with `>`, which
 	// keeps the catalog free of redirection characters (see the catalog test).
 	cmdCatalogDiskFull = "df -PT -x tmpfs -x devtmpfs | awk 'NR!=1 && int($6) ~ /^(8[5-9]|9[0-9]|100)$/ {print $7, $6}'"
+	// cmdCatalogFirewall prints the active rule set with whichever tool the
+	// host has. `command -v` prints the tool's path first, which says which
+	// packet filter the rules below belong to.
+	cmdCatalogFirewall = "if command -v nft; then nft list ruleset; elif command -v iptables-save; then iptables-save; else echo no nft or iptables on this host; fi"
+	// cmdCatalogConnections is every established TCP connection as
+	// "local peer", the raw material of the host side of the service map.
+	cmdCatalogConnections = "ss -H -tn state established | awk '{print $3, $4}' | sort"
 	// cmdCatalogTimeSync is systemd's NTP synchronization verdict.
 	cmdCatalogTimeSync = "timedatectl show -p NTPSynchronized --value"
 	// cmdCatalogSaltMinion is the salt-minion service state.
@@ -95,6 +102,17 @@ func Catalog() []Probe {
 			Name: "salt-minion",
 			Help: "salt-minion service state",
 			Cmd:  cmdCatalogSaltMinion,
+		},
+		{
+			Name: "firewall",
+			Help: "the packet filter rule set: nftables, else iptables",
+			Cmd:  cmdCatalogFirewall,
+			Sudo: true,
+		},
+		{
+			Name: "connections",
+			Help: "established TCP connections: local and peer address",
+			Cmd:  cmdCatalogConnections,
 		},
 	}
 }

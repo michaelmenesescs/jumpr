@@ -518,11 +518,41 @@ func (t *Table) open() tea.Cmd {
 	if t.cursor < 0 || t.cursor >= len(t.view) {
 		return tui.Flash(tui.FlashInfo, "no rows")
 	}
-	links := t.b.Links(t.view[t.cursor])
+	row := t.view[t.cursor]
+	// A Kubernetes object opens on its describe / YAML / events screen.
+	if ob, ok := t.b.(K8sObjectBackend); ok {
+		return tui.Push(NewK8sObject(t.env, ob, row.Ref))
+	}
+	links := t.b.Links(row)
 	if len(links) == 0 {
 		return tui.Flash(tui.FlashInfo, "no drill-in for %s", t.spec.Name)
 	}
 	return tui.OpenQuery(links[0].To)
+}
+
+// PreviewView is the describe screen of the selected Kubernetes object, for
+// the pane's preview (tui.ViewPreviewer).
+func (t *Table) PreviewView() (tui.View, string, bool) {
+	ob, ok := t.b.(K8sObjectBackend)
+	if !ok || t.cursor < 0 || t.cursor >= len(t.view) {
+		return nil, "", false
+	}
+	row := t.view[t.cursor]
+	return NewK8sObject(t.env, ob, row.Ref), row.Ref.String(), true
+}
+
+// PreviewQuery is the query `enter` would open for the selected row, so the
+// pane can show it beside the list (tui.Previewer).
+func (t *Table) PreviewQuery() (resource.Query, string, bool) {
+	if t.cursor < 0 || t.cursor >= len(t.view) {
+		return resource.Query{}, "", false
+	}
+	row := t.view[t.cursor]
+	links := t.b.Links(row)
+	if len(links) == 0 || links[0].To.Kind == "" {
+		return resource.Query{}, "", false
+	}
+	return links[0].To, row.Ref.String(), true
 }
 
 // linkRefuser is a backend that explains why a row's pivot cannot be taken.
@@ -826,8 +856,32 @@ func (t *Table) columns(total int) ([]render.TableColumn, []int) {
 			AlignRight: c.Align == resource.AlignRight,
 		}
 	}
+	// In a narrow list (the preview takes half the pane) the fixed columns
+	// can leave a flexible NAME column four cells. Trailing fixed columns
+	// give up their width first, so the name stays readable.
+	need, flex := 0, 0
+	for _, c := range cols {
+		if c.Width > 0 {
+			need += c.Width + 1
+		} else {
+			flex++
+		}
+	}
+	for i := len(cols) - 1; i > 0 && flex > 0 && total-need < flex*minFlexName; i-- {
+		if cols[i].Width > minSqueezed {
+			need -= cols[i].Width - minSqueezed
+			cols[i].Width = minSqueezed
+		}
+	}
 	return cols, render.ColumnWidths(cols, total)
 }
+
+const (
+	// minFlexName is the least a flexible column should keep in a narrow list.
+	minFlexName = 26
+	// minSqueezed is what a trailing fixed column shrinks to when it must.
+	minSqueezed = 3
+)
 
 // header returns the column layout for width w and caches the rendered header
 // line, so Render does no layout work when only the data changed. One cell is
@@ -954,8 +1008,15 @@ func staleCount(rows []resource.Resource) int {
 // plural names a kind: host → hosts.
 func plural(kind resource.KindName) string {
 	s := string(kind)
-	if s == "" || strings.HasSuffix(s, "s") {
+	switch {
+	case s == "":
 		return s
+	case strings.HasSuffix(s, "ss"):
+		return s + "es" // process, ingress
+	case strings.HasSuffix(s, "s"):
+		return s // endpoints
+	case strings.HasSuffix(s, "cy"):
+		return strings.TrimSuffix(s, "y") + "ies" // networkpolicy
 	}
 	return s + "s"
 }
@@ -1061,7 +1122,8 @@ func (t *Table) Hints() []tui.KeyHint {
 	hints = append(hints, tui.KeyHint{Key: firstKey(t.keys.Open), Text: "open"})
 	if t.cursor >= 0 && t.cursor < len(t.view) {
 		for _, l := range t.b.Links(t.view[t.cursor]) {
-			if l.Key != "" {
+			// The first link is what open does; do not list its key twice.
+			if l.Key != "" && l.Key != hints[0].Key {
 				hints = append(hints, tui.KeyHint{Key: l.Key, Text: l.Label})
 			}
 		}

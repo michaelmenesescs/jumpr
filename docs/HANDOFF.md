@@ -3,6 +3,44 @@
 _Last updated: 2026-11-14 (consolidated on the laptop, renamed to jumpr, v0.3 planned — read "v0.3 — start here")_
 
 
+## UI rework — 2026-11-16 (read this first)
+
+The user rejected the `:`-only table UI ("not what I'm expecting") and asked for one multitool: k8s + isd-style
+systemd + networking + configuration checks, with a sidebar-and-preview layout, a service map (Cilium when
+present, something useful when not) and the right word for every thing. This was done directly at the user's
+request, outside the task sequence; `make check` is green.
+
+**What changed**
+
+- **Shell** (`internal/tui/navrail.go`, `preview.go`, `viewpane.go`, `stack.go`): a tool rail on the left
+  (`tab` in/out, `ctrl+n` toggles), the list in the middle, a live preview of the selected row on the right
+  (`ctrl+p` toggles; `Previewer` / `ViewPreviewer` are optional interfaces, the frozen `View` is untouched). A
+  rail entry runs a `:` command and resets the pane's stack. The knowledge panel is off until `K`.
+- **Kubernetes was not loading at all**: Salt's `job`, Chef's `node`/`roles`/`envs` and linux's `ip` aliases
+  collided with k8s kinds, and one collision dropped the whole backend. Salt and Chef aliases are now prefixed
+  (`salt-jobs`/`sjobs`, `chef-nodes`/`cnodes`, `chef-roles`, `chef-envs`); if discovery still collides, the
+  typed kinds register instead of nothing (`internal/app/core.go`). Typed kinds claim their kubectl plurals
+  (`:pods` was resolving to metrics.k8s.io). A context without a namespace browses all namespaces. `enter` on a
+  k8s row opens describe/YAML/events (`NewK8sObject` existed but nothing opened it).
+- **Network**: `:reach`, `:trace` (`internal/tui/commands_net.go`), probes `firewall` and `connections`;
+  `:probe` falls back to the whole inventory when no targets are set.
+- **Service map**: `internal/svcmap` (graph + text rendering), `internal/backend/k8s/svcmap.go` (declared edges
+  + Hubble flows through pod exec), `internal/tui/commands_map.go` (`:map`, host edges from sockets).
+- **Words**: README "Words" table is the rule. Banner plurals fixed (`processes`, `ingresses`).
+
+**Contract notes (BUILD-PLAN is frozen; these are additions, not changes):** `tui.Env.RailCommands`,
+`tui.OpenCommandBarMsg`, `Stack.Reset`, `tui.Previewer`, `tui.ViewPreviewer`, package `internal/svcmap`,
+`k8s.Backend.ServiceMap`. Kind **aliases** changed (see above) — SPEC/USER-GUIDE/KEYS still show the old ones.
+
+**Not done / next**
+
+1. Hubble path is untested live — lab request **L8**: a Cilium + Hubble k3s (or kind) cluster.
+2. Pods list shows a stray SSH host error row (`10.0.3.5 timeout`): a host-scoped error leaks into a k8s list.
+3. Service map: live refresh, a drawn graph, selecting a vertex to open it.
+4. Forms for `:reach` / `:trace`; a host picker for host-scoped rail entries (they use the last host / targets).
+5. Table crumbs still use singular kind names (`pod (9)`); 30 tests pin them.
+6. USER-GUIDE, KEYS and SPEC need the rail, preview, new commands and new aliases.
+
 ## v0.3 — start here (2026-11-14)
 
 **Where the code lives now:** the laptop (`~/workspace/sitrep`) is canonical. Commit `898b9da` = the mini's `main`

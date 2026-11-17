@@ -74,6 +74,10 @@ type Env struct {
 	// grouped results view saves the command there as a plugin (task 117);
 	// empty means saving is refused and `:plugins` lists nothing.
 	PluginDir string
+	// RailCommands reports whether a `:` command of that name is registered.
+	// The tool rail uses it to draw entries nothing answers for as faint.
+	// The root sets it; nil means only registered kinds count.
+	RailCommands func(name string) bool
 }
 
 // SaltOptions is the part of the Salt configuration the UI needs: the target

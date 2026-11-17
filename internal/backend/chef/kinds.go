@@ -17,11 +17,11 @@ const (
 // kind. Unknown kinds report false.
 func normalizeKind(kind resource.KindName) (resource.KindName, bool) {
 	switch strings.ToLower(strings.TrimSpace(string(kind))) {
-	case "chef-node", "nodes", "node":
+	case "chef-node", "chef-nodes", "cnodes":
 		return KindNode, true
-	case "chef-role", "roles", "role":
+	case "chef-role", "chef-roles", "croles":
 		return KindRole, true
-	case "chef-env", "envs", "env", "environments", "environment":
+	case "chef-env", "chef-envs", "cenvs":
 		return KindEnv, true
 	default:
 		return "", false
@@ -34,7 +34,7 @@ func kindSpecs() []resource.KindSpec {
 	return []resource.KindSpec{
 		{
 			Name:    KindNode,
-			Aliases: []string{"nodes", "node"},
+			Aliases: []string{"chef-nodes", "cnodes"},
 			Title:   "Chef nodes",
 			Scope:   resource.ScopeGlobal,
 			Columns: []resource.Column{
@@ -50,7 +50,7 @@ func kindSpecs() []resource.KindSpec {
 		},
 		{
 			Name:    KindRole,
-			Aliases: []string{"roles", "role"},
+			Aliases: []string{"chef-roles", "croles"},
 			Title:   "Chef roles",
 			Scope:   resource.ScopeGlobal,
 			Columns: []resource.Column{
@@ -61,7 +61,7 @@ func kindSpecs() []resource.KindSpec {
 		},
 		{
 			Name:    KindEnv,
-			Aliases: []string{"envs", "env", "environments", "environment"},
+			Aliases: []string{"chef-envs", "cenvs"},
 			Title:   "Chef environments",
 			Scope:   resource.ScopeGlobal,
 			Columns: []resource.Column{
